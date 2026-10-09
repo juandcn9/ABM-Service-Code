@@ -34,6 +34,7 @@ def checksum(sql: str) -> str:
     return hashlib.sha256(sql.replace("\r\n", "\n").encode("utf-8")).hexdigest()
 
 
+_COMMENTS = re.compile(r"--[^\n]*|/\*.*?\*/", re.DOTALL)
 # a migration runs inside the runner's transaction, so it may not begin, end, or nest one
 _TRANSACTION_CONTROL = re.compile(
     r"\s*(?:--[^\n]*\n\s*|/\*.*?\*/\s*)*(?:begin|commit|end|rollback|savepoint|release)\b",
@@ -80,8 +81,38 @@ def _statements(sql: str) -> Iterator[str]:
         if sqlite3.complete_statement(buffer):
             yield buffer
             buffer = ""
-    if buffer.strip():
+    if _COMMENTS.sub(
+        "", buffer
+    ).strip():  # a trailing comment is fine; half a statement is not
         raise MigrationError("MIGRATION_FILES_INVALID")
+
+
+# Defense in depth behind the lexical check in load_migrations: while a migration's statements
+# run, SQLite itself refuses anything that could end the runner's transaction, nest one, attach
+# another database, or rewrite the schema table directly. Leading-token tricks (`;ROLLBACK;`,
+# a byte-order mark, comments) cannot get around this because it acts on the parsed statement.
+_DENIED_ACTIONS = frozenset(
+    {
+        sqlite3.SQLITE_TRANSACTION,
+        sqlite3.SQLITE_SAVEPOINT,
+        sqlite3.SQLITE_ATTACH,
+        sqlite3.SQLITE_DETACH,
+    }
+)
+
+
+def _migration_authorizer(
+    action: int,
+    arg1: str | None,
+    _arg2: str | None,
+    _db: str | None,
+    _source: str | None,
+) -> int:
+    if action in _DENIED_ACTIONS:
+        return sqlite3.SQLITE_DENY
+    if action == sqlite3.SQLITE_PRAGMA and (arg1 or "").lower() == "writable_schema":
+        return sqlite3.SQLITE_DENY
+    return sqlite3.SQLITE_OK
 
 
 def _applied(conn: sqlite3.Connection) -> list[tuple[int, str, str]]:
@@ -123,10 +154,12 @@ def apply_migrations(
             if done != (known.version, known.name, known.checksum):
                 raise MigrationError("MIGRATION_CHECKSUM_MISMATCH")
         for migration in migrations[len(applied) :]:
-            for statement in _statements(migration.sql):
-                conn.execute(
-                    statement
-                )  # sql-scan: migration files are reviewed and checksummed
+            conn.set_authorizer(_migration_authorizer)
+            try:
+                for statement in _statements(migration.sql):
+                    conn.execute(statement)
+            finally:
+                conn.set_authorizer(None)
             conn.execute(
                 "INSERT INTO schema_version (version, migration_name, checksum, applied_at)"
                 " VALUES (?, ?, ?, ?)",
