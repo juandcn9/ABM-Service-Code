@@ -13,7 +13,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 ## Current scope
 
-`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. The repository intentionally contains no service implementation, database schema, API route, built container, cloud resource, credential, or real customer data.
+`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. `TASK-06` adds the immutable SQLite migrations and runner. The repository intentionally contains no service implementation, database schema, API route, built container, cloud resource, credential, or real customer data.
 
 ## Repository map
 
@@ -23,6 +23,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 - [`docs/work-items/TASK-02.md`](docs/work-items/TASK-02.md): reproducible-toolchain work item and evidence contract.
 - [`docs/work-items/TASK-03.md`](docs/work-items/TASK-03.md): package-layout and import-boundary work item.
 - [`docs/work-items/TASK-04.md`](docs/work-items/TASK-04.md): CI quality-gate work item.
+- [`docs/work-items/TASK-06.md`](docs/work-items/TASK-06.md): migrations work item; [`migrations/`](migrations) holds the immutable schema migrations.
 - [`src/abm/`](src/abm), [`harness/`](harness), [`tests/`](tests): target layout; [`tests/unit/test_import_boundaries.py`](tests/unit/test_import_boundaries.py) enforces dependency rules.
 - [`toolchain.toml`](toolchain.toml): exact Python, lock generator, container digest, and install commands.
 - [`.github/pull_request_template.md`](.github/pull_request_template.md): required Code PR evidence.

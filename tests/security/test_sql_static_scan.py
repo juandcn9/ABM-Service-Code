@@ -9,6 +9,9 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCANNED = (ROOT / "src" / "abm", ROOT / "harness")
 EXECUTE = {"execute", "executemany", "executescript"}
+# Files whose execute() argument is reviewed, checksummed migration text, not request values.
+# Formatted-SQL detection still applies to them; only the fixed-statement rule is waived.
+DYNAMIC_EXECUTE_ALLOWED = {"src/abm/persistence/migrations.py"}
 HOLE = "{}"  # stands in for every interpolated value; it counts as one non-space token
 SQL_STATEMENT = re.compile(
     r"\s*(?:"
@@ -59,7 +62,9 @@ def literal_constants(source: str) -> set[str]:
 
 
 def formatted_sql(
-    source: str, constants: frozenset[str] | set[str] = frozenset()
+    source: str,
+    constants: frozenset[str] | set[str] = frozenset(),
+    allow_dynamic_execute: bool = False,
 ) -> list[int]:
     """Line numbers of SQL built from values, or passed to execute without a fixed statement."""
     constants = constants | literal_constants(source)
@@ -82,7 +87,7 @@ def formatted_sql(
             text = None if left is None else left + HOLE
         built = text is not None and bool(SQL_STATEMENT.match(text))
         # a fixed statement is a string literal or a module-level string-literal constant
-        unfixed = (
+        unfixed = not allow_dynamic_execute and (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)
             and node.func.attr in EXECUTE
@@ -110,7 +115,8 @@ def test_source_tree_has_no_value_formatted_sql() -> None:
     sources = {p: p.read_text(encoding="utf-8") for p in files}
     constants = set().union(*(literal_constants(s) for s in sources.values()))
     for path, source in sources.items():
-        assert formatted_sql(source, constants) == [], str(path)
+        allowed = path.relative_to(ROOT).as_posix() in DYNAMIC_EXECUTE_ALLOWED
+        assert formatted_sql(source, constants, allowed) == [], str(path)
 
 
 def test_scan_rejects_formatted_sql() -> None:
@@ -155,3 +161,12 @@ def test_scan_accepts_fixed_statements_and_unrelated_strings() -> None:
 
 def test_known_constants_from_other_modules_are_accepted() -> None:
     assert formatted_sql("cur.execute(INSERT_ENTRY, (x,))", {"INSERT_ENTRY"}) == []
+
+
+def test_dynamic_execute_allowance_is_narrow() -> None:
+    assert DYNAMIC_EXECUTE_ALLOWED == {"src/abm/persistence/migrations.py"}
+    # the allowance waives only the fixed-statement rule, never value-formatted SQL
+    assert formatted_sql("cur.execute(statement)", allow_dynamic_execute=True) == []
+    assert formatted_sql(
+        'cur.execute(f"SELECT * FROM t WHERE a={x}")', allow_dynamic_execute=True
+    )
