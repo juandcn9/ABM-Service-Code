@@ -121,9 +121,8 @@ def run_idempotent(
     """
     try:
         now = format_instant(clock.now())
-    except (
-        Exception
-    ):  # an unavailable clock rejects time-dependent work; no wall-clock fallback
+    # an unavailable clock rejects time-dependent work; there is no wall-clock fallback
+    except Exception:  # noqa: BLE001
         return failure("SERVICE_UNREADY", "The service is not ready.")
     try:
         with uow.write() as tx:
