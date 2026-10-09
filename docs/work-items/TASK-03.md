@@ -1,6 +1,6 @@
 # Work item: TASK-03 — modular-monolith package layout with boundary checks
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -33,13 +33,22 @@
 
 ## Completion
 
-- Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
+- Code commit/PR: PR #3, merged at `b6f7a63`; verified revision is `main` `aa740bb6751b0ed459ef72a7f72884db20f641b1` (PR #3 and PR #4 merged).
 - Commands/checks and results: `pytest` (5 passed), `ruff check .`, `mypy src tests scripts`, `validate_governance.py`, `validate_toolchain.py` all pass locally on Python 3.12.10.
 - Review findings/resolution:
   - Builder Audit `ponytail-review` (installed plugin 5.1.0, `full` mode; finding input, not authority): dynamic imports were invisible to the domain check; resolved by banning `importlib` in `domain`.
   - Independent fresh-context review of head `f4dd3ab`: PASS with findings, zero Blocker/Major. Minor 1, `import _sqlite3` bypassed the SQLite ban: resolved by banning `_sqlite3`. Minor 2, `abm/__init__.py` was never checked: resolved by checking the package root against the same rules. Minor 3, stale TASK-02 note: updated above.
   - Observation, `__import__`/`exec`/`eval` undetected in `domain`: resolved by rejecting those names in `domain`, which removed the only `shortcut:` marker. `ponytail-debt` now reports 0 markers.
   - Observation, `application` may import `sqlite3`/`fastapi`: section 4 does not forbid it, so it is left as is and recorded here.
-  - A fresh-context re-review of the fix diff and independent Tester verification of the final head are still required.
+  - A fresh-context re-review of the fix diff passed with one Minor (stale deviation wording), fixed before merge.
 - Residual risks: boundary rules are an interpretation of section 4 and enforced only by tests until `TASK-04` makes them a required check.
 - Next safe action: independent review of this PR, then `TASK-04` and `TASK-05`.
+
+## Independent verification
+
+- Role and context: Tester, a fresh-context agent that did not build `TASK-03` and derived its checks from the Specs first. The sanitized report is committed at [`docs/evidence/TASK-03-tester-report.md`](../evidence/TASK-03-tester-report.md).
+- Revision tested: Code `aa740bb6751b0ed459ef72a7f72884db20f641b1` against Specs `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`, Python 3.12.10 on Windows.
+- Result: PASS with findings; zero Blocker, zero Major. All executable checks passed except `ruff format --check`, which failed at that revision on three files (two from `TASK-02`) and was closed by `TASK-04`, which formatted them and made the check a required CI gate.
+- Scope of "Verified": the package layout and the static import-boundary rules only. `SEC-12` and `TEST-20` stay open until `TASK-23` and `TASK-25`; nothing here records them as satisfied. CI evidence at `aa740bb` covered only the governance job; pytest, ruff and mypy became CI-enforced with `TASK-04`.
+- Not verified: Python 3.12.15, Linux execution of pytest at `aa740bb`.
+- Observations carried forward: dynamic imports outside `domain` and attribute-form evasion are not blocked; third-party and standard-library imports are unrestricted outside `domain` (a later task may tighten `application`, `ports` and `persistence`); the allowed-edge table is stricter than section 4 for `persistence` to `application`, `api` to `ports` and `config`, and looser for `api` to `domain` and `observability`.

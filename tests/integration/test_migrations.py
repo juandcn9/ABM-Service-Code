@@ -143,7 +143,7 @@ def test_populated_database_without_history_is_left_untouched() -> None:
 
 def test_failure_rolls_back_every_pending_migration() -> None:
     conn = connect()
-    bad = make(2, "0002_bad", "CREATE TABLE t (a); INSERT INTO nope VALUES (1);")
+    bad = make(2, "0002_bad", "CREATE TABLE t (a);\nINSERT INTO nope VALUES (1);")
     with pytest.raises(MigrationError) as excinfo:
         apply_migrations(conn, [*load_migrations(MIGRATIONS), bad], NOW)
     assert code_of(excinfo) == "MIGRATION_FAILED"
@@ -155,7 +155,7 @@ def test_failure_after_an_applied_version_keeps_that_version_only() -> None:
     conn = connect()
     first = load_migrations(MIGRATIONS)
     apply_migrations(conn, first, NOW)
-    bad = make(2, "0002_bad", "CREATE TABLE t (a); INSERT INTO nope VALUES (1);")
+    bad = make(2, "0002_bad", "CREATE TABLE t (a);\nINSERT INTO nope VALUES (1);")
     with pytest.raises(MigrationError):
         apply_migrations(conn, [*first, bad], LATER)
     assert "t" not in tables(conn)
@@ -249,9 +249,17 @@ def test_unexpected_exception_still_rolls_back_and_propagates(
     def boom(_sql: str) -> object:
         raise RuntimeError("unexpected")
 
+    migrations = load_migrations(MIGRATIONS)
     monkeypatch.setattr("abm.persistence.migrations._statements", boom)
     conn = connect()
     with pytest.raises(RuntimeError):
-        apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+        apply_migrations(conn, migrations, NOW)
     assert not conn.in_transaction
     assert tables(conn) == set()
+
+
+def test_two_statements_on_one_line_both_apply() -> None:
+    conn = connect()
+    one_line = make(2, "0002_one_line", "CREATE TABLE a (x); CREATE TABLE b (y);")
+    apply_migrations(conn, [*load_migrations(MIGRATIONS), one_line], NOW)
+    assert {"a", "b"} <= tables(conn)

@@ -1,13 +1,13 @@
 # Work item: TASK-08 — monetary value objects, results, fingerprints, clock port
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
 - TASK and affected IDs: `TASK-08`; `INV-01`, `INV-08`, `INV-12`, `INV-17`; `TEST-15`, `TEST-24`, `TEST-36` (domain-side building blocks only)
 - Decision, gap, or risk records: `DEC-0002`, `DEC-0011`; no new decision or gap; DV-01 and DV-02 in `docs/governance/deviations.md`
-- Owner role: Builder (Claude Code); independent Tester verification of the final head is required
+- Owner role: Builder (Claude Code); independently verified (see Independent verification)
 
 ## Scope
 
@@ -32,8 +32,16 @@
 
 ## Completion
 
-- Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
-- Commands/checks and results: locally `pytest` 26 passed in this branch, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass; CI results are on the PR.
-- Review findings/resolution: pending (`ponytail-review`, fresh-context review, Tester verification of the final head).
+- Code commit/PR: PR #9, merged as `9fb729a`.
+- Commands/checks and results: locally `pytest` 30 passed in this branch, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass; CI results are on the PR.
+- Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01) found nothing to fix. Independent fresh-context review of head `d7e9140`: PASS with findings (zero Blocker/Major), plus a conflict with `main` in README/CHANGELOG. Resolved: the branch merged `main`; m1 (the money bound was not pinned to the schema literal) now has a literal test; m2 (`Error` did not enforce the OpenAPI message and retryable contract) now validates 1-256 printable ASCII characters and a real boolean; m3 (`Money` arithmetic with a non-Money operand raised `AttributeError`) now returns `NotImplemented` so it is a `TypeError`; M2 (`strftime('%Y')` is not zero-padded for years below 1000 on glibc, which would break the fixed 20-character stored form on Linux CI) is fixed by explicit formatting with tests for years 1, 999 and 9999. Observations carried forward: the fingerprint treats an absent and a null field as different, so `TASK-10`+ must normalize optional fields and add per-operation field-change tests; Python timestamp parsing is stricter than the schema CHECK (it rejects year 0000 and hour 24), which is the safe direction. Independently verified (see Independent verification).
 - Residual risks: the fingerprint's field set per operation is not yet defined; an operation that omits a field that changes its effect would replay wrongly, so each `TASK-10`+ operation needs a test that every effect-relevant field changes the fingerprint.
-- Next safe action: `TASK-09` (caller context and authorization), then `TASK-10` once `TASK-07` is merged.
+- Next safe action: `TASK-10` (idempotency and registration) once `TASK-06` and `TASK-07` are merged; it must add the per-operation fingerprint field-change tests.
+
+## Independent verification
+
+- Role and context: Tester, fresh-context agents that did not build `TASK-08`, 2026-10-09. The sanitized report is committed at [`docs/evidence/TASK-08-tester-report.md`](../evidence/TASK-08-tester-report.md).
+- Revision tested: Code PR #9 head `0a7e2af3e96c63abe667770885e09ee5c53ec1b9` (merged as `9fb729a`). Specs `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`.
+- Result: PASS on re-verification of the fix head; the first review's findings (m1, m2, m3, M2, conflict with `main`) are resolved; zero Blocker, zero Major.
+- Scope of "Verified": the domain value objects, typed results, fingerprint encoding, and clock port. `TEST-15`, `TEST-24`, and `TEST-36` are covered only on the domain side; the per-operation fingerprint field sets, the absent-versus-null rule, and field-change tests belong to `TASK-10` onward.
+- Not verified: behavior on glibc locally (CI on Linux is the guard for the year-padding fix); Python 3.12.15 locally.

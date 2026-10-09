@@ -104,3 +104,21 @@ def test_clock_moves_only_when_told_to() -> None:
         ControllableClock(datetime(2026, 1, 1))  # noqa: DTZ001
     with pytest.raises(ValueError):
         ControllableClock(datetime(2026, 1, 1, tzinfo=timezone(timedelta(hours=1))))
+
+
+def test_error_enforces_the_openapi_message_and_retryable_contract() -> None:
+    assert Error("INTERNAL_ERROR", "x" * 256, True).retryable is True
+    bad: list[tuple[object, object]] = [
+        ("x" * 257, False),  # too long
+        ("café", False),  # not printable ASCII
+        ("line\nbreak", False),
+        ("tab\t", False),
+        (None, False),
+        (b"bytes", False),
+        ("ok", "yes"),  # retryable must be a real boolean
+        ("ok", 1),
+        ("ok", None),
+    ]
+    for message, retryable in bad:
+        with pytest.raises(InvalidValue):
+            Error("INTERNAL_ERROR", message, retryable)  # type: ignore[arg-type]

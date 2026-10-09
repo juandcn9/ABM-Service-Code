@@ -33,4 +33,9 @@ def format_instant(moment: datetime) -> str:
     """Aware UTC datetime to the stored form; sub-second precision is floored, never rounded up."""
     if moment.tzinfo is None or moment.utcoffset() != UTC.utcoffset(None):
         raise InvalidValue("instant must be timezone-aware UTC")
-    return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # not strftime: %Y is not zero-padded for years below 1000 on glibc, which would break the
+    # fixed 20-character stored form
+    return (
+        f"{moment.year:04d}-{moment.month:02d}-{moment.day:02d}"
+        f"T{moment.hour:02d}:{moment.minute:02d}:{moment.second:02d}Z"
+    )
