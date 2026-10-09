@@ -22,9 +22,10 @@ ALLOWED = {
     "main": set(LAYERS) | {"config"},
 }
 # the monetary domain has no FastAPI or SQLite dependency; sqlite3 is stdlib, so ban it explicitly.
-# importlib is banned too: dynamic imports are invisible to this static check.
-# shortcut: `__import__(...)` calls are not detected, upgrade if the domain ever needs a code-review rule for them.
-DOMAIN_BANNED_STDLIB = {"sqlite3", "importlib"}
+# _sqlite3 is the C module behind sqlite3. importlib and the builtins below are dynamic imports
+# that the static import scan cannot see, so the domain may not use them at all.
+DOMAIN_BANNED_STDLIB = {"sqlite3", "_sqlite3", "importlib"}
+DOMAIN_BANNED_BUILTINS = {"__import__", "exec", "eval"}
 
 
 def layer_of(module: str) -> str | None:
@@ -56,9 +57,13 @@ def violations(files: dict[str, str]) -> list[str]:
     for name, source in files.items():
         is_package = name.endswith(".__init__")
         module = name.removesuffix(".__init__")
-        layer = layer_of(module)
+        layer = layer_of(module) or ("root" if module == "abm" else None)
         if layer is None:
             continue
+        if layer == "domain":
+            for node in ast.walk(ast.parse(source)):
+                if isinstance(node, ast.Name) and node.id in DOMAIN_BANNED_BUILTINS:
+                    problems.append(f"domain module {module} uses {node.id}")
         for target in imported_modules(source, module, is_package):
             top = target.split(".")[0]
             if top == "harness":
@@ -103,17 +108,21 @@ def test_every_abm_module_belongs_to_a_known_layer() -> None:
 
 def test_checker_rejects_forbidden_imports() -> None:
     bad = {
-        "abm.domain.money": "import sqlite3\nimport importlib\nimport fastapi\nfrom abm.api import x\nfrom .. import persistence",
+        "abm.domain.money": "import sqlite3\nimport _sqlite3\nimport importlib\nx = __import__('os')\nexec('1')\nimport fastapi\nfrom abm.api import x\nfrom .. import persistence",
         "abm.application.svc": "from abm.persistence import repo\nfrom abm import api",
         "abm.api.routes": "from ..persistence import db",
         "abm.observability.logs": "import abm.persistence.db",
         "abm.ports.__init__": "from . import sibling\nfrom ..application import svc",
         "abm.main": "import harness",
+        "abm.__init__": "import harness\nfrom abm import api\nfrom . import persistence",
     }
     problems = violations(bad)
     for expected in (
         "domain module abm.domain.money imports sqlite3",
         "domain module abm.domain.money imports importlib",
+        "domain module abm.domain.money imports _sqlite3",
+        "domain module abm.domain.money uses __import__",
+        "domain module abm.domain.money uses exec",
         "domain module abm.domain.money imports fastapi",
         "abm.domain.money imports abm.api",
         "abm.domain.money imports abm.persistence",
@@ -123,6 +132,9 @@ def test_checker_rejects_forbidden_imports() -> None:
         "abm.observability.logs imports abm.persistence.db",
         "abm.ports imports abm.application",
         "abm.main imports harness",
+        "abm imports harness",
+        "abm imports abm.api",
+        "abm imports abm.persistence",
     ):
         assert any(p.startswith(expected) for p in problems), expected
 

@@ -29,12 +29,17 @@
 - `TEST-20` (unsupported operations have no route or return `UNSUPPORTED_OPERATION`) cannot be demonstrated before routes exist; it is completed by `TASK-23` and `TASK-25`. This task only supplies the structural guard that nothing outside the layers can be imported inward.
 - CI does not yet run `pytest`; wiring it into required checks is `TASK-04`.
 - Deviations recorded per JDC decision on 2026-10-09: the installed Ponytail plugin (not the Specs-pinned v4.13.0) was used in `full` mode, which is a risk acceptance against `RISK-0005` and is not verified against the pin; local Python is 3.12.10 because python.org publishes no Windows binary for the pinned 3.12.15 (CI and container remain pinned to 3.12.15).
-- `TASK-02` was implemented by another agent and has no recorded independent verification.
+- `TASK-02` was implemented by another agent; its independent verification record is proposed in a separate PR (#4) and is not a dependency of this change.
 
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: `pytest` (5 passed), `ruff check .`, `mypy src tests scripts`, `validate_governance.py`, `validate_toolchain.py` all pass locally on Python 3.12.10.
-- Review findings/resolution: `ponytail-review` (installed plugin 5.1.0, `full` mode; output is finding input, not authority) found one Should-fix, dynamic imports invisible to the domain check, resolved by banning `importlib` in `domain`; `__import__` remains an undetected, documented shortcut. Independent Tester verification is still required.
+- Review findings/resolution:
+  - Builder Audit `ponytail-review` (installed plugin 5.1.0, `full` mode; finding input, not authority): dynamic imports were invisible to the domain check; resolved by banning `importlib` in `domain`.
+  - Independent fresh-context review of head `f4dd3ab`: PASS with findings, zero Blocker/Major. Minor 1, `import _sqlite3` bypassed the SQLite ban: resolved by banning `_sqlite3`. Minor 2, `abm/__init__.py` was never checked: resolved by checking the package root against the same rules. Minor 3, stale TASK-02 note: updated above.
+  - Observation, `__import__`/`exec`/`eval` undetected in `domain`: resolved by rejecting those names in `domain`, which removed the only `shortcut:` marker. `ponytail-debt` now reports 0 markers.
+  - Observation, `application` may import `sqlite3`/`fastapi`: section 4 does not forbid it, so it is left as is and recorded here.
+  - A fresh-context re-review of the fix diff and independent Tester verification of the final head are still required.
 - Residual risks: boundary rules are an interpretation of section 4 and enforced only by tests until `TASK-04` makes them a required check.
 - Next safe action: independent review of this PR, then `TASK-04` and `TASK-05`.
