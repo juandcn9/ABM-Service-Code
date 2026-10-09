@@ -13,15 +13,19 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 ## Current scope
 
-`TASK-01` establishes repository governance, templates, validation, and the approved Specs pointer. It intentionally contains no service implementation, dependency/toolchain selection, database schema, API route, container, cloud resource, credential, or real customer data.
+`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. The repository intentionally contains no service implementation, package layout, database schema, API route, built container, cloud resource, credential, or real customer data.
 
 ## Repository map
 
 - [`docs/governance/repository-policy.md`](docs/governance/repository-policy.md): branch, review, evidence, and merge rules.
-- [`docs/work-items/TASK-01.md`](docs/work-items/TASK-01.md): active work-item contract and trace.
+- [`docs/governance/dependencies.md`](docs/governance/dependencies.md): exact dependency, image, installation, and update controls.
+- [`docs/work-items/TASK-01.md`](docs/work-items/TASK-01.md): repository-governance work item and trace.
+- [`docs/work-items/TASK-02.md`](docs/work-items/TASK-02.md): reproducible-toolchain work item and evidence contract.
+- [`toolchain.toml`](toolchain.toml): exact Python, lock generator, container digest, and install commands.
 - [`.github/pull_request_template.md`](.github/pull_request_template.md): required Code PR evidence.
 - [`.github/ISSUE_TEMPLATE/work-item.md`](.github/ISSUE_TEMPLATE/work-item.md): future TASK intake.
 - [`scripts/validate_governance.py`](scripts/validate_governance.py): dependency-free governance and repository-safety validation.
+- [`scripts/validate_toolchain.py`](scripts/validate_toolchain.py): dependency-free verification of pins, locks, container digest, and safe example configuration.
 
 ## Working rule
 
@@ -31,4 +35,4 @@ Ponytail is not applicable to this Codex-authored task. Any future Claude Code t
 
 ## Non-claims
 
-This repository does not yet contain a runnable service. It makes no claim of production readiness, regulatory approval, live partner integration, capacity, availability, backup restoration, disaster recovery, or permission to process real money or real customer data.
+This repository does not yet contain a runnable service or built image. It makes no claim of production readiness, regulatory approval, live partner integration, capacity, availability, backup restoration, disaster recovery, or permission to process real money or real customer data.

@@ -1,0 +1,18 @@
+[project]
+name = "abm-service"
+version = "0.0.0"
+description = "Account Balances Management Service verified-demonstration implementation"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi==0.143.0",
+    "pydantic==2.14.0",
+    "uvicorn==0.54.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx==0.28.1",
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    "ruff==0.16.10",
+]

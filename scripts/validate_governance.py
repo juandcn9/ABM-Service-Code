@@ -24,7 +24,26 @@ REQUIRED_FILES = {
     "docs/work-items/TASK-01.md",
     "scripts/validate_governance.py",
 }
-TEXT_SUFFIXES = {".md", ".txt", ".yml", ".yaml", ".py", ""}
+TEXT_SUFFIXES = {
+    ".example",
+    ".lock",
+    ".md",
+    ".python-version",
+    ".py",
+    ".toml",
+    ".txt",
+    ".yaml",
+    ".yml",
+    "",
+}
+IGNORED_DIRECTORY_NAMES = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+}
 PLACEHOLDER_PATTERN = (
     r"\b(?:"
     + "|".join(("TO" + "DO", "T" + "BD", "FIX" + "ME", "X" + "XX"))
@@ -44,7 +63,9 @@ def relative(path: pathlib.Path) -> str:
 def load_texts() -> dict[str, str]:
     texts: dict[str, str] = {}
     for path in ROOT.rglob("*"):
-        if not path.is_file() or ".git" in path.parts:
+        if not path.is_file() or any(
+            part in IGNORED_DIRECTORY_NAMES for part in path.parts
+        ):
             continue
         name = relative(path)
         if path.suffix.lower() not in TEXT_SUFFIXES:
