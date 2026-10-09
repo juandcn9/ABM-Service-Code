@@ -1,14 +1,12 @@
 # Work item: TASK-04 — Code CI quality gates
 
-**Status:** Blocked
-
-Blocker: the Open decision below (how the Specs validation deliverable is satisfied). Everything else in this work item is implemented and checked. Next authorized action: JDC chooses option 1, 2, or 3; this task is not complete until then.
+**Status:** Implemented
 
 ## Authority
 
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
 - TASK and affected IDs: `TASK-04`; `SEC-11`; `SEC-05`/`TEST-25` (static half); `TEST-26`; Gates 3 through 8 as applicable before application code exists
-- Decision, gap, or risk records: no DEC or GAP record created; one open JDC decision is stated below; `RISK-0005` (see `docs/governance/deviations.md`, DV-01)
+- Decision, gap, or risk records: no DEC or GAP record created; one JDC decision (Specs-validation option 1) is recorded below; `RISK-0005` (see `docs/governance/deviations.md`, DV-01)
 - Owner role: Builder Auditor (Claude Code); independent Tester verification of the final head is required
 
 ## Scope
@@ -26,9 +24,9 @@ Blocker: the Open decision below (how the Specs validation deliverable is satisf
 - Failure, concurrency, authorization, and recovery cases: not applicable; no behavior exists.
 - Documentation/trace updates: README, CHANGELOG, repository policy, dependency policy, this work item.
 
-## Open decision (needs JDC)
+## Decision (JDC, 2026-10-09)
 
-The delivery row says "Install Specs validation". The Code repository already validates its pinned Specs pointer (`SPEC_VERSION` against the approved version and SHA) inside `validate_governance.py`, and that now runs as a required gate. Running the Specs repository's own validator, or confirming from CI that the pinned commit is the `v1.0.1` tag commit, needs read access to the private Specs repository, i.e. creating a credential (a deploy key or token stored as a repository secret). The workflow requires explicit human approval for credential creation, so this was not done. Options: (1) accept the pointer check as the Code-side Specs validation; (2) approve a read-only deploy key or token for the Specs repository and a CI step that checks it out at the pinned SHA and runs its validator; (3) make the Specs repository public. Recommendation: option 1 now, option 2 if JDC wants Code CI to prove the pointer against the real Specs tag.
+The delivery row says "Install Specs validation". The Code repository already validates its pinned Specs pointer (`SPEC_VERSION` against the approved version and SHA) inside `validate_governance.py`, and that now runs as a required gate. Running the Specs repository's own validator, or confirming from CI that the pinned commit is the `v1.0.1` tag commit, needs read access to the private Specs repository, i.e. creating a credential (a deploy key or token stored as a repository secret). The workflow requires explicit human approval for credential creation, so this was not done. Options: (1) accept the pointer check as the Code-side Specs validation; (2) approve a read-only deploy key or token for the Specs repository and a CI step that checks it out at the pinned SHA and runs its validator; (3) make the Specs repository public. JDC chose option 1 in the Claude Code session on 2026-10-09: the Code-side pointer check in the required `validate-governance` gate satisfies "Install Specs validation" for this task. No credential was created, and Code CI does not prove the pointer against the real Specs tag; if that is wanted later, option 2 needs a new explicit approval. This is a statement in the session, not a Specs change; the delivery plan row is unchanged.
 
 ## Implementation notes
 
