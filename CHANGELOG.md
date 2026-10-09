@@ -13,3 +13,4 @@ All notable Code repository changes are recorded here.
 - Added `TASK-07` strict SQLite connection settings (foreign keys, WAL, full synchronous, bounded busy timeout), an all-or-nothing write transaction with `BEGIN IMMEDIATE`, a snapshot read transaction, and safe SQLite error mapping.
 - Added `TASK-09` trusted caller-context parsing, the deny-by-default role and account-scope authorization matrix, and strict transport validation helpers (strict JSON, exact fields, path/body account agreement) with security tests.
 - Added the `TASK-05` work item (Blocked on the Ponytail pin decision) and wired the Ponytail review commands into the repository policy.
+- Added `TASK-10` transactional idempotency (stored exact replay, conflict without effect, deterministic rejections), the first storage ports with a SQLite unit of work, and idempotent account registration creating one zero-state account with its retention row and trace.
