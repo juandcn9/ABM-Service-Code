@@ -14,7 +14,7 @@
 - Objective: open SQLite with the required strict settings, give the application one transaction unit that is all-or-nothing, and map SQLite failures to stable safe results.
 - Included files/components: `src/abm/persistence/database.py` (`open_database`, `write_transaction`, `read_transaction`, `to_failure`, `DatabaseUnavailable`) and `tests/integration/test_database.py`.
 - Explicit exclusions: repository interfaces and implementations (see Implementation notes); the startup sequence, readiness integrity gate, and `ABM_*` configuration parsing (`TASK-12`, `TASK-26`); idempotency, registration, and any financial table access (`TASK-10` onward); the HTTP mapping of `SERVICE_BUSY` and `SERVICE_UNREADY` (`TASK-25`).
-- Dependencies and entry gate: `TASK-06` (migrations, PR #8). This branch also contains the `TASK-08` domain modules (`abm.domain.results`) by merge from the `TASK-08` branch because the error mapping returns the typed `Failure`; both are open PRs (#8, #9) and this work item must be reviewed and merged after them.
+- Dependencies and entry gate: `TASK-06` (migrations, PR #8). This branch also contains the `TASK-08` domain modules (`abm.domain.results`) by merge from the `TASK-08` branch because the error mapping returns the typed `Failure`; both were merged to `main` (PR #8 as `45f3880`, PR #9) and this work item must be reviewed and merged after them.
 
 ## Acceptance evidence
 
@@ -32,7 +32,7 @@
 
 ## Completion
 
-- Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR is opened after PR #8 and PR #9 merge.
+- Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR is #13 (draft until the final head is reviewed and Tester-verified).
 - Commands/checks and results: locally `pytest` 337 passed in this branch after merging `main` (includes the merged `TASK-06`, `TASK-08` and `TASK-09` tests), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
 - Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01): one Should-fix, a failed configuration step leaked the open connection; fixed by closing it. A fresh-context review and Tester verification of the final head are still required.
 - Residual risks: `SQLITE_BUSY` inside an already-open write transaction (for example a checkpoint) is mapped like any busy error and the caller must treat the whole unit as failed; the `ABM_BUSY_TIMEOUT_MS` setting is not parsed yet; disk-full behavior was simulated with `max_page_count`, not a real full volume.
