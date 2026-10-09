@@ -249,6 +249,14 @@ SECRET_FORMS: dict[str, Mutation] = {
 }
 MUTATIONS.update(WORKFLOW_EDITS | GITIGNORE_EDITS | DOCUMENT_EDITS | SECRET_FORMS)
 
+
+def mask_with_info_exclude(root: pathlib.Path) -> None:
+    """Delete the .gitignore rule for keys and hide the gap behind a local exclude file."""
+    edit(root, ".gitignore", lambda text: text.replace("*.pem\n", ""))
+    (root / ".git" / "info").mkdir(exist_ok=True)
+    (root / ".git" / "info" / "exclude").write_text("*.pem\n", encoding="utf-8")
+
+
 # Cases from the third verification. Secret-shaped text is assembled from parts so this file does
 # not itself trip the scan it tests.
 EXTRA_CASES: dict[str, Mutation] = {
@@ -277,11 +285,7 @@ EXTRA_CASES: dict[str, Mutation] = {
     "hidden div in a governance document": lambda root: edit(
         root, POL, lambda text: text + "\n<div hidden>note</div>\n"
     ),
-    "gitignore rule masked by .git/info/exclude": lambda root: (
-        edit(root, ".gitignore", lambda text: text.replace("*.pem\n", "")),
-        (root / ".git" / "info").mkdir(exist_ok=True),
-        (root / ".git" / "info" / "exclude").write_text("*.pem\n", encoding="utf-8"),
-    )[0],
+    "gitignore rule masked by .git/info/exclude": mask_with_info_exclude,
     "gitignore rule only in the wrong case": replace(
         ".gitignore", "*.pem\n", "*.PEM\n"
     ),
