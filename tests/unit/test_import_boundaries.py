@@ -103,7 +103,7 @@ def test_every_abm_module_belongs_to_a_known_layer() -> None:
 
 def test_checker_rejects_forbidden_imports() -> None:
     bad = {
-        "abm.domain.money": "import sqlite3\nimport fastapi\nfrom abm.api import x\nfrom .. import persistence",
+        "abm.domain.money": "import sqlite3\nimport importlib\nimport fastapi\nfrom abm.api import x\nfrom .. import persistence",
         "abm.application.svc": "from abm.persistence import repo\nfrom abm import api",
         "abm.api.routes": "from ..persistence import db",
         "abm.observability.logs": "import abm.persistence.db",
