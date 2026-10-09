@@ -9,10 +9,10 @@
 - `.python-version` pins the local CPython patch release.
 - `toolchain.toml` pins the same Python release, the official multi-platform container manifest by digest, the lock generator, and hash-enforced install commands.
 - `pyproject.toml` pins every direct runtime and development dependency exactly.
-- `requirements.lock` and `requirements-dev.lock` pin the complete resolved graphs with SHA-256 artifact hashes.
+- `requirements.lock` and `requirements-dev.lock` pin the complete resolved graphs with SHA-256 artifact hashes. The development graph includes the lock generator plus its installer/build dependencies, including normally unsafe bootstrap packages, so regeneration does not depend on ambient unreviewed versions.
 - SQLite is provided only by Python's standard library; no SQLite wrapper or database service is added.
 
-Runtime and development dependencies remain separate. The development lock may contain the runtime graph so that one hash-enforced command creates a complete verification environment; the runtime lock never contains development tools.
+Runtime and development dependencies remain separate. The development lock contains the runtime graph and pinned lock-generation graph so that one hash-enforced command creates a complete verification environment; the runtime lock never contains development/build tools.
 
 ## Installation boundary
 
@@ -26,7 +26,7 @@ An update uses its own Code PR and must:
 
 1. state the package/image purpose and exact old/new versions or digests;
 2. obtain metadata and artifacts only from the official Python, PyPI, or Docker Official Image source;
-3. regenerate both locks with the pinned generator and Python 3.12;
+3. install the generator through the hash-enforced development lock, then regenerate both locks with the pinned generator, Python 3.12, and `--allow-unsafe` for the development bootstrap graph;
 4. run hash-enforced clean-environment installs and all then-applicable gates;
 5. inspect transitive changes, licenses, advisories, and compatibility;
 6. preserve explicit production and recovery non-claims.

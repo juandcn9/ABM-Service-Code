@@ -4,7 +4,6 @@ import pathlib
 import re
 import sys
 
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EXPECTED_SPEC = {
     "spec_repository": "https://github.com/juandcn9/ABM-Service-Specs",

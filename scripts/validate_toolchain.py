@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import pathlib
 import re
 import sys
 import tomllib
-
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EXPECTED_PYTHON = "3.12.15"
@@ -16,6 +16,7 @@ EXPECTED_RUNTIME = {
 EXPECTED_DEV = {
     "httpx": "0.28.1",
     "mypy": "2.4.0",
+    "pip-tools": "7.6.2",
     "pytest": "9.1.1",
     "ruff": "0.16.10",
 }
@@ -23,6 +24,10 @@ EXPECTED_IMAGE = (
     "python:3.12.15-slim-bookworm@"
     "sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258"
 )
+EXPECTED_LOCK_DIGESTS = {
+    "requirements.lock": "2e8d3b9afafc28630cc9e463c8700ee0514f80c5608d7623d1c7e662dfea8337",
+    "requirements-dev.lock": "8e8231ddd8f72f7de296bb698806756ac110e17b597d9ff53ba5dfc46486ebd8",
+}
 FAILURES: list[str] = []
 
 
@@ -73,7 +78,7 @@ def validate_metadata() -> None:
         fail("runtime lock path differs from the approved repository path")
     if toolchain.get("development_lock") != "requirements-dev.lock":
         fail("development lock path differs from the approved repository path")
-    for key in ("runtime_install", "development_install"):
+    for key in ("generator_install", "runtime_install", "development_install"):
         command = toolchain.get(key, "")
         if "--require-hashes" not in command or "--only-binary=:all:" not in command:
             fail(f"{key} does not enforce hashes and binary artifacts")
@@ -81,8 +86,17 @@ def validate_metadata() -> None:
 
 def lock_pins(path: pathlib.Path) -> dict[str, str]:
     body = path.read_text(encoding="utf-8")
+    digest = hashlib.sha256(body.replace("\r\n", "\n").encode("utf-8")).hexdigest()
+    if digest != EXPECTED_LOCK_DIGESTS.get(path.name):
+        fail(f"{path.name} content digest differs from the reviewed lock")
     if "http://" in body or "https://" in body or "git+" in body:
         fail(f"{path.name} contains a remote or VCS source")
+    for line in body.splitlines():
+        stripped_line = line.strip()
+        if stripped_line.startswith("-") and not stripped_line.startswith(
+            "--hash=sha256:"
+        ):
+            fail(f"{path.name} contains an unexpected requirement directive")
     blocks = re.split(r"\n(?=[a-zA-Z0-9])", body)
     pins: dict[str, str] = {}
     for block in blocks:
@@ -98,8 +112,13 @@ def lock_pins(path: pathlib.Path) -> dict[str, str]:
         if name in pins:
             fail(f"{path.name} duplicates {name}")
         pins[name] = match.group(2)
-        if "--hash=sha256:" not in block:
-            fail(f"{path.name} lacks a SHA-256 hash for {name}")
+        hashes = re.findall(r"--hash=sha256:([0-9a-f]{64})(?=\s|$)", block)
+        if not hashes:
+            fail(f"{path.name} lacks a valid SHA-256 hash for {name}")
+        if len(hashes) != block.count("--hash="):
+            fail(f"{path.name} contains a malformed or non-SHA-256 hash for {name}")
+        if len(hashes) != len(set(hashes)):
+            fail(f"{path.name} contains a duplicate hash for {name}")
     if not pins:
         fail(f"{path.name} contains no resolved packages")
     return pins
