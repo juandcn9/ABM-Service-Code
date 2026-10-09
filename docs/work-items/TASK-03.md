@@ -1,6 +1,6 @@
 # Work item: TASK-03 — modular-monolith package layout with boundary checks
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -33,8 +33,8 @@
 
 ## Completion
 
-- Code commit/PR: pending.
-- Commands/checks and results: pending.
-- Review findings/resolution: pending.
+- Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
+- Commands/checks and results: `pytest` (5 passed), `ruff check .`, `mypy src tests scripts`, `validate_governance.py`, `validate_toolchain.py` all pass locally on Python 3.12.10.
+- Review findings/resolution: `ponytail-review` (installed plugin 5.1.0, `full` mode; output is finding input, not authority) found one Should-fix, dynamic imports invisible to the domain check, resolved by banning `importlib` in `domain`; `__import__` remains an undetected, documented shortcut. Independent Tester verification is still required.
 - Residual risks: boundary rules are an interpretation of section 4 and enforced only by tests until `TASK-04` makes them a required check.
 - Next safe action: independent review of this PR, then `TASK-04` and `TASK-05`.
