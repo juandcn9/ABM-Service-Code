@@ -1,8 +1,8 @@
 # Work item: TASK-06 — immutable migrations and schema-version checksum handling
 
-**Status:** Draft
+**Status:** Implemented
 
-Blocker: the migration-runner hardening is implemented and its test matrix passes (275 tests; 40 of 40 seeded mutants fail a test). The fresh-context review and the Tester pass of the final head are not done. Next authorized action: request that review on the final head. Do not merge the pull request until this status is Implemented.
+Implemented. Final head e461c90: fresh-context review of a244215 PASS with findings, all fixed in e461c90 (re-review of the final head waived by JDC); independent Tester pass of e461c90 PASS (no Blocker or Major). Ready for JDC merge.
 
 ## Authority
 
@@ -45,7 +45,7 @@ Blocker: the migration-runner hardening is implemented and its test matrix passe
   - Work done in this pass, against the Remaining work list of the previous review (now complete except item 5):
     1. Populated database: `tests/integration/test_migration_protections.py` seeds one row in every retained table before each attack. The attack matrix adds REPLACE and `INSERT OR REPLACE`, upsert, `sqlite_sequence` tampering, forged history rows (one colliding with the runner's own insert, one gap-free at version 9), temp view and temp trigger shadowing, and drop-and-recreate of a guard trigger. Every attack must be refused for a runtime reason (`MIGRATION_FAILED`), not as a load-time error; only transaction control may stop at load time. A non-vacuity test runs each attack unguarded inside a transaction and requires it to change the database or hit a shipped trigger, so a SQL typo cannot pass as a refusal. Independent oracle: the permissive-authorizer test compares rows, sequences, schema, temp objects, settings, and history against the pre-migration snapshot when a migration is accepted.
     2. Non-vacuous permissive authorizer: the existing permissive-layer test now runs on the populated database; the verification layer alone refuses every attack class that is verifiable.
-    3. Mutations: `scratchpad` script (not committed) applies 35 seeded mutants, one per authorizer rule (A01–A16), verification clause (V01–V13), runner step (R01–R03), and detection clause (D01–D03). Result: 35 of 35 killed after the tests were strengthened. Before strengthening, 25 survived; the survivors led to the tests listed here.
+    3. Mutations: `scratchpad` script (not committed) applies 40 seeded mutants, one per authorizer rule (A01–A16), verification clause (V01–V13), runner step (R01–R03), and detection clause (D01–D03). Result: 40 of 40 killed after the review fixes after the tests were strengthened. Before strengthening, 25 survived; the survivors led to the tests listed here.
     4. Time limit: a statement exceeding `time_limit_seconds` is interrupted, nothing changes, and a fast migration is not interrupted. False-positive coverage: the existing legitimate additive migration (comments and quoted text inside values) still applies. A foreign-key violation left by a migration is refused.
     5. **Deferred to `TASK-12`:** making the readiness check call `retained_history_protected()` lives on branch `task-12-readiness`, which depends on this PR. `retained_history_protected()` is tested here directly, including temp objects and a renamed retained table.
     6. Measurement (50 000 ledger rows, scratch database, this machine, Python 3.12.10): full snapshot (row digests, schema, settings, history) ≈ 155 ms, `integrity_check` plus `foreign_key_check` ≈ 625 ms, `retained_history_protected()` < 1 ms. The snapshot runs twice per pending migration, so startup cost scales with the number of pending migrations, not with the ledger size alone beyond the digest.
@@ -56,3 +56,11 @@ Blocker: the migration-runner hardening is implemented and its test matrix passe
   - Known and accepted limits to state in the final record: `idempotency_outcomes` has no immutability trigger in the Specs (a Specs question; migrations are blocked from writing it); a migration needing to alter a retained table (including the 12-step rebuild), append to one, or add a trigger that reads one is refused until the Specs or the runner allow it, which matches `specs/07` section 6.
 - Residual risks: schema correctness beyond sampled constraints is only exercised as later tasks use each table; no multi-process migration race test; checksum handling does not defend against someone editing both a migration file and the recorded history together (the history is trigger-protected but SQLite files can be edited directly; readiness in `TASK-12` is the detective control).
 - Next safe action: `TASK-07` (connection and transaction unit) after this PR is merged.
+
+## Tester record (e461c90)
+
+- Byte identity: `migrations/0001_initial.sql` SHA-256 equals `contracts/sqlite-schema.sql` at Specs tag `v1.0.1` (`dcf82d06...9d02`).
+- Local gates: pytest 275 passed; ruff check and format clean; mypy clean (28 files); validate_governance and validate_toolchain pass (Python 3.12.15 in toolchain check).
+- Probes on populated copies (no repo files changed): UPDATE of `movements` refused with no change; quoted `'schema_version'` in a trigger refused; two statements on one line both apply; a caller temp view named `schema_version` cannot make a pending migration look applied; DELETE of `ledger_entries` and `accounts` refused; an additive `CREATE TABLE` still applies.
+- CI on PR #8: push-event run on head `e461c90` passed on CPython 3.12.15 (quality-gates and validate-governance). The PR-event run tested the merge ref, not the head, and also passed.
+- Not covered: multi-process migration race (not in scope, see Scope); mutation results were produced by a scratch script that is not committed.
