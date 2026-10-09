@@ -22,3 +22,29 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Validate TASK-01 governance and repository safety
         run: python3 scripts/validate_governance.py
+
+  quality-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Set up the pinned Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version-file: .python-version
+      - name: Install hash-verified development lock
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r requirements-dev.lock
+      - name: Verify the interpreter is the pinned patch version
+        run: test "$(python -c 'import platform; print(platform.python_version())')" = "$(cat .python-version)"
+      - name: Toolchain pins and locks
+        run: python scripts/validate_toolchain.py
+      - name: Lint
+        run: ruff check .
+      - name: Format
+        run: ruff format --check .
+      - name: Type check
+        run: mypy src tests scripts
+      - name: Tests
+        run: pytest -q
