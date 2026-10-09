@@ -38,6 +38,48 @@ The author cannot provide the sole independent verification. A fresh-context rev
 - Record failures that affect confidence; never hide them by rerunning only the passing path.
 - Stop and escalate any normative ambiguity, required approval, security weakening, or risk acceptance.
 
+## Human approval for risky actions
+
+Explicit human approval is required immediately before each of these, and it must name the exact target and action; a general task approval is not enough:
+
+- destructive filesystem or Git operations;
+- force-push or history rewrite;
+- execution of a destructive migration;
+- credential creation, rotation, or revocation;
+- global package or plugin installation;
+- permission expansion;
+- execution of a downloaded or remote script.
+
+Development identities receive only the repository, branch, environment, and service permissions the active TASK needs. No production credentials, real customer data, administrator role, or production or staging mutation is permitted in this demonstration program. Temporary resources use fictitious data and a bounded cleanup record. If a secret may have been exposed, follow [`SECURITY.md`](../../SECURITY.md): stop the affected work, do not repeat the value, report only the locations and secret type, and wait for revocation, rotation, and history cleanup; deleting the visible value is not remediation.
+
+## Findings and severity
+
+- **Blocker:** can corrupt money or state, violate protected authority, expose prohibited data, or make evidence untrustworthy.
+- **Major:** required behavior, control, or evidence is missing or materially inconsistent.
+- **Minor:** localized defect with a safe workaround and no control weakening.
+- **Observation:** non-blocking improvement.
+
+Every Blocker and Major is resolved and reverified before merge, and a phase closes with zero known implementation bugs. Severity may not be downgraded to keep work moving, and a passing automated check never creates a risk acceptance: only an explicit JDC decision does. Security findings are classified as (1) an exploitable or control-bypass defect, which is a Blocker; (2) a known limitation that changes accepted risk, which is Blocked pending explicit JDC acceptance; or (3) deployment hardening outside the demonstration boundary, which is recorded as future work with a production non-claim.
+
+## Lifecycle status values
+
+Every status field in this repository uses exactly one of these values:
+
+| Status | Meaning |
+|---|---|
+| Draft | Work is incomplete or still under author or reviewer change. |
+| Blocked | Work cannot safely proceed until the stated dependency or decision is resolved; the record names the blocker and the next authorized action. |
+| Ready for JDC review | Validation and independent review have passed; the exact commit awaits JDC review or authorization. |
+| Approved | JDC has approved the named exact commit; the applicable merge or implementation step may still be pending. |
+| Implemented | The approved change exists in Code with implementation evidence; independent verification may remain. |
+| Verified | Required independent tests and gates passed against the named immutable revision. |
+
+Descriptive classifications such as "out of scope" or "not applicable" belong in a separate note, never in the status field.
+
+## Approval and merge authority
+
+JDC approves and merges. The author of a change never approves it, and self-approval is prohibited. Because this repository has a single maintainer account and platform branch protection is unavailable on the current plan, the rule is procedural: a pull request is merged only when its description records independent fresh-context review evidence for the exact head commit, both required checks are green on that commit, and no Blocker or Major finding is open. A change to a pull-request head after approval invalidates that approval. Force-push after approval, history rewriting, and merging with an unresolved Blocker or Major finding are prohibited, and emergency language does not bypass money, security, or evidence gates.
+
 ## Tool applicability
 
 This `TASK-01` implementation is performed by Codex, so Ponytail is recorded as not applicable to this runtime. Claude Code work must use the exact Ponytail version, source, mode, and review commands governed by the approved Specs.
