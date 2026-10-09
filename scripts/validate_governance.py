@@ -37,6 +37,7 @@ TEXT_SUFFIXES = {
     ".lock",
     ".md",
     ".python-version",
+    ".sql",
     ".py",
     ".toml",
     ".txt",
