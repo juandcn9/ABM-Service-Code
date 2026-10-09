@@ -87,6 +87,16 @@ def post(
         (delta, account),
     )
     conn.execute(
+        "INSERT INTO movement_evidence (evidence_reference, movement_id, evidence_kind, occurred_at)"
+        " VALUES (?, ?, ?, ?)",
+        (
+            f"ev-{account}-{n}",
+            movement,
+            "settlement" if direction == "credit" else "return",
+            NOW,
+        ),
+    )
+    conn.execute(
         "INSERT INTO audit_trace (account_id, instruction_id, movement_id, ledger_entry_id,"
         " evidence_reference, movement_state, operation, outcome, caller_id, caller_role,"
         " correlation_id, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'accepted', 'pay-1',"
@@ -257,7 +267,7 @@ def test_history_is_stable_ordered_and_pages_without_gaps_or_duplicates(
     assert pages == 3 and len(seen) == 7 and seen == sorted(set(seen))
     amounts = [
         item["amount_cents"]
-        for item in ok(get_history(uow, READER, "acct-1", 0, 200))["items"]  # type: ignore[union-attr]
+        for item in ok(get_history(uow, READER, "acct-1", 0, 200))["items"]  # type: ignore[attr-defined]
     ]
     assert amounts == [100 * n for n in range(1, 8)]
 
@@ -361,10 +371,10 @@ def test_full_walk_returns_every_record_once_in_order(
         post(conn, "acct-1", n, "credit", 10)
     page = ok(get_trace(uow, RECON, 0, 3))
     cutoff = page["cutoff_sequence"]
-    sequences: list[int] = [i["sequence"] for i in page["items"]]  # type: ignore[union-attr]
+    sequences: list[int] = [i["sequence"] for i in page["items"]]  # type: ignore[attr-defined]
     while page["next_after_sequence"] is not None:
         page = ok(get_trace(uow, RECON, page["next_after_sequence"], 3, cutoff))
-        sequences.extend(i["sequence"] for i in page["items"])  # type: ignore[union-attr]
+        sequences.extend(i["sequence"] for i in page["items"])  # type: ignore[attr-defined]
     assert sequences == list(range(1, 11))
 
 
