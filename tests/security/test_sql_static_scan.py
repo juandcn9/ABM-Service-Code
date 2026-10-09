@@ -6,66 +6,111 @@ import ast
 import pathlib
 import re
 
-SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+SCANNED = (ROOT / "src" / "abm", ROOT / "harness")
 EXECUTE = {"execute", "executemany", "executescript"}
-SQL_START = re.compile(
-    r"\s*(select|insert|update|delete|create|drop|alter|pragma|replace|with)\s+\S",
-    re.IGNORECASE,
+HOLE = "{}"  # stands in for every interpolated value; it counts as one non-space token
+SQL_STATEMENT = re.compile(
+    r"\s*(?:"
+    r"select\s+(?:.*\bfrom\b|[\d*]|\{\})"
+    r"|insert\s+(?:or\s+\w+\s+)?into\b"
+    r"|update\s+\S+\s+set\b"
+    r"|delete\s+from\b"
+    r"|replace\s+into\b"
+    r"|create\s+(?:(?:temp|temporary|unique|virtual)\s+)*(?:table|index|view|trigger)\b"
+    r"|drop\s+(?:table|index|view|trigger)\b"
+    r"|alter\s+table\b"
+    r"|pragma\s+\S"
+    r"|with\s+(?:recursive\s+)?\S+\s+as\s*\("
+    r"|vacuum\b|reindex\b|analyze\b"
+    r"|attach\s+(?:database\s+)?\S+\s+as\b"
+    r"|explain\s+(?:query\s+plan\s+)?(?:select|insert|update|delete|\{\})"
+    r"|begin\s+(?:immediate|exclusive|deferred|transaction)\b"
+    r"|savepoint\s+\S"
+    r")",
+    re.IGNORECASE | re.DOTALL,
 )
 
 
-def _starts_like_sql(node: ast.expr) -> bool:
-    return (
-        isinstance(node, ast.Constant)
-        and isinstance(node.value, str)
-        and bool(SQL_START.match(node.value))
-    )
+def _static_text(node: ast.expr) -> str | None:
+    """Known text of a string expression with HOLE for values; None if it is not a string build."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        if not any(isinstance(v, ast.FormattedValue) for v in node.values):
+            return None
+        return "".join(
+            str(v.value) if isinstance(v, ast.Constant) else HOLE for v in node.values
+        )
+    return None
 
 
-def formatted_sql(source: str) -> list[int]:
-    """Line numbers of SQL built from values, or passed to execute without a fixed literal."""
+def literal_constants(source: str) -> set[str]:
+    """Module-level NAME = "plain string" assignments: the only names execute may receive."""
+    names: set[str] = set()
+    for node in ast.parse(source).body:
+        if (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+    return names
+
+
+def formatted_sql(
+    source: str, constants: frozenset[str] | set[str] = frozenset()
+) -> list[int]:
+    """Line numbers of SQL built from values, or passed to execute without a fixed statement."""
+    constants = constants | literal_constants(source)
     lines: list[int] = []
     for node in ast.walk(ast.parse(source)):
-        built = (
-            (
-                isinstance(node, ast.JoinedStr)
-                and node.values
-                and _starts_like_sql(node.values[0])
-            )
-            or (
-                isinstance(node, ast.BinOp)
-                and isinstance(node.op, ast.Mod | ast.Add)
-                and _starts_like_sql(node.left)
-            )
-            or (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr == "format"
-                and _starts_like_sql(node.func.value)
-            )
-        )
-        # a fixed statement is a string literal or an ALL_CAPS module constant
+        if not isinstance(node, ast.expr):
+            continue
+        text = None
+        if isinstance(node, ast.JoinedStr):
+            text = _static_text(node)
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod | ast.Add):
+            left = _static_text(node.left)
+            text = None if left is None else left + HOLE
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "format"
+        ):
+            left = _static_text(node.func.value)
+            text = None if left is None else left + HOLE
+        built = text is not None and bool(SQL_STATEMENT.match(text))
+        # a fixed statement is a string literal or a module-level string-literal constant
         unfixed = (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)
             and node.func.attr in EXECUTE
-            and node.args
+            and bool(node.args)
             and not (
                 (
                     isinstance(node.args[0], ast.Constant)
                     and isinstance(node.args[0].value, str)
                 )
-                or (isinstance(node.args[0], ast.Name) and node.args[0].id.isupper())
+                or (isinstance(node.args[0], ast.Name) and node.args[0].id in constants)
             )
         )
-        if (built or unfixed) and isinstance(node, ast.expr):
+        if built or unfixed:
             lines.append(node.lineno)
     return sorted(set(lines))
 
 
+def scanned_files() -> list[pathlib.Path]:
+    return [p for root in SCANNED for p in sorted(root.rglob("*.py"))]
+
+
 def test_source_tree_has_no_value_formatted_sql() -> None:
-    for path in (SRC / "abm").rglob("*.py"):
-        assert formatted_sql(path.read_text(encoding="utf-8")) == [], str(path)
+    files = scanned_files()
+    assert files, "scan found no files; SCANNED paths are wrong"
+    sources = {p: p.read_text(encoding="utf-8") for p in files}
+    constants = set().union(*(literal_constants(s) for s in sources.values()))
+    for path, source in sources.items():
+        assert formatted_sql(source, constants) == [], str(path)
 
 
 def test_scan_rejects_formatted_sql() -> None:
@@ -74,21 +119,39 @@ def test_scan_rejects_formatted_sql() -> None:
         'cur.execute("SELECT * FROM t WHERE id = " + x)',
         'cur.execute("SELECT * FROM t WHERE id = %s" % x)',
         'cur.execute("SELECT * FROM {}".format(t))',
+        'cur.execute(f"UPDATE {t} SET a = ?", (1,))',
+        'cur.execute(f"select {cols} from t")',
         "cur.execute(query)",
         'cur.executemany(f"INSERT INTO t VALUES ({x})", rows)',
         'q = f"DELETE FROM t WHERE id = {x}"',
+        "q = f\"VACUUM INTO '{p}'\"",
+        "q = f\"ATTACH DATABASE '{p}' AS d\"",
+        'q = f"PRAGMA {name} = 1"',
+        # a constant that is not a plain string literal is not a fixed statement
+        'Q = f"{v} FROM t WHERE a = {x}"\ncur.execute(Q)',
+        "Q = build(x)\ncur.execute(Q)",
+        'Q = x + " WHERE"\ncur.execute(Q)',
+        "cur.execute(OTHER_MODULE_CONSTANT)",
     ]
     for source in bad:
-        assert formatted_sql(source) == [1], source
+        assert formatted_sql(source), source
 
 
 def test_scan_accepts_fixed_statements_and_unrelated_strings() -> None:
     good = [
         'cur.execute("SELECT * FROM t WHERE id = ?", (x,))',
-        "cur.execute(INSERT_ENTRY, (x,))",
+        'INSERT_ENTRY = "INSERT INTO t VALUES (?)"\ncur.execute(INSERT_ENTRY, (x,))',
         'cur.executemany("INSERT INTO t VALUES (?)", rows)',
         'message = f"selected {count} rows"',
         'name = "update" + suffix',
+        'log.info(f"update failed for {x}")',
+        'raise ValueError(f"create request invalid: {x}")',
+        'q = f"SELECT 1"',
+        'x = """SELECT * FROM t""" ',
     ]
     for source in good:
         assert formatted_sql(source) == [], source
+
+
+def test_known_constants_from_other_modules_are_accepted() -> None:
+    assert formatted_sql("cur.execute(INSERT_ENTRY, (x,))", {"INSERT_ENTRY"}) == []

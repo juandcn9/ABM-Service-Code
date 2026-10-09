@@ -23,7 +23,7 @@ Every change uses a pull request containing the approved Specs version/SHA, TASK
 5. no secret, prohibited data, uncontrolled placeholder, or unsupported claim;
 6. confirmation that merge will not alter the approved revision.
 
-The target repository controls are: pull requests for `main`, required `validate-governance` and `quality-gates` statuses (neither is advisory; a failing or skipped required check blocks merge), resolved review conversations, no force push, and no deletion. Where hosting cannot enforce a control, the same rule remains mandatory procedure and the PR records its evidence.
+The target repository controls are: pull requests for `main`, required `validate-governance` and `quality-gates` statuses (neither is advisory; a failing or skipped required check blocks merge), resolved review conversations, no force push, and no deletion. Where hosting cannot enforce a control, the same rule remains mandatory procedure and the PR records its evidence. GitHub branch protection and required status checks are unavailable for this private repository on the current plan (the API returns 403), so these controls are procedural: a merge is permitted only when the PR shows the required checks green on the exact head SHA, with the evidence recorded in the PR.
 
 ## Review independence
 

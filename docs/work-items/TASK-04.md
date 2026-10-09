@@ -1,20 +1,22 @@
 # Work item: TASK-04 — Code CI quality gates
 
-**Status:** Implemented
+**Status:** Blocked
+
+Blocker: the Open decision below (how the Specs validation deliverable is satisfied). Everything else in this work item is implemented and checked. Next authorized action: JDC chooses option 1, 2, or 3; this task is not complete until then.
 
 ## Authority
 
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
 - TASK and affected IDs: `TASK-04`; `SEC-11`; `SEC-05`/`TEST-25` (static half); `TEST-26`; Gates 3 through 8 as applicable before application code exists
-- Decision, gap, or risk records: no new decision or gap; `RISK-0005` (see `docs/governance/deviations.md`, DV-01)
+- Decision, gap, or risk records: no DEC or GAP record created; one open JDC decision is stated below; `RISK-0005` (see `docs/governance/deviations.md`, DV-01)
 - Owner role: Builder Auditor (Claude Code); independent Tester verification of the final head is required
 
 ## Scope
 
 - Objective: make the checks that can run today required CI gates, with no advisory check, and close the `TASK-02` Minor findings scheduled here.
-- Included: `quality-gates` job (pinned `setup-python`, exact-patch interpreter assertion, hash-verified dev install, `validate_toolchain.py`, `ruff check`, `ruff format --check`, `mypy`, `pytest`); `tests/security/test_sql_static_scan.py` (no value-formatted SQL, SEC-05/TEST-25 static half); `validate_governance.py` now scans tracked plus untracked-not-ignored files (closes F3); `.gitattributes` LF normalization and `venv/`/`env/` ignores (Observations); mechanical `ruff format` of three existing files; repository-policy and dependency-policy text.
+- Included: `quality-gates` job (pinned `setup-python`, exact-patch interpreter assertion, hash-verified dev install, `validate_toolchain.py`, `ruff check`, `ruff format --check`, `mypy`, `pytest`); `tests/security/test_sql_static_scan.py` (no value-formatted SQL in `src/abm` and `harness`, SEC-05/TEST-25 static half); `validate_governance.py` now scans tracked plus untracked-not-ignored files (closes F3); `.gitattributes` LF normalization and `venv/`/`env/` ignores (Observations); mechanical `ruff format` of three existing files; repository-policy and dependency-policy text.
 - `TASK-02` findings: F1 closed by the CI job; F3 closed as above; F2 reviewed and left unchanged: `pyproject.toml` and both locks are each checked against the same reviewed constants, so they cannot diverge without failing, and an additional direct comparison would duplicate that.
-- Explicit exclusions: running the Specs repository's own `tools/validate_specs.py` from Code CI (see Open decision); gates that need code that does not exist yet (persistence, API/security matrix, operations, release evidence), which later TASKs add to this job; prohibited-data fixture scans beyond the secret patterns (TASK-23); branch-protection settings (not enforceable on this private free-plan repository, see repository policy).
+- Explicit exclusions: running the Specs repository's own `tools/validate_specs.py` from Code CI (see Open decision); Gate 3 beyond running `pytest` (no domain code exists yet), Gates 5, 6, 7 (persistence, API/security matrix, operations), and the non-procedural parts of Gate 8 (conformance review, `ponytail-audit` at phase/release boundaries), which later TASKs add; machine enforcement of the workflow's own structure (the validator's workflow check is a substring test, so "no required check is advisory" rests on review until a parsed-YAML check exists; recorded for `TASK-05` or a later approved task); prohibited-data fixture scans beyond the secret patterns (TASK-23); branch-protection settings (not enforceable on this private free-plan repository, see repository policy).
 - Dependencies and entry gate: `TASK-01` merged; `TASK-02` Verified and `TASK-03` merged at Code `aa740bb`.
 
 ## Acceptance evidence
@@ -30,7 +32,7 @@ The delivery row says "Install Specs validation". The Code repository already va
 
 ## Implementation notes
 
-- Reversible technical choices: `ALL_CAPS` module constants are allowed as the SQL argument to `execute*`, so fixed statements can live as constants; the scan flags any SQL-looking string built with an f-string, `%`, `+`, or `.format`. Later TASKs may refine it with justification.
+- Reversible technical choices: the SQL argument to `execute*` must be a string literal or a module-level name bound to a plain string literal anywhere in the scanned tree, so fixed statements can live as constants. The scan flags a string built with an f-string, `%`, `+`, or `.format` whose known text has the shape of a statement (`SELECT … FROM`, `INSERT INTO`, `UPDATE x SET`, `PRAGMA`, `VACUUM`, `ATTACH`, and similar), with interpolated values counted as one token. Known limits: aliasing (`run = cur.execute`), `getattr` indirection, SQL assembled from pieces where the literal is not first, other driver methods such as `exec_driver_sql`, and a `SELECT` whose text starts with an English phrase can be misjudged. It is syntactic and does not prove absence of injection; the runtime half of TEST-25 arrives with persistence. Later TASKs may refine it with justification.
 - Installed Ponytail plugin 5.1.0 (`full`) and local Python 3.12.10 are declared deviations DV-01 and DV-02; CI uses the pinned 3.12.15, so this PR also gives the first run on the pinned interpreter.
 - The three reformatted files differ only by `ruff format`.
 
@@ -38,6 +40,6 @@ The delivery row says "Install Specs validation". The Code repository already va
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: locally (Python 3.12.10) `pytest` 8 passed, `ruff check`, `ruff format --check`, `mypy src tests scripts`, `validate_governance.py`, `validate_toolchain.py` pass. In CI on Linux with `Successfully set up CPython (3.12.15)` and the exact-patch assertion passing, the `quality-gates` and `validate-governance` jobs pass on the PR head. This is the first run on the pinned interpreter and the first non-Windows run of the test suite. The first push failed to start any job because the workflow YAML was invalid (`:all: -r` inside a plain scalar); fixed in the next commit. Nothing in this repository parses workflow YAML locally, so CI is the only syntax check.
-- Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01) found nothing to fix; known limit: the SQL scan misses an f-string that starts with an expression. A fresh-context review and Tester verification of the final head are still required.
+- Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01) found nothing to fix; the first-version SQL scan limit (an f-string starting with an expression) was superseded by the rewrite below. Independent fresh-context review of head `44830ab`: PASS with findings, zero Blocker/Major. M1 (status overstated while the Specs-validation deliverable is open): status is now Blocked with the blocker named. M2 (SQL scan false positives and trust gaps): rewritten to match whole-string statement shapes, resolve constants to plain string literals, cover more statement kinds and `harness/`, and assert files were scanned. M3 (policy text dangling): repository policy now states plainly that branch protection is unavailable and required checks are procedural. M4 (Gate 3 and Gate 8 not in the deferral list): added to exclusions. O1 (workflow check is a substring test): recorded as an exclusion above. O2/O3: noted, no change. A re-review and Tester verification of the final head are still required.
 - Residual risks: required-check enforcement depends on repository settings that this plan cannot enforce; the SQL scan is syntactic and cannot prove absence of injection (TEST-25 runtime half arrives with persistence).
 - Next safe action: independent review of this PR and a decision on the Open decision.
