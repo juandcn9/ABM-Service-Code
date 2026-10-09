@@ -13,7 +13,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 ## Current scope
 
-`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. The repository intentionally contains no service implementation, database schema, API route, built container, cloud resource, credential, or real customer data.
+`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. `TASK-05` records the Ponytail configuration work item (Blocked on the pin decision). `TASK-08` adds the pure domain value objects, typed results, idempotency fingerprint, and clock port. `TASK-09` adds trusted caller-context parsing, the role and account-scope authorization matrix, and strict transport validation. `TASK-02`, `TASK-03`, `TASK-04`, `TASK-08`, and `TASK-09` have independent Tester records under `docs/evidence/`. The repository intentionally contains no service implementation, database schema, API route, built container, cloud resource, credential, or real customer data.
 
 ## Repository map
 

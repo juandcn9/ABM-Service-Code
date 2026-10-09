@@ -1,13 +1,13 @@
 # Work item: TASK-04 — Code CI quality gates
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
 - TASK and affected IDs: `TASK-04`; `SEC-11`; `SEC-05`/`TEST-25` (static half); `TEST-26`; Gates 3 through 8 as applicable before application code exists
 - Decision, gap, or risk records: no DEC or GAP record created; one JDC decision (Specs-validation option 1) is recorded below; `RISK-0005` (see `docs/governance/deviations.md`, DV-01)
-- Owner role: Builder Auditor (Claude Code); independent Tester verification of the final head is required
+- Owner role: Builder Auditor (Claude Code); independently verified (see Independent verification)
 
 ## Scope
 
@@ -36,8 +36,16 @@ The delivery row says "Install Specs validation". The Code repository already va
 
 ## Completion
 
-- Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
+- Code commit/PR: PR #5, merged as `4dacac2`.
 - Commands/checks and results: locally (Python 3.12.10) `pytest` 9 passed, `ruff check`, `ruff format --check`, `mypy src tests scripts`, `validate_governance.py`, `validate_toolchain.py` pass. In CI on Linux with `Successfully set up CPython (3.12.15)` and the exact-patch assertion passing, the `quality-gates` and `validate-governance` jobs pass on the PR head. This is the first run on the pinned interpreter and the first non-Windows run of the test suite. The first push failed to start any job because the workflow YAML was invalid (`:all: -r` inside a plain scalar); fixed in the next commit. Nothing in this repository parses workflow YAML locally, so CI is the only syntax check.
 - Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01) found nothing to fix; the first-version SQL scan limit (an f-string starting with an expression) was superseded by the rewrite below. Independent fresh-context review of head `44830ab`: PASS with findings, zero Blocker/Major. M1 (status overstated while the Specs-validation deliverable was open): status was set to Blocked with the blocker named, and is Implemented again after JDC chose option 1. M2 (SQL scan false positives and trust gaps): rewritten to match whole-string statement shapes, resolve constants to plain string literals, cover more statement kinds and `harness/`, and assert files were scanned. M3 (policy text dangling): repository policy now states plainly that branch protection is unavailable and required checks are procedural. M4 (Gate 3 and Gate 8 not in the deferral list): added to exclusions. O1 (workflow check is a substring test): recorded as an exclusion above. O2/O3: noted, no change. A re-review and Tester verification of the final head are still required. A second independent review of head `870ddb3` found PASS with findings (zero Blocker/Major): stale text in this work item (corrected here) and the understated SQL-scan limits (added above); both required checks were green on that head on CPython 3.12.15.
 - Residual risks: required-check enforcement depends on repository settings that this plan cannot enforce; the SQL scan is syntactic and cannot prove absence of injection (TEST-25 runtime half arrives with persistence).
 - Next safe action: merge only with both required checks green on the exact head SHA (procedural, no branch protection available); then `TASK-05`.
+
+## Independent verification
+
+- Role and context: Tester, fresh-context agents that did not build `TASK-04`, 2026-10-09. The sanitized report is committed at [`docs/evidence/TASK-04-tester-report.md`](../evidence/TASK-04-tester-report.md).
+- Revision tested: Code PR #5 head `870ddb31e9dd6a5820c33f5914f4357c98194576`; the merged head `cc5e93a` (merge commit `4dacac2`) differs only by documentation wording responding to the review, and CI passed on it. Specs `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`.
+- Result: PASS with findings; zero Blocker, zero Major. The four Minor findings are resolved; the Observation that the validator's workflow check is a substring test stays open (see below).
+- Scope of "Verified": the CI gates, SQL static scan, tracked-file secret scan, and the closure of the `TASK-02` Minor findings, on the pinned interpreter in CI. Gates 5, 6, 7, the non-procedural parts of Gate 8, and machine enforcement of the workflow's own structure are deferred and recorded in this work item.
+- Not verified: Python 3.12.15 locally (CI covers it); branch-protection settings (unavailable on this plan; the controls are procedural).
