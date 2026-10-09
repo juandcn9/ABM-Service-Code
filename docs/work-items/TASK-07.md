@@ -40,7 +40,7 @@
 
 ## Review fixes (PR #13, fresh-context review)
 
-- Major 1: the busy timeout was rounded down by the driver, so 372 valid values (for example 1001) failed the readback check. The timeout now carries half a millisecond so every valid value applies exactly. Boundary tests cover 1, 1001, 1003, 2999, 59999 and 60000; removing the half millisecond fails them.
+- Major 1: the busy timeout was rounded down by the driver, so 372 valid values (for example 1001) failed the readback check. The timeout now carries half a millisecond so every valid value applies exactly. A test checks every value from 1 to 60000; removing the half millisecond fails it (372 values).
 - Major 2: the old serialization test passed without `BEGIN IMMEDIATE`. A new test has the second writer read the state inside its transaction while the first writer holds the lock. It waits, then sees the first commit. Changing to a deferred `BEGIN` fails it.
 - Minor: the read snapshot docstring now says it starts at the first read; the readback queries run inside the error handler; every SQLite result code the module maps has its own test.
 - Not changed, recorded: nested write or read inside another transaction is refused by SQLite and mapped to INTERNAL_ERROR (misuse only, no test); a body that commits on its own leaves the context manager's commit to fail (misuse only).
