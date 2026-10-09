@@ -18,7 +18,7 @@
 
 ## Acceptance evidence
 
-- Focused tests: `pytest tests/unit/test_import_boundaries.py` checks the layout exists, the real tree has no boundary violations, every `abm` module belongs to a known layer, and the checker rejects forbidden imports (including relative and `from abm import x` forms, `sqlite3`/third-party imports in `domain`, and `harness` imports) while accepting permitted ones.
+- Focused tests: `pytest tests/unit/test_import_boundaries.py` checks the layout exists, the real tree has no boundary violations, every `abm` module belongs to a known layer, and the checker rejects forbidden imports (including relative and `from abm import x` forms, `sqlite3`/third-party imports in `domain`, and `harness` imports) while accepting permitted ones; it also rejects `_sqlite3`, `__import__`/`exec`/`eval`, and any `abm` package-root import of a layer or `harness`.
 - Required broader gates: `ruff check .`, `mypy src tests scripts`, `scripts/validate_governance.py`, `scripts/validate_toolchain.py`.
 - Failure, concurrency, authorization, and recovery cases: not applicable; no behavior exists.
 - Documentation/trace updates: README current scope, CHANGELOG, this work item.
@@ -28,7 +28,7 @@
 - Allowed internal imports (reversible technical choice reading section 4): `domain` none; `ports` domain; `application` domain, ports; `persistence` domain, ports; `api` application, domain; `observability` application, domain; `main` all layers and `config`. `config` imports no layer. A later TASK that needs a wider edge must justify it against section 4.
 - `TEST-20` (unsupported operations have no route or return `UNSUPPORTED_OPERATION`) cannot be demonstrated before routes exist; it is completed by `TASK-23` and `TASK-25`. This task only supplies the structural guard that nothing outside the layers can be imported inward.
 - CI does not yet run `pytest`; wiring it into required checks is `TASK-04`.
-- Deviations recorded per JDC decision on 2026-10-09: the installed Ponytail plugin (not the Specs-pinned v4.13.0) was used in `full` mode, which is a risk acceptance against `RISK-0005` and is not verified against the pin; local Python is 3.12.10 because python.org publishes no Windows binary for the pinned 3.12.15 (CI and container remain pinned to 3.12.15).
+- Deviations: the installed Ponytail plugin 5.1.0 in `full` mode (not the Specs-pinned v4.13.0, unverified against the pin) and local Python 3.12.10 (python.org has no Windows binary for the pinned 3.12.15; CI and the container remain pinned) are declared deviations stated by the session user, recorded as DV-01 and DV-02 in `docs/governance/deviations.md` (PR #4). They are not a recorded JDC decision or Specs change, and `RISK-0005` is unchanged.
 - `TASK-02` was implemented by another agent; its independent verification record is proposed in a separate PR (#4) and is not a dependency of this change.
 
 ## Completion
