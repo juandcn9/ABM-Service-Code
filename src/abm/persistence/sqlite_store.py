@@ -7,8 +7,17 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from abm.persistence.database import to_failure, write_transaction
-from abm.ports.storage import NewAccount, StorageFailure, StoredOutcome, TraceEntry
+from abm.persistence.database import read_transaction, to_failure, write_transaction
+from abm.ports.storage import (
+    AccountRecord,
+    HoldRecord,
+    LedgerRow,
+    NewAccount,
+    StorageFailure,
+    StoredOutcome,
+    TraceEntry,
+    TraceRow,
+)
 
 
 class SqliteWriteTransaction:
@@ -91,6 +100,62 @@ class SqliteWriteTransaction:
         )
 
 
+class SqliteReadTransaction:
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def get_account(self, account_id: str) -> AccountRecord | None:
+        row = self._conn.execute(
+            "SELECT account_id, status, restriction, current_balance_cents"
+            " FROM accounts WHERE account_id = ?",
+            (account_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        holds = tuple(
+            HoldRecord(*hold)
+            for hold in self._conn.execute(
+                "SELECT hold_id, movement_id, amount_cents, state FROM holds"
+                " WHERE account_id = ? AND state = 'active' ORDER BY created_at, hold_id",
+                (account_id,),
+            )
+        )
+        return AccountRecord(row[0], row[1], row[2], row[3], holds)
+
+    def history_page(
+        self, account_id: str, after_sequence: int, limit: int
+    ) -> list[LedgerRow]:
+        return [
+            LedgerRow(*row)
+            for row in self._conn.execute(
+                "SELECT sequence, entry_id, movement_id, effect_kind, direction,"
+                " amount_cents, created_at FROM ledger_entries"
+                " WHERE account_id = ? AND sequence > ? ORDER BY sequence ASC LIMIT ?",
+                (account_id, after_sequence, limit),
+            )
+        ]
+
+    def trace_cutoff(self) -> int:
+        row = self._conn.execute("SELECT MAX(sequence) FROM audit_trace").fetchone()
+        return int(row[0] or 0)
+
+    def trace_page(
+        self, after_sequence: int, cutoff_sequence: int, limit: int
+    ) -> list[TraceRow]:
+        return [
+            TraceRow(*row)
+            for row in self._conn.execute(
+                "SELECT t.sequence, t.account_id, t.instruction_id, t.movement_id, t.operation,"
+                " t.caller_id, t.caller_role, t.correlation_id, t.occurred_at,"
+                " t.ledger_entry_id, t.movement_state, l.effect_kind, l.direction,"
+                " l.amount_cents, t.evidence_reference, t.external_reference"
+                " FROM audit_trace t LEFT JOIN ledger_entries l ON l.entry_id = t.ledger_entry_id"
+                " WHERE t.sequence > ? AND t.sequence <= ? ORDER BY t.sequence ASC LIMIT ?",
+                (after_sequence, cutoff_sequence, limit),
+            )
+        ]
+
+
 class SqliteUnitOfWork:
     """One write transaction per instruction; driver errors become safe StorageFailure values."""
 
@@ -102,5 +167,13 @@ class SqliteUnitOfWork:
         try:
             with write_transaction(self._conn):
                 yield SqliteWriteTransaction(self._conn)
+        except sqlite3.Error as exc:
+            raise StorageFailure(to_failure(exc)) from exc
+
+    @contextmanager
+    def read(self) -> Iterator[SqliteReadTransaction]:
+        try:
+            with read_transaction(self._conn):
+                yield SqliteReadTransaction(self._conn)
         except sqlite3.Error as exc:
             raise StorageFailure(to_failure(exc)) from exc
