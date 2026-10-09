@@ -38,7 +38,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 Implement only one dependency-ready Specs TASK at a time. A normative ambiguity or proposed change to money, customer rights, public behavior, ownership, retention, security, architecture, or governance stops affected work and returns to the Specs change process.
 
-Ponytail is not applicable to this Codex-authored task. Any future Claude Code task must follow the exact Ponytail `v4.13.0` governance in the approved Specs; tool output is never authority.
+Ponytail was not applicable to the original Codex-authored tasks. Claude Code tasks follow the Ponytail governance in the approved Specs and record `ponytail-review` evidence in the pull request; the version in use and any deviation are recorded in `docs/governance/deviations.md`. Tool output is never authority.
 
 ## Non-claims
 
