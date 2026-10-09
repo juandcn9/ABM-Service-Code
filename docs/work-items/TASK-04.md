@@ -1,6 +1,6 @@
 # Work item: TASK-04 — Code CI quality gates
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -37,7 +37,7 @@ The delivery row says "Install Specs validation". The Code repository already va
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
-- Commands/checks and results: pending.
-- Review findings/resolution: pending.
+- Commands/checks and results: locally (Python 3.12.10) `pytest` 8 passed, `ruff check`, `ruff format --check`, `mypy src tests scripts`, `validate_governance.py`, `validate_toolchain.py` pass. In CI on Linux with `Successfully set up CPython (3.12.15)` and the exact-patch assertion passing, the `quality-gates` and `validate-governance` jobs pass on the PR head. This is the first run on the pinned interpreter and the first non-Windows run of the test suite. The first push failed to start any job because the workflow YAML was invalid (`:all: -r` inside a plain scalar); fixed in the next commit. Nothing in this repository parses workflow YAML locally, so CI is the only syntax check.
+- Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01) found nothing to fix; known limit: the SQL scan misses an f-string that starts with an expression. A fresh-context review and Tester verification of the final head are still required.
 - Residual risks: required-check enforcement depends on repository settings that this plan cannot enforce; the SQL scan is syntactic and cannot prove absence of injection (TEST-25 runtime half arrives with persistence).
 - Next safe action: independent review of this PR and a decision on the Open decision.
