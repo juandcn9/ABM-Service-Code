@@ -7,7 +7,7 @@
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
 - TASK and affected IDs: `TASK-01`; `BT-06`; `SEC-11`; `TEST-26`; governance controls
 - Decision, gap, or risk records: no new decision or gap; existing Specs risks remain unchanged
-- Owner roles: Updater + Builder Auditor; Codex is the execution runtime for this implementation, and final verification requires an independent Tester
+- Owner roles: Updater + Builder Auditor; Codex was the execution runtime for the original implementation and Claude Code for the follow-up change, and final verification requires an independent Tester
 
 ## Scope
 
@@ -27,7 +27,7 @@
 
 - No runtime or development dependency is introduced.
 - The CI checkout action is pinned to its reviewed commit.
-- Ponytail is not applicable to this Codex runtime; future Claude Code work remains governed by the Specs pin and commands.
+- Ponytail was not applicable to the original Codex runtime; the Claude Code follow-up change records its `ponytail-review` evidence in its pull request.
 - Repository controls are documented as mandatory policy; no product or technical architecture decision is added.
 
 ## Completion

