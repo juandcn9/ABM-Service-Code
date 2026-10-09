@@ -23,6 +23,8 @@ def parse_caller_context(headers: Mapping[str, str]) -> Result[CallerContext]:
     requires it for account reads.
     """
     denied = failure("UNAUTHORIZED", "Trusted caller context is missing or malformed.")
+    if not isinstance(headers, Mapping):
+        return denied
     seen: dict[str, str] = {}
     for name, value in headers.items():
         key = name.lower() if type(name) is str else ""
