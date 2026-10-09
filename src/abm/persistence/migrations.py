@@ -34,15 +34,39 @@ def checksum(sql: str) -> str:
     return hashlib.sha256(sql.replace("\r\n", "\n").encode("utf-8")).hexdigest()
 
 
+# a migration runs inside the runner's transaction, so it may not begin, end, or nest one
+_TRANSACTION_CONTROL = re.compile(
+    r"\s*(?:--[^\n]*\n\s*|/\*.*?\*/\s*)*(?:begin|commit|end|rollback|savepoint|release)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
 def load_migrations(directory: pathlib.Path) -> list[Migration]:
-    """Read NNNN_name.sql files; versions must be exactly 1..n with no gap or duplicate."""
+    """Read NNNN_name.sql files; versions must be exactly 1..n with no gap or duplicate.
+
+    Everything wrong with the files is reported here, before any database is touched: an
+    entry that is not a plain lowercase .sql file, an unreadable or non-UTF-8 file, a bad
+    name, text that is not whole statements, or a statement that controls the transaction.
+    """
     found: list[Migration] = []
-    for path in sorted(directory.glob("*.sql")):
-        match = _STEM.fullmatch(path.stem)
-        if not match or len(path.stem) > 128:
-            raise MigrationError("MIGRATION_FILES_INVALID")
-        sql = path.read_text(encoding="utf-8")
-        found.append(Migration(int(match.group(1)), path.stem, sql, checksum(sql)))
+    try:
+        entries = sorted(directory.iterdir())
+        for path in entries:
+            match = _STEM.fullmatch(path.stem)
+            if (
+                path.suffix != ".sql"
+                or not path.is_file()
+                or not match
+                or len(path.stem) > 128
+            ):
+                raise MigrationError("MIGRATION_FILES_INVALID")
+            sql = path.read_text(encoding="utf-8")
+            for statement in _statements(sql):
+                if _TRANSACTION_CONTROL.match(statement):
+                    raise MigrationError("MIGRATION_FILES_INVALID")
+            found.append(Migration(int(match.group(1)), path.stem, sql, checksum(sql)))
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise MigrationError("MIGRATION_FILES_INVALID") from exc
     if [m.version for m in found] != list(range(1, len(found) + 1)):
         raise MigrationError("MIGRATION_FILES_INVALID")
     return found
