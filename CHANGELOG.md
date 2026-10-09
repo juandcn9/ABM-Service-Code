@@ -10,3 +10,4 @@ All notable Code repository changes are recorded here.
 - Added the `TASK-04` required `quality-gates` CI job (pinned Python, hash-verified install, toolchain, lint, format, type, tests), a static SQL-formatting scan, LF normalization, and a tracked-file secret scan.
 - Added `TASK-06` forward-only SQLite migrations: migration `0001` equal to the approved schema contract, a checksum-validating runner, and integration tests.
 - Added `TASK-08` domain value objects (integer-cent USD money, canonical identifiers and UTC instants), typed results with stable error codes, a canonical idempotency fingerprint, and the controllable clock port with a deterministic test double; CI type-checks `harness` too.
+- Added `TASK-07` strict SQLite connection settings (foreign keys, WAL, full synchronous, bounded busy timeout), an all-or-nothing write transaction with `BEGIN IMMEDIATE`, a snapshot read transaction, and safe SQLite error mapping.
