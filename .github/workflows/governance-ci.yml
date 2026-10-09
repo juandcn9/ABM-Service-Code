@@ -34,7 +34,8 @@ jobs:
         with:
           python-version-file: .python-version
       - name: Install hash-verified development lock
-        run: python -m pip install --require-hashes --only-binary=:all: -r requirements-dev.lock
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r requirements-dev.lock
       - name: Verify the interpreter is the pinned patch version
         run: test "$(python -c 'import platform; print(platform.python_version())')" = "$(cat .python-version)"
       - name: Toolchain pins and locks
