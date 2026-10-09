@@ -21,8 +21,10 @@ ALLOWED = {
     "config": set(),
     "main": set(LAYERS) | {"config"},
 }
-# the monetary domain has no FastAPI or SQLite dependency; sqlite3 is stdlib, so ban it explicitly
-DOMAIN_BANNED_STDLIB = {"sqlite3"}
+# the monetary domain has no FastAPI or SQLite dependency; sqlite3 is stdlib, so ban it explicitly.
+# importlib is banned too: dynamic imports are invisible to this static check.
+# shortcut: `__import__(...)` calls are not detected, upgrade if the domain ever needs a code-review rule for them.
+DOMAIN_BANNED_STDLIB = {"sqlite3", "importlib"}
 
 
 def layer_of(module: str) -> str | None:
@@ -111,6 +113,7 @@ def test_checker_rejects_forbidden_imports() -> None:
     problems = violations(bad)
     for expected in (
         "domain module abm.domain.money imports sqlite3",
+        "domain module abm.domain.money imports importlib",
         "domain module abm.domain.money imports fastapi",
         "abm.domain.money imports abm.api",
         "abm.domain.money imports abm.persistence",
