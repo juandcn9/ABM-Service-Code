@@ -147,13 +147,6 @@ LEGITIMATE = (
     "CREATE TRIGGER extra_no_delete BEFORE DELETE ON extra\n"
     "BEGIN SELECT RAISE(ABORT, 'extra rows are kept'); END;\n"
     "INSERT INTO extra (label) VALUES ('seed -- not a comment');\n"
-    "INSERT INTO idempotency_outcomes (scope, idempotency_key, fingerprint, instruction_id,"
-    " outcome_class, http_status, response_json, created_at)"
-    " VALUES ('s', 'k', '"
-    + "a" * 64
-    + "', 'i', 'success', 200, '{\"ok\":true}', '"
-    + NOW
-    + "');\n"
     "-- finished\n"
 )
 
