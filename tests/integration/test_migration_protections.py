@@ -127,6 +127,13 @@ ATTACKS = [
     # a new trigger that reaches into retained history
     "CREATE TABLE note (x);\nCREATE TRIGGER evil AFTER INSERT ON note\nBEGIN DELETE FROM ledger_entries; END;",
     "CREATE TABLE note (x);\nCREATE TRIGGER evil AFTER INSERT ON note\nBEGIN UPDATE audit_trace SET operation = 'x'; END;",
+    # a trigger that names the history table in quotes is still a trigger on a retained table
+    (
+        "CREATE TABLE note (x);\nCREATE TRIGGER t_quoted AFTER INSERT ON note\nBEGIN"
+        " INSERT INTO 'schema_version' (version, migration_name, checksum, applied_at)"
+        f" VALUES (9, '0009_forged', '{HEX}', '2026-10-09T10:00:00Z'); END;"
+    ),
+    "DROP INDEX idx_ledger_account_sequence;",
     # rewrite a retained row in place (REPLACE rewrote rows in the third review's F1)
     (
         "REPLACE INTO ledger_entries (sequence, entry_id, account_id, movement_id, effect_kind,"
@@ -278,7 +285,6 @@ def test_the_post_migration_verification_catches_what_the_authorizer_would_miss(
 
 
 LEGITIMATE = (
-    "ALTER TABLE accounts ADD COLUMN display_note TEXT;\n"
     "CREATE TABLE extra (id INTEGER PRIMARY KEY, label TEXT);\n"
     "CREATE INDEX idx_extra_label ON extra(label);\n"
     "CREATE VIEW extra_labels AS SELECT label FROM extra;\n"
@@ -365,11 +371,17 @@ AUTHORIZER_DECISIONS = [
     (sqlite3.SQLITE_PRAGMA, "foreign_keys", None, True),
     (sqlite3.SQLITE_FUNCTION, None, "load_extension", False),
     (sqlite3.SQLITE_DROP_TRIGGER, "ledger_entries_no_update", "ledger_entries", False),
+    (sqlite3.SQLITE_DROP_TRIGGER, "note_trigger", "note", False),
     (sqlite3.SQLITE_ALTER_TABLE, "main", "ledger_entries", False),
+    (sqlite3.SQLITE_ALTER_TABLE, "main", "accounts", False),
+    (sqlite3.SQLITE_UPDATE, "movements", "amount_cents", False),
+    (sqlite3.SQLITE_DELETE, "retention_metadata", None, False),
+    (sqlite3.SQLITE_DROP_TABLE, "holds", None, False),
+    (sqlite3.SQLITE_DROP_INDEX, "idx_holds_account_state", "holds", False),
+    (sqlite3.SQLITE_DROP_VIEW, "extra_labels", None, False),
     # non-retained work a migration legitimately needs
     (sqlite3.SQLITE_INSERT, "accounts", None, True),
     (sqlite3.SQLITE_CREATE_TABLE, "note", None, True),
-    (sqlite3.SQLITE_DROP_TRIGGER, "note_trigger", "note", True),
 ]
 
 
@@ -532,3 +544,42 @@ def test_a_temp_view_cannot_fake_the_migration_history(tmp_path: pathlib.Path) -
     assert conn.execute("SELECT MAX(version) FROM main.schema_version").fetchone() == (
         1,
     )
+
+
+# Destructive statements on tables the trigger and verification layers do not guard. The authorizer
+# is the only layer for these, so they are tested here with it in place (the Specs ban, specs/05 s.8).
+DESTRUCTIVE_ON_OPEN_TABLES = [
+    "DROP TABLE holds;",
+    "UPDATE movements SET amount_cents = 1;",
+    "DELETE FROM retention_metadata;",
+    "ALTER TABLE accounts ADD COLUMN display_note TEXT;",
+    "DROP INDEX idx_holds_account_state;",
+    "DELETE FROM sqlite_master;",
+    "UPDATE sqlite_master SET sql = 'x' WHERE name = 'holds';",
+]
+
+
+@pytest.mark.parametrize("attack", DESTRUCTIVE_ON_OPEN_TABLES)
+def test_destructive_changes_to_unguarded_tables_are_refused_with_nothing_changed(
+    tmp_path: pathlib.Path, attack: str
+) -> None:
+    conn = migrated(tmp_path)
+    before = state(conn)
+    with pytest.raises(MigrationError) as excinfo:
+        apply_migrations(conn, [*BASE, second(attack)], NOW)
+    assert excinfo.value.code == "MIGRATION_FAILED"
+    assert not conn.in_transaction
+    assert state(conn) == before
+
+
+def test_a_quoted_name_in_a_trigger_is_still_seen_by_the_readiness_check(
+    tmp_path: pathlib.Path,
+) -> None:
+    conn = migrated(tmp_path)
+    conn.execute("CREATE TABLE note (x)")
+    conn.execute(
+        "CREATE TRIGGER quoted AFTER INSERT ON note BEGIN"
+        " INSERT INTO 'schema_version' (version, migration_name, checksum, applied_at)"
+        f" VALUES (9, '0009_forged', '{HEX}', '2026-10-09T10:00:00Z'); END"
+    )
+    assert not retained_history_protected(conn)

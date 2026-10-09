@@ -47,8 +47,10 @@ def checksum(sql: str) -> str:
     return hashlib.sha256(sql.replace("\r\n", "\n").encode("utf-8")).hexdigest()
 
 
-# comments and string literals, matched together so neither can hide the other
-_TOKENS_TO_IGNORE = re.compile(r"'(?:[^']|'')*'|--[^\n]*|/\*.*?\*/", re.DOTALL)
+# quoted text is kept (SQLite accepts 'table' as a name) and only comments are blanked
+_QUOTED_OR_COMMENT = re.compile(
+    r"""('(?:[^']|'')*'|"(?:[^"]|"")*")|--[^\n]*|/\*.*?\*/""", re.DOTALL
+)
 _COMMENTS = re.compile(r"--[^\n]*|/\*.*?\*/", re.DOTALL)
 # a migration runs inside the runner's transaction, so it may not begin, end, or nest one
 _TRANSACTION_CONTROL = re.compile(
@@ -90,15 +92,13 @@ def load_migrations(directory: pathlib.Path) -> list[Migration]:
 
 def _statements(sql: str) -> Iterator[str]:
     # executescript() would commit first, so split and run each statement in our transaction
-    buffer = ""
-    for line in sql.splitlines(keepends=True):
-        buffer += line
-        if sqlite3.complete_statement(buffer):
-            yield buffer
-            buffer = ""
-    if _COMMENTS.sub(
-        "", buffer
-    ).strip():  # a trailing comment is fine; half a statement is not
+    start = 0
+    for end, char in enumerate(sql):  # a line can hold several statements
+        if char == ";" and sqlite3.complete_statement(sql[start : end + 1]):
+            yield sql[start : end + 1]
+            start = end + 1
+    # a trailing comment is fine; half a statement is not
+    if _COMMENTS.sub("", sql[start:]).strip():
         raise MigrationError("MIGRATION_FILES_INVALID")
 
 
@@ -148,8 +148,8 @@ def _sha(text: str) -> str:
 
 
 def _mentions_retained_table(sql: str) -> bool:
-    """A whole-word reference outside comments and string literals (quoted forms included)."""
-    code = _TOKENS_TO_IGNORE.sub(" ", sql).lower()
+    """A whole-word reference outside comments; quoted forms such as 'ledger_entries' count."""
+    code = _QUOTED_OR_COMMENT.sub(lambda m: m.group(1) or " ", sql).lower()
     return any(
         re.search(rf"(?<![\w$]){table}(?![\w$])", code) for table in PROTECTED_TABLES
     )
@@ -170,18 +170,18 @@ _DENIED_ACTIONS = frozenset(
         sqlite3.SQLITE_CREATE_TEMP_TRIGGER,
         sqlite3.SQLITE_CREATE_TEMP_INDEX,
         sqlite3.SQLITE_CREATE_VTABLE,
-    }
-)
-# actions whose first argument is the table they act on; a migration may not write a retained
-# table at all (appending forged history is rewriting history), nor SQLite's own bookkeeping
-_TABLE_ACTIONS = frozenset(
-    {
-        sqlite3.SQLITE_INSERT,
-        sqlite3.SQLITE_UPDATE,
-        sqlite3.SQLITE_DELETE,
+        # destructive work on any table: the Specs permit no destructive migration (specs/05 s.8).
+        # shortcut: ALTER TABLE is refused for all tables because SQLite reports ADD COLUMN and
+        # DROP COLUMN alike, upgrade to allow ADD COLUMN once told apart
         sqlite3.SQLITE_DROP_TABLE,
+        sqlite3.SQLITE_DROP_INDEX,
+        sqlite3.SQLITE_DROP_VIEW,
+        sqlite3.SQLITE_DROP_TRIGGER,
+        sqlite3.SQLITE_ALTER_TABLE,
     }
 )
+# inserts into a retained table would append forged history; SQLite's own bookkeeping is refused too
+_TABLE_ACTIONS = frozenset({sqlite3.SQLITE_INSERT})
 _ALLOWED_PRAGMAS = frozenset(
     {"foreign_keys"}
 )  # migration 0001 opens with PRAGMA foreign_keys = ON
@@ -206,9 +206,11 @@ def _migration_authorizer(
         first in PROTECTED_TABLES or first == "sqlite_sequence"
     ):
         return sqlite3.SQLITE_DENY
+    # CREATE makes SQLite itself update and delete rows of sqlite_master; a migration cannot
+    # reach that table directly (writable_schema is refused above)
     if (
-        action in (sqlite3.SQLITE_DROP_TRIGGER, sqlite3.SQLITE_ALTER_TABLE)
-        and second in PROTECTED_TABLES
+        action in (sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE)
+        and first != "sqlite_master"
     ):
         return sqlite3.SQLITE_DENY
     return sqlite3.SQLITE_OK
