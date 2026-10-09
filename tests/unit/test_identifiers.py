@@ -87,3 +87,16 @@ def test_format_requires_aware_utc_and_floors_subseconds() -> None:
         format_instant(
             datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone(timedelta(hours=2)))
         )
+
+
+def test_format_pads_years_below_1000_to_the_fixed_stored_length() -> None:
+    # strftime("%Y") is not zero-padded on glibc; the stored form is always 20 characters
+    cases = (
+        (datetime(1, 1, 1, 0, 0, 0, tzinfo=UTC), "0001-01-01T00:00:00Z"),
+        (datetime(999, 12, 31, 23, 59, 59, tzinfo=UTC), "0999-12-31T23:59:59Z"),
+        (datetime(9999, 12, 31, 23, 59, 59, tzinfo=UTC), "9999-12-31T23:59:59Z"),
+    )
+    for moment, expected in cases:
+        text = format_instant(moment)
+        assert text == expected and len(text) == 20
+        assert parse_instant(text) == moment
