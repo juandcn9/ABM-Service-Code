@@ -24,6 +24,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 - [`docs/work-items/TASK-03.md`](docs/work-items/TASK-03.md): package-layout and import-boundary work item.
 - [`docs/work-items/TASK-04.md`](docs/work-items/TASK-04.md): CI quality-gate work item.
 - [`docs/work-items/TASK-06.md`](docs/work-items/TASK-06.md): migrations work item; [`migrations/`](migrations) holds the immutable schema migrations.
+- [`docs/work-items/TASK-07.md`](docs/work-items/TASK-07.md): SQLite connection and transaction-unit work item.
 - [`docs/work-items/TASK-08.md`](docs/work-items/TASK-08.md): domain value objects, results, fingerprint, and clock port work item.
 - [`docs/work-items/TASK-09.md`](docs/work-items/TASK-09.md): caller context, authorization, and transport validation work item.
 - [`docs/work-items/TASK-05.md`](docs/work-items/TASK-05.md): Ponytail configuration work item (Blocked on the pin decision).
