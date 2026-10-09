@@ -4,6 +4,7 @@ governance escalation). Prevent with an allowlist authorizer, verify before COMM
 
 from __future__ import annotations
 
+import dataclasses
 import pathlib
 import re
 import sqlite3
@@ -27,9 +28,53 @@ BASE = load_migrations(ROOT / "migrations")
 NOW = "2026-10-09T12:00:00Z"
 
 
+HEX = "a" * 64
+
+# one row in every retained table, so the attacks run against real history and not an empty schema
+SEED = [
+    (
+        "INSERT INTO accounts (account_id, customer_id, currency, eligibility_reference, status,"
+        " current_balance_cents, restriction, created_at)"
+        " VALUES ('acc-1', 'cust-1', 'USD', 'elig-1', 'open', 100, 'none', '2026-10-09T10:00:00Z')"
+    ),
+    (
+        "INSERT INTO movements (movement_id, account_id, movement_type, state, amount_cents, currency,"
+        " external_reference, created_at, updated_at)"
+        " VALUES ('mov-1', 'acc-1', 'incoming_ach', 'settled', 100, 'USD', 'ext-1',"
+        " '2026-10-09T10:01:00Z', '2026-10-09T10:01:00Z')"
+    ),
+    (
+        "INSERT INTO movement_evidence (evidence_reference, movement_id, evidence_kind, occurred_at)"
+        " VALUES ('ev-1', 'mov-1', 'settlement', '2026-10-09T10:02:00Z')"
+    ),
+    (
+        "INSERT INTO ledger_entries (entry_id, account_id, movement_id, effect_kind, direction,"
+        " amount_cents, authorized_caller_id, authorized_role, created_at)"
+        " VALUES ('le-1', 'acc-1', 'mov-1', 'incoming_settlement', 'credit', 100, 'caller', 'role',"
+        " '2026-10-09T10:02:00Z')"
+    ),
+    (
+        "INSERT INTO audit_trace (account_id, instruction_id, movement_id, ledger_entry_id,"
+        " evidence_reference, movement_state, operation, outcome, caller_id, caller_role,"
+        " correlation_id, occurred_at)"
+        " VALUES ('acc-1', 'ins-1', 'mov-1', 'le-1', 'ev-1', 'settled', 'incoming_ach_settle',"
+        " 'accepted', 'caller', 'role', 'corr-1', '2026-10-09T10:02:00Z')"
+    ),
+    (
+        "INSERT INTO idempotency_outcomes (scope, idempotency_key, fingerprint, instruction_id,"
+        " outcome_class, http_status, response_json, created_at)"
+        f" VALUES ('acc-1', 'key-1', '{HEX}', 'ins-1', 'success', 200, '{{\"ok\":true}}',"
+        " '2026-10-09T10:00:00Z')"
+    ),
+    "INSERT INTO retention_metadata (account_id, record_id) VALUES ('acc-1', 'acc-1')",
+]
+
+
 def migrated(tmp_path: pathlib.Path) -> sqlite3.Connection:
     conn = sqlite3.connect(tmp_path / "m.sqlite3", isolation_level=None, timeout=5)
     apply_migrations(conn, BASE, NOW)
+    for statement in SEED:
+        conn.execute(statement)
     return conn
 
 
@@ -65,11 +110,11 @@ ATTACKS = [
     # change connection behavior that would outlive the migration
     "PRAGMA ignore_check_constraints = ON;",
     "PRAGMA recursive_triggers = ON;",
-    "PRAGMA trusted_schema = ON;",
+    "PRAGMA trusted_schema = OFF;",
     "PRAGMA query_only = ON;",
     "PRAGMA locking_mode = EXCLUSIVE;",
     "PRAGMA synchronous = OFF;",
-    "PRAGMA journal_mode = DELETE;",
+    "PRAGMA journal_mode = MEMORY;",
     "PRAGMA writable_schema = ON;",
     "PRAGMA user_version = 7;",
     "PRAGMA schema_version = 99;",
@@ -82,6 +127,50 @@ ATTACKS = [
     # a new trigger that reaches into retained history
     "CREATE TABLE note (x);\nCREATE TRIGGER evil AFTER INSERT ON note\nBEGIN DELETE FROM ledger_entries; END;",
     "CREATE TABLE note (x);\nCREATE TRIGGER evil AFTER INSERT ON note\nBEGIN UPDATE audit_trace SET operation = 'x'; END;",
+    # rewrite a retained row in place (REPLACE rewrote rows in the third review's F1)
+    (
+        "REPLACE INTO ledger_entries (sequence, entry_id, account_id, movement_id, effect_kind,"
+        " direction, amount_cents, authorized_caller_id, authorized_role, created_at)"
+        " VALUES (1, 'le-1', 'acc-1', 'mov-1', 'incoming_settlement', 'credit', 999, 'c', 'r',"
+        " '2026-10-09T10:02:00Z');"
+    ),
+    (
+        "INSERT OR REPLACE INTO audit_trace (sequence, instruction_id, operation, outcome, caller_id,"
+        " caller_role, correlation_id, occurred_at)"
+        " VALUES (1, 'ins-1', 'forged', 'accepted', 'c', 'r', 'corr', '2026-10-09T10:02:00Z');"
+    ),
+    (
+        "INSERT INTO ledger_entries (entry_id, account_id, movement_id, effect_kind, direction,"
+        " amount_cents, authorized_caller_id, authorized_role, created_at)"
+        " VALUES ('le-1', 'acc-1', 'mov-1', 'incoming_settlement', 'credit', 999, 'c', 'r',"
+        " '2026-10-09T10:02:00Z') ON CONFLICT (entry_id) DO UPDATE SET amount_cents = 999;"
+    ),
+    # tamper with AUTOINCREMENT bookkeeping, then append forged history
+    "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'ledger_entries';",
+    "DELETE FROM sqlite_sequence;",
+    "INSERT INTO sqlite_sequence (name, seq) VALUES ('ledger_entries', 0);",
+    (
+        "INSERT INTO schema_version (version, migration_name, checksum, applied_at)"
+        f" VALUES (2, '0002_forged', '{HEX}', '2026-10-09T10:00:00Z');"
+    ),
+    # a gap-free forged row the runner's own insert cannot collide with (only the history check sees it)
+    (
+        "INSERT INTO schema_version (version, migration_name, checksum, applied_at)"
+        f" VALUES (9, '0009_forged', '{HEX}', '2026-10-09T10:00:00Z');"
+    ),
+    # shadow retained tables or their guards for this connection only
+    "CREATE TEMP VIEW ledger_entries AS SELECT 1 AS entry_id;",
+    "CREATE TEMP TRIGGER t_tmp AFTER INSERT ON accounts BEGIN SELECT 1; END;",
+    (
+        "DROP TRIGGER ledger_entries_no_update;\n"
+        "CREATE TRIGGER ledger_entries_no_update BEFORE UPDATE ON ledger_entries"
+        " BEGIN SELECT 1; END;"
+    ),
+    (
+        "DROP TRIGGER movement_evidence_no_delete;\n"
+        "CREATE TRIGGER movement_evidence_no_delete BEFORE DELETE ON movement_evidence"
+        " BEGIN SELECT 1; END;\nDELETE FROM movement_evidence;"
+    ),
 ]
 
 
@@ -97,7 +186,9 @@ def test_attacks_on_retained_history_or_the_connection_are_refused_with_nothing_
     ]
     with pytest.raises(MigrationError) as excinfo:
         apply_migrations(conn, [*BASE, second(attack)], NOW)
-    assert excinfo.value.code in {"MIGRATION_FAILED", "MIGRATION_FILES_INVALID"}
+    # only transaction control may be stopped at load time; anything else must reach the runtime layers
+    if not attack.startswith(("ROLLBACK", "COMMIT")):
+        assert excinfo.value.code == "MIGRATION_FAILED"
     assert not conn.in_transaction
     assert state(conn) == before
     assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone() == (1,)
@@ -114,6 +205,43 @@ def test_attacks_on_retained_history_or_the_connection_are_refused_with_nothing_
 VERIFIABLE = [a for a in ATTACKS if not a.startswith(("ROLLBACK", "COMMIT"))]
 
 
+# SAVEPOINT and ATTACH change no retained state by themselves; PRAGMA synchronous cannot be set
+# inside a transaction. The authorizer and verification tests above cover all three.
+UNGUARDED_CHECKABLE = [
+    a
+    for a in VERIFIABLE
+    if not a.startswith(("SAVEPOINT", "ATTACH", "PRAGMA synchronous"))
+]
+
+
+@pytest.mark.parametrize("attack", UNGUARDED_CHECKABLE)
+def test_each_attack_really_changes_the_database_when_run_unguarded(
+    tmp_path: pathlib.Path, attack: str
+) -> None:
+    """Non-vacuity: a refused attack must do damage when unguarded, not fail as a SQL typo."""
+    conn = migrated(tmp_path)
+    before = migrations_module._snapshot(conn)
+    cookie = conn.execute("PRAGMA schema_version").fetchone()
+    refused_by_trigger = False
+    conn.execute("BEGIN")
+    try:
+        for statement in migrations_module._statements(attack):
+            try:
+                conn.execute(statement)
+            except sqlite3.IntegrityError:
+                refused_by_trigger = (
+                    True  # shipped trigger or CHECK; SQL errors still fail
+                )
+        try:
+            changed = migrations_module._snapshot(conn) != before
+        except MigrationError:
+            changed = True  # the history can no longer be read: that is damage too
+        changed = changed or conn.execute("PRAGMA schema_version").fetchone() != cookie
+    finally:
+        conn.execute("ROLLBACK")
+    assert refused_by_trigger or changed
+
+
 @pytest.mark.parametrize("attack", VERIFIABLE)
 def test_the_post_migration_verification_catches_what_the_authorizer_would_miss(
     tmp_path: pathlib.Path, attack: str, monkeypatch: pytest.MonkeyPatch
@@ -124,16 +252,26 @@ def test_the_post_migration_verification_catches_what_the_authorizer_would_miss(
     )
     conn = migrated(tmp_path)
     before = state(conn)
+    before_snapshot = migrations_module._snapshot(conn)
     try:
         apply_migrations(conn, [*BASE, second(attack)], NOW)
     except MigrationError:
         pass  # refused: the database must be exactly as before
     else:
-        # accepted only if the statement was harmless to the guarantees; then they all still hold
+        # accepted only if the statement changed nothing retained; then 0002 is simply appended
+        after = migrations_module._snapshot(conn)
         assert retained_history_protected(conn)
-        assert conn.execute(
-            "SELECT version FROM schema_version ORDER BY version"
-        ).fetchall()[0] == (1,)
+        assert (after.rows, after.sequences, after.schema, after.temp, after.state) == (
+            before_snapshot.rows,
+            before_snapshot.sequences,
+            before_snapshot.schema,
+            before_snapshot.temp,
+            before_snapshot.state,
+        )
+        assert after.history == [
+            (1, "0001_initial", BASE[0].checksum),
+            (2, "0002_test", second(attack).checksum),
+        ]
         assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
         return
     assert not conn.in_transaction and state(conn) == before
@@ -204,3 +342,172 @@ def test_a_connection_in_a_nonstandard_state_is_not_altered_by_the_runner(
     conn.execute("PRAGMA recursive_triggers = ON")  # the caller's own choice
     apply_migrations(conn, [*BASE, second("CREATE TABLE extra (id INTEGER);")], NOW)
     assert conn.execute("PRAGMA recursive_triggers").fetchone() == (1,)
+
+
+# Each rule of the authorizer is checked directly: a retained-table guard is otherwise masked by the
+# schema triggers and the verification layer, so an outcome-only test cannot tell the rule is gone.
+AUTHORIZER_DECISIONS = [
+    (sqlite3.SQLITE_TRANSACTION, None, None, False),
+    (sqlite3.SQLITE_SAVEPOINT, "begin", "s", False),
+    (sqlite3.SQLITE_ATTACH, "other.sqlite3", "other", False),
+    (sqlite3.SQLITE_DETACH, "other", None, False),
+    (sqlite3.SQLITE_CREATE_TEMP_TABLE, "t", None, False),
+    (sqlite3.SQLITE_CREATE_TEMP_VIEW, "v", None, False),
+    (sqlite3.SQLITE_CREATE_TEMP_TRIGGER, "t", "accounts", False),
+    (sqlite3.SQLITE_CREATE_TEMP_INDEX, "i", "accounts", False),
+    (sqlite3.SQLITE_CREATE_VTABLE, "v", "fts5", False),
+    (sqlite3.SQLITE_INSERT, "ledger_entries", None, False),
+    (sqlite3.SQLITE_UPDATE, "audit_trace", "operation", False),
+    (sqlite3.SQLITE_DELETE, "idempotency_outcomes", None, False),
+    (sqlite3.SQLITE_DROP_TABLE, "Ledger_Entries", None, False),
+    (sqlite3.SQLITE_INSERT, "sqlite_sequence", None, False),
+    (sqlite3.SQLITE_PRAGMA, "writable_schema", None, False),
+    (sqlite3.SQLITE_PRAGMA, "foreign_keys", None, True),
+    (sqlite3.SQLITE_FUNCTION, None, "load_extension", False),
+    (sqlite3.SQLITE_DROP_TRIGGER, "ledger_entries_no_update", "ledger_entries", False),
+    (sqlite3.SQLITE_ALTER_TABLE, "main", "ledger_entries", False),
+    # non-retained work a migration legitimately needs
+    (sqlite3.SQLITE_INSERT, "accounts", None, True),
+    (sqlite3.SQLITE_CREATE_TABLE, "note", None, True),
+    (sqlite3.SQLITE_DROP_TRIGGER, "note_trigger", "note", True),
+]
+
+
+@pytest.mark.parametrize(("action", "arg1", "arg2", "allowed"), AUTHORIZER_DECISIONS)
+def test_each_authorizer_rule_decides_as_specified(
+    action: int, arg1: str | None, arg2: str | None, allowed: bool
+) -> None:
+    decision = migrations_module._migration_authorizer(action, arg1, arg2, None, None)
+    assert (decision == sqlite3.SQLITE_OK) == allowed
+
+
+def test_a_migration_that_runs_too_long_is_interrupted_and_nothing_changes(
+    tmp_path: pathlib.Path,
+) -> None:
+    conn = migrated(tmp_path)
+    before = state(conn)
+    slow = (
+        "CREATE TABLE slow AS WITH RECURSIVE c(x) AS"
+        " (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 50000000) SELECT x FROM c;"
+    )
+    with pytest.raises(MigrationError) as excinfo:
+        apply_migrations(conn, [*BASE, second(slow)], NOW, time_limit_seconds=0.001)
+    assert excinfo.value.code == "MIGRATION_FAILED"
+    assert not conn.in_transaction
+    assert state(conn) == before
+
+
+def test_a_fast_migration_is_not_interrupted_by_the_time_limit(
+    tmp_path: pathlib.Path,
+) -> None:
+    conn = migrated(tmp_path)
+    apply_migrations(conn, [*BASE, second(LEGITIMATE)], NOW, time_limit_seconds=600.0)
+    assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone() == (2,)
+
+
+def test_a_temp_object_or_a_renamed_retained_table_breaks_the_readiness_check(
+    tmp_path: pathlib.Path,
+) -> None:
+    conn = migrated(tmp_path)
+    conn.execute("CREATE TEMP VIEW ledger_entries AS SELECT 1 AS entry_id")
+    assert not retained_history_protected(conn)
+    conn.execute("DROP VIEW temp.ledger_entries")
+    assert retained_history_protected(conn)
+    conn.execute("ALTER TABLE idempotency_outcomes RENAME TO idempotency_old")
+    assert not retained_history_protected(conn)
+
+
+def snapshot(**changes: object) -> migrations_module._Snapshot:
+    # history defaults to the expected one, so each case isolates the single clause it targets
+    empty = migrations_module._Snapshot(
+        rows={},
+        sequences={},
+        schema=frozenset(),
+        temp=frozenset(),
+        state=(),
+        history=HISTORY,
+    )
+    return dataclasses.replace(empty, **changes)  # type: ignore[arg-type]
+
+
+HISTORY = [(1, "0001_initial", BASE[0].checksum)]
+# Verification clauses that a migration cannot reach with the shipped schema (every retained table
+# and pinned object already exists after 0001), so they are checked on synthetic snapshots.
+PINNED_TABLE_SQL = "CREATE TABLE ledger_entries (x)"
+PINNED_TRIGGER_SQL = "CREATE TRIGGER ledger_entries_no_update BEFORE UPDATE ON ledger_entries BEGIN SELECT 1; END"
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "expected"),
+    [
+        (
+            snapshot(history=HISTORY),
+            snapshot(history=HISTORY),
+            False,
+        ),  # control: nothing changed
+        (
+            snapshot(rows={"ledger_entries": (1, "d")}),
+            snapshot(),  # a retained table vanished
+            True,
+        ),
+        (
+            snapshot(),
+            snapshot(
+                rows={"ledger_entries": (1, "d")}
+            ),  # a new retained table arrived with rows
+            True,
+        ),
+        (
+            snapshot(),
+            snapshot(
+                schema=frozenset(
+                    {("table", "ledger_entries", "ledger_entries", PINNED_TABLE_SQL)}
+                )
+            ),
+            True,  # a pinned table whose text is not the shipped text
+        ),
+        (
+            snapshot(),
+            snapshot(
+                schema=frozenset(
+                    {
+                        (
+                            "trigger",
+                            "ledger_entries_no_update",
+                            "ledger_entries",
+                            PINNED_TRIGGER_SQL,
+                        )
+                    }
+                )
+            ),
+            True,  # a pinned trigger whose text is not the shipped text
+        ),
+        (
+            snapshot(history=HISTORY),
+            snapshot(history=[*HISTORY, (9, "0009_forged", "c")]),
+            True,  # history that differs from the migrations applied so far
+        ),
+    ],
+)
+def test_each_verification_clause_decides_on_synthetic_snapshots(
+    before: migrations_module._Snapshot,
+    after: migrations_module._Snapshot,
+    expected: bool,
+) -> None:
+    assert migrations_module._violations(before, after, HISTORY) is expected
+
+
+def test_a_migration_that_leaves_a_foreign_key_violation_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    conn = migrated(tmp_path)
+    before = state(conn)
+    sql = (
+        "CREATE TABLE parent (id INTEGER PRIMARY KEY);\n"
+        "CREATE TABLE child (p INTEGER REFERENCES parent(id));\n"
+        "INSERT INTO child (p) VALUES (5);\n"
+    )
+    with pytest.raises(MigrationError) as excinfo:
+        apply_migrations(conn, [*BASE, second(sql)], NOW)
+    assert excinfo.value.code == "MIGRATION_FAILED"
+    assert state(conn) == before

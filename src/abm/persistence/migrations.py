@@ -129,11 +129,12 @@ PROTECTED_TRIGGERS = frozenset(_PINNED_TRIGGERS)
 # Retained rows are compared in full, in rowid order. One fixed statement per table (no SQL is
 # ever built from a name). schema_version is not listed: the runner itself appends to it, and its
 # contents are checked against the expected history instead.
+# main. is explicit so a temp object with the same name cannot be what gets compared
 _ROW_QUERIES = {
-    "audit_trace": "SELECT * FROM audit_trace ORDER BY rowid",
-    "idempotency_outcomes": "SELECT * FROM idempotency_outcomes ORDER BY rowid",
-    "ledger_entries": "SELECT * FROM ledger_entries ORDER BY rowid",
-    "movement_evidence": "SELECT * FROM movement_evidence ORDER BY rowid",
+    "audit_trace": "SELECT * FROM main.audit_trace ORDER BY rowid",
+    "idempotency_outcomes": "SELECT * FROM main.idempotency_outcomes ORDER BY rowid",
+    "ledger_entries": "SELECT * FROM main.ledger_entries ORDER BY rowid",
+    "movement_evidence": "SELECT * FROM main.movement_evidence ORDER BY rowid",
 }
 _RETAINED_SCHEMA = (
     "SELECT type, name, tbl_name, COALESCE(sql, '') FROM sqlite_master WHERE type = 'trigger'"
@@ -237,6 +238,7 @@ _STATE_PRAGMAS = (
     "PRAGMA journal_mode",
     "PRAGMA user_version",
     "PRAGMA application_id",
+    "PRAGMA writable_schema",  # lets a migration rewrite sqlite_master directly
 )
 
 
@@ -291,7 +293,11 @@ def _snapshot(conn: sqlite3.Connection) -> _Snapshot:
                 "SELECT type, name, COALESCE(sql, '') FROM sqlite_temp_master"
             )
         ),
-        state=tuple(conn.execute(sql).fetchone()[0] for sql in _STATE_PRAGMAS),
+        # database_list catches an ATTACHed database that would outlive the migration
+        state=(
+            *(conn.execute(sql).fetchone()[0] for sql in _STATE_PRAGMAS),
+            tuple(conn.execute("PRAGMA database_list")),
+        ),
         history=_applied(conn),
     )
 
