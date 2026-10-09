@@ -12,6 +12,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+venv/
+env/
 
 # Build and coverage output
 build/

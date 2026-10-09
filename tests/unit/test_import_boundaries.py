@@ -70,7 +70,11 @@ def violations(files: dict[str, str]) -> list[str]:
                 problems.append(f"{module} imports harness")
             elif top == "abm":
                 target_layer = layer_of(target)
-                if target_layer and target_layer != layer and target_layer not in ALLOWED.get(layer, set()):
+                if (
+                    target_layer
+                    and target_layer != layer
+                    and target_layer not in ALLOWED.get(layer, set())
+                ):
                     problems.append(f"{module} imports {target}")
             elif layer == "domain" and (
                 top not in sys.stdlib_module_names or top in DOMAIN_BANNED_STDLIB
@@ -103,7 +107,10 @@ def test_project_respects_dependency_rules() -> None:
 
 def test_every_abm_module_belongs_to_a_known_layer() -> None:
     known = set(LAYERS) | {"main", "config", "__init__"}
-    assert {layer_of(name.removesuffix(".__init__")) or "__init__" for name in project_modules()} <= known
+    assert {
+        layer_of(name.removesuffix(".__init__")) or "__init__"
+        for name in project_modules()
+    } <= known
 
 
 def test_checker_rejects_forbidden_imports() -> None:

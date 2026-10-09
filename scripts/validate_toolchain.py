@@ -172,7 +172,9 @@ def main() -> int:
     print(f"- Python: {EXPECTED_PYTHON}")
     print(f"- runtime packages: {len(lock_pins(ROOT / 'requirements.lock'))}")
     print(f"- development packages: {len(lock_pins(ROOT / 'requirements-dev.lock'))}")
-    print("- exact direct pins, SHA-256 locks, container digest, and safe example: passed")
+    print(
+        "- exact direct pins, SHA-256 locks, container digest, and safe example: passed"
+    )
     return 0
 
 

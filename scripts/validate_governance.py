@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -35,18 +36,8 @@ TEXT_SUFFIXES = {
     ".yml",
     "",
 }
-IGNORED_DIRECTORY_NAMES = {
-    ".git",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".venv",
-    "__pycache__",
-}
 PLACEHOLDER_PATTERN = (
-    r"\b(?:"
-    + "|".join(("TO" + "DO", "T" + "BD", "FIX" + "ME", "X" + "XX"))
-    + r")\b"
+    r"\b(?:" + "|".join(("TO" + "DO", "T" + "BD", "FIX" + "ME", "X" + "XX")) + r")\b"
 )
 FAILURES: list[str] = []
 
@@ -61,10 +52,17 @@ def relative(path: pathlib.Path) -> str:
 
 def load_texts() -> dict[str, str]:
     texts: dict[str, str] = {}
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or any(
-            part in IGNORED_DIRECTORY_NAMES for part in path.parts
-        ):
+    # Tracked plus untracked-but-not-ignored files: a force-added file in an ignored
+    # directory (.venv, caches) is tracked, so it can no longer escape the scan.
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT,
+        capture_output=True,
+        check=True,
+    ).stdout.decode("utf-8")
+    for entry in sorted(set(listed.split("\0")) - {""}):
+        path = ROOT / entry
+        if not path.is_file():
             continue
         name = relative(path)
         if path.suffix.lower() not in TEXT_SUFFIXES:
@@ -175,7 +173,9 @@ def main() -> int:
     print("TASK-01 VALIDATION PASSED")
     print(f"- required files: {len(REQUIRED_FILES)}")
     print("- Specs pointer: v1.0.1 / 5d1cd410399a6fb0154a0117728c409cc7f2ec91")
-    print("- governance headings, workflow pin, placeholders, and secret patterns: passed")
+    print(
+        "- governance headings, workflow pin, placeholders, and secret patterns: passed"
+    )
     return 0
 
 

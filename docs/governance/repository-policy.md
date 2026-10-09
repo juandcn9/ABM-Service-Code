@@ -23,7 +23,7 @@ Every change uses a pull request containing the approved Specs version/SHA, TASK
 5. no secret, prohibited data, uncontrolled placeholder, or unsupported claim;
 6. confirmation that merge will not alter the approved revision.
 
-The target repository controls are: pull requests for `main`, required `validate-governance` status, resolved review conversations, no force push, and no deletion. Where hosting cannot enforce a control, the same rule remains mandatory procedure and the PR records its evidence.
+The target repository controls are: pull requests for `main`, required `validate-governance` and `quality-gates` statuses (neither is advisory; a failing or skipped required check blocks merge), resolved review conversations, no force push, and no deletion. Where hosting cannot enforce a control, the same rule remains mandatory procedure and the PR records its evidence.
 
 ## Review independence
 

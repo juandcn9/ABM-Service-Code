@@ -36,3 +36,7 @@ Automated update proposals receive the same tests and independent review as auth
 ## Safe example configuration
 
 `.env.example` contains only documented non-secret demonstration values. The baseline has no required secret. Real credentials, customer data, host-specific private paths, and production endpoints are prohibited.
+
+## Continuous-integration enforcement
+
+The `quality-gates` CI job installs `requirements-dev.lock` with `--require-hashes --only-binary=:all:` on the exact Python patch in `.python-version`, verifies the interpreter version, and runs `scripts/validate_toolchain.py`, `ruff check`, `ruff format --check`, `mypy`, and `pytest`. `.gitattributes` forces LF so lock digests do not depend on a contributor's `core.autocrlf`.
