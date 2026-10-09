@@ -23,6 +23,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 - [`docs/work-items/TASK-02.md`](docs/work-items/TASK-02.md): reproducible-toolchain work item and evidence contract.
 - [`docs/work-items/TASK-03.md`](docs/work-items/TASK-03.md): package-layout and import-boundary work item.
 - [`docs/work-items/TASK-04.md`](docs/work-items/TASK-04.md): CI quality-gate work item.
+- [`docs/work-items/TASK-08.md`](docs/work-items/TASK-08.md): domain value objects, results, fingerprint, and clock port work item.
 - [`src/abm/`](src/abm), [`harness/`](harness), [`tests/`](tests): target layout; [`tests/unit/test_import_boundaries.py`](tests/unit/test_import_boundaries.py) enforces dependency rules.
 - [`toolchain.toml`](toolchain.toml): exact Python, lock generator, container digest, and install commands.
 - [`.github/pull_request_template.md`](.github/pull_request_template.md): required Code PR evidence.
