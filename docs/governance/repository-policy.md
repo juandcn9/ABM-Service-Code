@@ -41,3 +41,5 @@ The author cannot provide the sole independent verification. A fresh-context rev
 ## Tool applicability
 
 This `TASK-01` implementation is performed by Codex, so Ponytail is recorded as not applicable to this runtime. Claude Code work must use the exact Ponytail version, source, mode, and review commands governed by the approved Specs.
+
+For Claude Code work, Builder Audit runs `ponytail-review` on every implementation diff, `ponytail-debt` whenever `shortcut:` or `ponytail:` markers exist, and `ponytail-audit` at each phase boundary and release candidate; `full` mode is the default. Plugin output is finding input only, never authority, an approver, or a substitute for tests and independent review. While deviation DV-01 in `docs/governance/deviations.md` stands, these commands run with the installed plugin rather than the Specs-pinned `v4.13.0`, every PR says so, and `TASK-05` stays Blocked until the pin is verified or the Specs record an approved change.
