@@ -14,3 +14,4 @@ All notable Code repository changes are recorded here.
 - Added `TASK-09` trusted caller-context parsing, the deny-by-default role and account-scope authorization matrix, and strict transport validation helpers (strict JSON, exact fields, path/body account agreement) with security tests.
 - Added the `TASK-05` work item (Blocked on the Ponytail pin decision) and wired the Ponytail review commands into the repository policy.
 - Added `TASK-10` transactional idempotency (stored exact replay, conflict without effect, deterministic rejections), the first storage ports with a SQLite unit of work, and idempotent account registration creating one zero-state account with its retention row and trace.
+- Added `TASK-12` startup (open, migrate, check) and read-only fail-closed readiness with controlled reason codes, covering schema support, integrity, foreign keys, projection and hold consistency, registration traces, and write-lock availability.
