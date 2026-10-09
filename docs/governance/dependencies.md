@@ -39,4 +39,4 @@ Automated update proposals receive the same tests and independent review as auth
 
 ## Continuous-integration enforcement
 
-The `quality-gates` CI job installs `requirements-dev.lock` with `--require-hashes --only-binary=:all:` on the exact Python patch in `.python-version`, verifies the interpreter version, and runs `scripts/validate_toolchain.py`, `ruff check`, `ruff format --check`, `mypy`, and `pytest`. `.gitattributes` forces LF so lock digests do not depend on a contributor's `core.autocrlf`.
+The `quality-gates` CI job installs `requirements-dev.lock` with `--require-hashes --only-binary=:all:` on the exact Python patch in `.python-version`, verifies the interpreter version, and runs `scripts/validate_toolchain.py`, `ruff check`, `ruff format --check`, `mypy` (over `src`, `harness`, `tests`, and `scripts`), and `pytest`. `.gitattributes` forces LF so lock digests do not depend on a contributor's `core.autocrlf`.

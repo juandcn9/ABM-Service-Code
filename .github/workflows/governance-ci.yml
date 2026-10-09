@@ -45,6 +45,6 @@ jobs:
       - name: Format
         run: ruff format --check .
       - name: Type check
-        run: mypy src tests scripts
+        run: mypy src harness tests scripts
       - name: Tests
         run: pytest -q
