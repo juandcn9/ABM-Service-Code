@@ -395,7 +395,7 @@ def _applied(conn: sqlite3.Connection) -> list[tuple[int, str, str]]:
     tables = {
         row[0]
         for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            "SELECT name FROM main.sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
         )
     }
     if not tables:
@@ -406,7 +406,7 @@ def _applied(conn: sqlite3.Connection) -> list[tuple[int, str, str]]:
     return [
         (row[0], row[1], row[2])
         for row in conn.execute(
-            "SELECT version, migration_name, checksum FROM schema_version ORDER BY version"
+            "SELECT version, migration_name, checksum FROM main.schema_version ORDER BY version"
         )
     ]
 
@@ -457,7 +457,7 @@ def apply_migrations(
                 conn.set_authorizer(None)
                 conn.set_progress_handler(None, 0)
             conn.execute(
-                "INSERT INTO schema_version (version, migration_name, checksum, applied_at)"
+                "INSERT INTO main.schema_version (version, migration_name, checksum, applied_at)"
                 " VALUES (?, ?, ?, ?)",
                 (migration.version, migration.name, migration.checksum, applied_at),
             )

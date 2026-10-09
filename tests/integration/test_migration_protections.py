@@ -511,3 +511,24 @@ def test_a_migration_that_leaves_a_foreign_key_violation_is_refused(
         apply_migrations(conn, [*BASE, second(sql)], NOW)
     assert excinfo.value.code == "MIGRATION_FAILED"
     assert state(conn) == before
+
+
+def test_a_temp_view_cannot_fake_the_migration_history(tmp_path: pathlib.Path) -> None:
+    """A caller's temp object named schema_version must not make a pending migration look applied.
+
+    Before the fix the runner read the fake history, skipped migration 2, and reported success.
+    Now it reads the real history, sees the connection's temp object, and refuses."""
+    conn = migrated(tmp_path)
+    extra = second(LEGITIMATE)
+    fake = [(1, "0001_initial", BASE[0].checksum), (2, extra.name, extra.checksum)]
+    rows = [
+        f"SELECT {v} AS version, '{n}' AS migration_name, '{c}' AS checksum, '{NOW}' AS applied_at"
+        for v, n, c in fake
+    ]
+    conn.execute("CREATE TEMP VIEW schema_version AS " + " UNION ALL ".join(rows))
+    with pytest.raises(MigrationError) as excinfo:
+        apply_migrations(conn, [*BASE, extra], NOW)
+    assert excinfo.value.code == "MIGRATION_FAILED"
+    assert conn.execute("SELECT MAX(version) FROM main.schema_version").fetchone() == (
+        1,
+    )
