@@ -33,7 +33,14 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR is opened after PR #8 and PR #9 merge.
-- Commands/checks and results: locally `pytest` 65 passed in this branch (includes the merged `TASK-06` and `TASK-08` tests), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
+- Commands/checks and results: locally `pytest` 337 passed in this branch after merging `main` (includes the merged `TASK-06`, `TASK-08` and `TASK-09` tests), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
 - Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01): one Should-fix, a failed configuration step leaked the open connection; fixed by closing it. A fresh-context review and Tester verification of the final head are still required.
 - Residual risks: `SQLITE_BUSY` inside an already-open write transaction (for example a checkpoint) is mapped like any busy error and the caller must treat the whole unit as failed; the `ABM_BUSY_TIMEOUT_MS` setting is not parsed yet; disk-full behavior was simulated with `max_page_count`, not a real full volume.
 - Next safe action: `TASK-10` (idempotency, registration) once `TASK-07`, `TASK-08`, and `TASK-09` are merged; `TASK-12` for startup and readiness.
+
+## Review fixes (PR #13, fresh-context review)
+
+- Major 1: the busy timeout was rounded down by the driver, so 372 valid values (for example 1001) failed the readback check. The timeout now carries half a millisecond so every valid value applies exactly. Boundary tests cover 1, 1001, 1003, 2999, 59999 and 60000; removing the half millisecond fails them.
+- Major 2: the old serialization test passed without `BEGIN IMMEDIATE`. A new test has the second writer read the state inside its transaction while the first writer holds the lock. It waits, then sees the first commit. Changing to a deferred `BEGIN` fails it.
+- Minor: the read snapshot docstring now says it starts at the first read; the readback queries run inside the error handler; every SQLite result code the module maps has its own test.
+- Not changed, recorded: nested write or read inside another transaction is refused by SQLite and mapped to INTERNAL_ERROR (misuse only, no test); a body that commits on its own leaves the context manager's commit to fail (misuse only).
