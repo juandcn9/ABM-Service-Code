@@ -13,7 +13,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 ## Current scope
 
-`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. `TASK-05` records the Ponytail configuration work item (Blocked on the pin decision). `TASK-08` adds the pure domain value objects, typed results, idempotency fingerprint, and clock port. `TASK-09` adds trusted caller-context parsing, the role and account-scope authorization matrix, and strict transport validation. `TASK-02`, `TASK-03`, `TASK-04`, `TASK-08`, and `TASK-09` have independent Tester records under `docs/evidence/`. The repository intentionally contains no service implementation, database schema, API route, built container, cloud resource, credential, or real customer data.
+`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. `TASK-06` adds the immutable SQLite migrations and runner. `TASK-05` records the Ponytail configuration work item (Blocked on the pin decision). `TASK-08` adds the pure domain value objects, typed results, idempotency fingerprint, and clock port. `TASK-09` adds trusted caller-context parsing, the role and account-scope authorization matrix, and strict transport validation. `TASK-02`, `TASK-03`, `TASK-04`, `TASK-08`, and `TASK-09` have independent Tester records under `docs/evidence/`. The repository intentionally contains no service implementation, API route, built container, cloud resource, credential, or real customer data.
 
 ## Repository map
 
@@ -23,6 +23,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 - [`docs/work-items/TASK-02.md`](docs/work-items/TASK-02.md): reproducible-toolchain work item and evidence contract.
 - [`docs/work-items/TASK-03.md`](docs/work-items/TASK-03.md): package-layout and import-boundary work item.
 - [`docs/work-items/TASK-04.md`](docs/work-items/TASK-04.md): CI quality-gate work item.
+- [`docs/work-items/TASK-06.md`](docs/work-items/TASK-06.md): migrations work item; [`migrations/`](migrations) holds the immutable schema migrations.
 - [`docs/work-items/TASK-08.md`](docs/work-items/TASK-08.md): domain value objects, results, fingerprint, and clock port work item.
 - [`docs/work-items/TASK-09.md`](docs/work-items/TASK-09.md): caller context, authorization, and transport validation work item.
 - [`docs/work-items/TASK-05.md`](docs/work-items/TASK-05.md): Ponytail configuration work item (Blocked on the pin decision).
