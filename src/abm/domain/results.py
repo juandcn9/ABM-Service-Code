@@ -52,6 +52,7 @@ class Success[T]:
 @dataclass(frozen=True)
 class Failure:
     error: Error
+    replayed: bool = False
     ok: ClassVar[bool] = False
 
 
