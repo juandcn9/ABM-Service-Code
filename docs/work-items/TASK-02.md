@@ -39,7 +39,7 @@
 
 ## Independent verification
 
-- Role and context: Tester, a fresh-context agent that did not implement `TASK-02`, launched by Claude Code on 2026-10-09. The sanitized report is committed at [`docs/evidence/TASK-02-tester-report.md`](../evidence/TASK-02-tester-report.md); the Builder only reformatted it. It was independently spot-checked by a second fresh-context reviewer of the PR that records it.
+- Role and context: Tester, a fresh-context agent that did not implement `TASK-02`, launched by Claude Code on 2026-10-09. The sanitized report is committed at [`docs/evidence/TASK-02-tester-report.md`](../evidence/TASK-02-tester-report.md); the Builder only reformatted it.
 - Revision tested: Code `c768c70a8599d2ea8ba0675447ca36f4c2ad15cf` (content commits `bb36e0a`, `bb539ae`) against Specs `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`.
 - Environment: Python 3.12.10 on Windows in throwaway virtual environments; no container runtime. Exact Python 3.12.15 has no Windows binary, so nothing was executed on it.
 - Result: PASS with findings; zero Blocker, zero Major.
@@ -50,4 +50,4 @@
   - F2: `validate_toolchain.py` compares against its own constants and a whole-file digest and does not cross-check the locks against `pyproject.toml` — to be reviewed in `TASK-04`.
   - F3: `validate_governance.py` skips `.venv` and cache directories in its secret scan; they are git-ignored — to be reviewed in `TASK-04`.
 - Scope of "Verified": it covers the `TASK-02` acceptance evidence listed above only. The `TEST-27` required-secret-startup half remains open for the first task that introduces application configuration.
-- Observations: the development lock was generated on Windows (`colorama` unconditional); `.gitignore` omits `venv/` and `env/`; no image build exists yet.
+- Observations: the development lock was generated on Windows (`colorama` unconditional); `.gitignore` omits `venv/` and `env/`; no image build exists yet; there is no `.gitattributes`, so a Windows checkout with `core.autocrlf=true` produces CRLF lock files (the validators normalize them, the committed blobs are LF).
