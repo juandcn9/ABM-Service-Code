@@ -6,12 +6,18 @@ import pathlib
 import re
 import subprocess
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EXPECTED_SPEC = {
     "spec_repository": "https://github.com/juandcn9/ABM-Service-Specs",
     "spec_version": "v1.0.1",
     "spec_commit": "5d1cd410399a6fb0154a0117728c409cc7f2ec91",
+}
+REVIEWED_GITHUB_FILES = {
+    ".github/workflows/governance-ci.yml",
+    ".github/pull_request_template.md",
+    ".github/ISSUE_TEMPLATE/work-item.md",
 }
 REQUIRED_FILES = {
     "README.md",
@@ -51,21 +57,40 @@ EXPECTED_WORKFLOW_SHA256 = (
 IGNORED_SAMPLES = (
     ".env",
     ".env.local",
+    "src/.env",
     "x.pem",
+    "src/deep/x.pem",
     "x.key",
     "x.p12",
     "x.pfx",
     "x.db",
     "x.sqlite",
     "x.sqlite3",
+    "x.db-wal",
+    "x.db-shm",
     "x.log",
     "a.exe",
     "a.dll",
     "evidence/private/x",
     ".venv/x",
+    "venv/x",
+    "env/x",
     "__pycache__/x.pyc",
-    "src/.env",
-    "src/deep/x.pem",
+    "a/b/__pycache__/x.txt",
+    "x.pyc",
+    ".pytest_cache/x",
+    ".mypy_cache/x",
+    "a/.mypy_cache/x",
+    ".ruff_cache/x",
+    "build/x",
+    "dist/x",
+    "x.egg-info/x",
+    ".coverage",
+    "htmlcov/x",
+    ".vscode/x",
+    ".idea/x",
+    ".DS_Store",
+    "Thumbs.db",
 )
 TRACKABLE_SAMPLES = (".env.example", "src/abm/x.py")
 ALLOWED_STATUS = {
@@ -134,6 +159,10 @@ POLICY_PHRASES = (
     "single maintainer",
     "merge, tag, or implementation step",
     "docs/short-purpose",
+    "documented placeholders",
+    "short-lived",
+    "is incomplete",
+    "workflow digest",
 )
 POLICY_BULLETS = (
     "- **Blocker:**",
@@ -168,12 +197,38 @@ def fail(message: str) -> None:
     FAILURES.append(message)
 
 
-_COMMENT_OR_FENCE = re.compile(r"<!--.*?-->|^```.*?^```", re.DOTALL | re.MULTILINE)
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+_FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+_RAW_HTML = re.compile(
+    r"<\s*/?\s*(?:pre|div|span|details|summary|script|style|iframe|template|textarea)\b",
+    re.IGNORECASE,
+)
 
 
 def visible(text: str) -> str:
-    """Markdown as a reader sees it: HTML comments and fenced code blocks removed."""
-    return _COMMENT_OR_FENCE.sub("", text)
+    """Markdown as a reader sees it: HTML comments and fenced code blocks removed.
+
+    Both backtick and tilde fences are handled; a closing fence must use the same character and
+    be at least as long as the opening one; an unterminated fence hides the rest of the file.
+    """
+    lines: list[str] = []
+    fence: str | None = None
+    for line in _HTML_COMMENT.sub("", text).splitlines():
+        if fence is None:
+            opening = _FENCE_OPEN.match(line)
+            if opening:
+                fence = opening.group(1)
+            else:
+                lines.append(line)
+            continue
+        bare = line.strip()
+        if (
+            _FENCE_OPEN.match(line)
+            and set(bare) == {fence[0]}
+            and len(bare) >= len(fence)
+        ):
+            fence = None
+    return "\n".join(lines)
 
 
 def relative(path: pathlib.Path) -> str:
@@ -257,8 +312,9 @@ def validate_documents(texts: dict[str, str]) -> None:
         for heading in headings:
             if not re.search(rf"(?m)^{re.escape(heading)}\s*$", body):
                 fail(f"{name} lacks heading: {heading}")
+    # fields must start at column 0 (an indented line is a code block, not a field)
     pr_lines = {
-        ln.strip()
+        ln.rstrip()
         for ln in visible(
             texts.get(".github/pull_request_template.md", "")
         ).splitlines()
@@ -272,7 +328,7 @@ def validate_documents(texts: dict[str, str]) -> None:
     ):
         fail("pull-request template Ponytail line lacks full mode or ponytail-review")
     item_text = visible(texts.get(".github/ISSUE_TEMPLATE/work-item.md", ""))
-    item_lines = {ln.strip() for ln in item_text.splitlines()}
+    item_lines = {ln.rstrip() for ln in item_text.splitlines()}
     for field in WORK_ITEM_FIELDS:
         if field not in item_lines:
             fail(f"work-item template lacks Specs field: {field}")
@@ -285,7 +341,7 @@ def validate_documents(texts: dict[str, str]) -> None:
     for phrase in POLICY_PHRASES:
         if phrase not in policy:
             fail(f"repository policy omits required clause: {phrase}")
-    policy_lines = [ln.strip() for ln in policy.splitlines()]
+    policy_lines = [ln.rstrip() for ln in policy.splitlines()]
     for bullet in POLICY_BULLETS:
         if not any(ln.startswith(bullet) for ln in policy_lines):
             fail(f"repository policy omits severity definition: {bullet}")
@@ -293,15 +349,32 @@ def validate_documents(texts: dict[str, str]) -> None:
         if not any(ln.startswith(row) for ln in policy_lines):
             fail(f"repository policy omits lifecycle status row: {row}")
     for name, body in texts.items():
-        if name.startswith("docs/work-items/") and name.endswith(".md"):
-            found = re.findall(r"(?m)^\*\*Status:\*\*\s*(.+?)\s*$", visible(body))
-            if len(found) != 1:
+        shown = visible(body)
+        governed = name in (
+            "README.md",
+            "docs/governance/repository-policy.md",
+            ".github/pull_request_template.md",
+            ".github/ISSUE_TEMPLATE/work-item.md",
+        ) or name.startswith("docs/work-items/")
+        if governed and _RAW_HTML.search(shown):
+            fail(f"{name}: raw HTML elements are not allowed in governance documents")
+        if not name.endswith(".md"):
+            continue
+        statuses = [
+            ln
+            for ln in shown.splitlines()
+            if re.match(r"^[*_ ]{0,4}Status[*_ ]{0,4}:", ln, re.IGNORECASE)
+        ]
+        for line in statuses:
+            match = re.fullmatch(r"\*\*Status:\*\* (.+?)\s*", line)
+            if not match or match.group(1) not in ALLOWED_STATUS:
                 fail(
-                    f"{name}: expected exactly one lifecycle status line, found {len(found)}"
+                    f"{name}: malformed or uncontrolled status line: {line.strip()[:60]}"
                 )
-            for value in found:
-                if value not in ALLOWED_STATUS:
-                    fail(f"{name}: uncontrolled lifecycle status: {value}")
+        if name.startswith("docs/work-items/") and len(statuses) != 1:
+            fail(
+                f"{name}: expected exactly one lifecycle status line, found {len(statuses)}"
+            )
     controlled = "\n".join(texts.values())
     if re.search(PLACEHOLDER_PATTERN, controlled, re.IGNORECASE):
         fail("uncontrolled placeholder found")
@@ -310,10 +383,15 @@ def validate_documents(texts: dict[str, str]) -> None:
 def validate_safety(texts: dict[str, str]) -> None:
     combined = "\n".join(texts.values())
     patterns = {
-        "private key": "-----BEGIN " + r"(?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
-        "AWS access key": r"\bAKIA[0-9A-Z]{16}\b",
-        "GitHub token": r"\bgh[pousr]_[A-Za-z0-9_]{30,}\b",
-        "assigned credential": r"(?i)\b(?:password|passwd|api[_-]?key|secret[_-]?key)\s*[:=]\s*['\"][^'\"]{8,}['\"]",
+        "private key": r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
+        "AWS access key": r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b",
+        "GitHub token": r"\b(?:gh[pousr]_[A-Za-z0-9_]{30,}|github_pat_[A-Za-z0-9_]{20,})\b",
+        "Slack token": r"\bxox[abprs]-[A-Za-z0-9-]{10,}",
+        "payment-provider live key": r"\b[sr]k_live_[A-Za-z0-9]{10,}",
+        "JSON web token": r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}",
+        "credentials in a URL": r"\b[a-z][a-z0-9+.-]*://[^\s/:@]+:[^\s/@]+@",
+        "assigned credential": r"(?i)\b(?:password|passwd|api[_-]?key|secret[_-]?key)[\"']?\s*[:=]\s*['\"][^'\"]{8,}['\"]",
+        "unquoted credential": r"(?i)\b(?:password|passwd|secret|token|api[_-]?key)\w*\s*[:=]\s*[\"']?(?=[^\s\"']*\d)(?=[^\s\"']*[A-Za-z])[^\s\"']{12,}",
         "bearer token": r"(?i)\bBearer\s+(?=[A-Za-z0-9._~-]*\d)[A-Za-z0-9._~-]{20,}\b",
     }
     for label, pattern in patterns.items():
@@ -328,11 +406,14 @@ def validate_safety(texts: dict[str, str]) -> None:
 
 
 def validate_ignore(texts: dict[str, str]) -> None:
-    """Use git's own semantics: negations, nested files, and odd spacing cannot fool this."""
+    """Use git's own matching on this repository's .gitignore alone: negations, spacing, case,
+    and nested files cannot fool it, and no local or global git setting can mask a gap."""
     nested = [n for n in texts if n.endswith(".gitignore") and n != ".gitignore"]
     if nested:
         fail(f"nested .gitignore files are not allowed: {sorted(nested)}")
-    ignored = _git_ignored(IGNORED_SAMPLES + TRACKABLE_SAMPLES)
+    ignored = _git_ignored(
+        texts.get(".gitignore", ""), IGNORED_SAMPLES + TRACKABLE_SAMPLES
+    )
     for sample in IGNORED_SAMPLES:
         if sample not in ignored:
             fail(f".gitignore does not ignore: {sample}")
@@ -341,23 +422,46 @@ def validate_ignore(texts: dict[str, str]) -> None:
             fail(f".gitignore wrongly ignores a file the repository needs: {sample}")
 
 
-def _git_ignored(paths: tuple[str, ...]) -> set[str]:
-    """The subset of paths that git ignores (one call, git's own matching rules)."""
-    result = subprocess.run(
-        ["git", "check-ignore", "--no-index", "--stdin"],
-        cwd=ROOT,
-        # bytes, not text mode: Windows text mode would turn each newline into CRLF
-        input=("\n".join(paths) + "\n").encode("utf-8"),
-        capture_output=True,
-        check=False,
-        # only this repository's own ignore rules count, never a developer's global ones
-        env={
-            **os.environ,
+def _git_ignored(rules: str, paths: tuple[str, ...]) -> set[str]:
+    """The subset of paths that git ignores under these rules, in a fresh empty repository with
+    global and system configuration disabled and case-sensitive matching (as on Linux CI)."""
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(
+            ("GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")
+        )
+    }
+    env.update(
+        {
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "XDG_CONFIG_HOME": os.devnull,
-        },
+        }
     )
+    with tempfile.TemporaryDirectory() as scratch:
+        subprocess.run(
+            ["git", "init", "-q", scratch], capture_output=True, check=True, env=env
+        )
+        pathlib.Path(scratch, ".gitignore").write_bytes(rules.encode("utf-8"))
+        result = subprocess.run(
+            [
+                "git",
+                "-c",
+                "core.ignoreCase=false",
+                "-c",
+                "core.excludesFile=",
+                "check-ignore",
+                "--no-index",
+                "--stdin",
+            ],
+            cwd=scratch,
+            # bytes, not text mode: Windows text mode would turn each newline into CRLF
+            input=("\n".join(paths) + "\n").encode("utf-8"),
+            capture_output=True,
+            check=False,
+            env=env,
+        )
     output = result.stdout.decode("utf-8", errors="replace")
     return {line.strip() for line in output.splitlines() if line.strip()}
 
@@ -372,21 +476,32 @@ def _luhn(digits: str) -> bool:
     return total % 10 == 0
 
 
+_CARD_SHAPES = (
+    r"(?<![\w.-])\d{15,19}(?![\w.-])",  # contiguous
+    r"(?<![\w.-])\d{4}([ -])\d{4}\1\d{4}\1\d{1,7}(?![\w-])",  # 4-4-4-x groups
+    r"(?<![\w.-])\d{4}([ -])\d{6}\1\d{5}(?![\w-])",  # 4-6-5 groups
+)
+
+
 def _card_like_numbers(text: str) -> list[tuple[int, str]]:
-    """Luhn-valid card-like numbers: 15 to 19 contiguous digits, or 13 to 19 digits written in
-    groups separated by spaces or dashes (long contiguous 13 or 14 digit numbers such as
-    millisecond timestamps are too common to flag)."""
+    """Luhn-valid numbers shaped like payment cards: 15 to 19 contiguous digits, or the usual
+    4-4-4-x and 4-6-5 groupings with spaces or dashes. Dates and 13 or 14 digit numbers such as
+    millisecond timestamps do not have these shapes."""
     found = []
-    for match in re.finditer(r"(?<![\w.-])\d(?:[ -]?\d){12,18}(?![\w-])", text):
-        raw = match.group()
-        digits = re.sub(r"\D", "", raw)
-        grouped = bool(re.search(r"[ -]", raw))
-        if (grouped or len(digits) >= 15) and 13 <= len(digits) <= 19 and _luhn(digits):
-            found.append((match.start(), digits))
+    for shape in _CARD_SHAPES:
+        for match in re.finditer(shape, text):
+            digits = re.sub(r"\D", "", match.group())
+            if 13 <= len(digits) <= 19 and _luhn(digits):
+                found.append((match.start(), digits))
     return found
 
 
 def validate_workflow(texts: dict[str, str]) -> None:
+    for name in texts:
+        if name.startswith(".github/") and name not in REVIEWED_GITHUB_FILES:
+            fail(
+                f"unreviewed file under .github (workflows, actions, or settings): {name}"
+            )
     workflow = texts.get(".github/workflows/governance-ci.yml", "")
     digest = hashlib.sha256(workflow.replace("\r\n", "\n").encode("utf-8")).hexdigest()
     if digest != EXPECTED_WORKFLOW_SHA256:

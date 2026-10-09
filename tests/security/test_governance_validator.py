@@ -249,6 +249,106 @@ SECRET_FORMS: dict[str, Mutation] = {
 }
 MUTATIONS.update(WORKFLOW_EDITS | GITIGNORE_EDITS | DOCUMENT_EDITS | SECRET_FORMS)
 
+# Cases from the third verification. Secret-shaped text is assembled from parts so this file does
+# not itself trip the scan it tests.
+EXTRA_CASES: dict[str, Mutation] = {
+    "extra workflow file with write permissions": lambda root: write(
+        root,
+        ".github/workflows/evil.yml",
+        "on: pull_request_target\npermissions: write-all\njobs: {}\n",
+    ),
+    "extra composite action": lambda root: write(
+        root, ".github/actions/a/action.yml", "name: a\nruns:\n  using: composite\n"
+    ),
+    "template field only inside a tilde fence": replace(
+        PR, "- Full gates:\n", "~~~\n- Full gates:\n~~~\n"
+    ),
+    "template field hidden by an unterminated fence": lambda root: edit(
+        root,
+        PR,
+        lambda text: text.replace("- Full gates:\n", "") + "\n```\n- Full gates:\n",
+    ),
+    "template field indented into a code block": replace(
+        PR, "- Full gates:\n", "    - Full gates:\n"
+    ),
+    "template heading inside a pre element": replace(
+        PR, "## Merge checklist\n", "<pre>\n## Merge checklist\n</pre>\n"
+    ),
+    "hidden div in a governance document": lambda root: edit(
+        root, POL, lambda text: text + "\n<div hidden>note</div>\n"
+    ),
+    "gitignore rule masked by .git/info/exclude": lambda root: (
+        edit(root, ".gitignore", lambda text: text.replace("*.pem\n", "")),
+        (root / ".git" / "info").mkdir(exist_ok=True),
+        (root / ".git" / "info" / "exclude").write_text("*.pem\n", encoding="utf-8"),
+    )[0],
+    "gitignore rule only in the wrong case": replace(
+        ".gitignore", "*.pem\n", "*.PEM\n"
+    ),
+    "gitignore cache rule removed: mypy": replace(".gitignore", ".mypy_cache/\n", ""),
+    "gitignore cache rule removed: pytest": replace(
+        ".gitignore", ".pytest_cache/\n", ""
+    ),
+    "gitignore coverage file rule removed": replace(".gitignore", ".coverage\n", ""),
+    "gitignore wal rule removed": replace(".gitignore", "*.db-wal\n", ""),
+    "gitignore pyc rule removed": replace(".gitignore", "*.py[cod]\n", ""),
+    "gitignore pycache anchored to the root": replace(
+        ".gitignore", "__pycache__/\n", "/__pycache__/\n"
+    ),
+    "encrypted private key header": lambda root: write(
+        root, "docs/s1.md", "-----BEGIN ENCRYPTED " + "PRIVATE KEY-----\n"
+    ),
+    "temporary AWS access key": lambda root: write(
+        root, "docs/s2.md", "key ASI" + "A" + "ABCDEFGHIJKLMNOP\n"
+    ),
+    "fine-grained GitHub token": lambda root: write(
+        root, "docs/s3.md", "github_" + "pat_" + "a" * 30 + "\n"
+    ),
+    "Slack token": lambda root: write(
+        root, "docs/s4.md", "xo" + "xb-" + "1234567890abc\n"
+    ),
+    "payment provider live key": lambda root: write(
+        root, "docs/s5.md", "sk_" + "live_" + "abcdefghij0123\n"
+    ),
+    "JSON web token": lambda root: write(
+        root,
+        "docs/s6.md",
+        "ey" + "J" + "a" * 12 + "." + "b" * 12 + "." + "c" * 12 + "\n",
+    ),
+    "credentials in a connection URL": lambda root: write(
+        root, "docs/s7.md", "postgres" + "://user:hunter2x@db.example.invalid/x\n"
+    ),
+    "unquoted password assignment": lambda root: write(
+        root, "docs/s8.md", "PASS" + "WORD=Abcdef123456xyz\n"
+    ),
+    "JSON password field": lambda root: write(
+        root, "docs/s9.md", '{"pass' + 'word": "correct-horse-battery"}\n'
+    ),
+    "invalid status value in the README": lambda root: write(
+        root, "docs/status.md", "**Status:** Done\n"
+    ),
+    "status with the colon outside the bold": lambda root: write(
+        root, "docs/status2.md", "**Status**: Verified\n"
+    ),
+    "plain status line": lambda root: write(
+        root, "docs/status3.md", "Status: Verified\n"
+    ),
+}
+MUTATIONS.update(EXTRA_CASES)
+HARMLESS.update(
+    {
+        "two adjacent ISO dates are not a card number": lambda root: write(
+            root, "docs/d1.md", "from 2026-04-28 2026-05-01 inclusive\n"
+        ),
+        "second pair of dates": lambda root: write(
+            root, "docs/d2.md", "2026-06-30 2026-07-03\n"
+        ),
+        "bullet that mentions a status is fine": lambda root: write(
+            root, "docs/s10.md", "- Status: see the work item\n"
+        ),
+    }
+)
+
 
 @pytest.fixture(scope="module")
 def scratch(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
