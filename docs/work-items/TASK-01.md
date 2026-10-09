@@ -7,7 +7,7 @@
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
 - TASK and affected IDs: `TASK-01`; `BT-06`; `SEC-11`; `TEST-26`; governance controls
 - Decision, gap, or risk records: no new decision or gap; existing Specs risks remain unchanged
-- Author/owner role: Codex as Builder; final verification requires an independent Tester
+- Owner roles: Updater + Builder Auditor; Codex is the execution runtime for this implementation, and final verification requires an independent Tester
 
 ## Scope
 

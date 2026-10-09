@@ -25,6 +25,11 @@ REQUIRED_FILES = {
     "scripts/validate_governance.py",
 }
 TEXT_SUFFIXES = {".md", ".txt", ".yml", ".yaml", ".py", ""}
+PLACEHOLDER_PATTERN = (
+    r"\b(?:"
+    + "|".join(("TO" + "DO", "T" + "BD", "FIX" + "ME", "X" + "XX"))
+    + r")\b"
+)
 FAILURES: list[str] = []
 
 
@@ -99,17 +104,13 @@ def validate_documents(texts: dict[str, str]) -> None:
         for heading in headings:
             if heading not in body:
                 fail(f"{name} lacks heading: {heading}")
-    controlled = "\n".join(
-        body for name, body in texts.items() if name != "scripts/validate_governance.py"
-    )
-    if re.search(r"\b(?:TODO|TBD|FIXME|XXX)\b", controlled, re.IGNORECASE):
+    controlled = "\n".join(texts.values())
+    if re.search(PLACEHOLDER_PATTERN, controlled, re.IGNORECASE):
         fail("uncontrolled placeholder found")
 
 
 def validate_safety(texts: dict[str, str]) -> None:
-    combined = "\n".join(
-        body for name, body in texts.items() if name != "scripts/validate_governance.py"
-    )
+    combined = "\n".join(texts.values())
     patterns = {
         "private key": "-----BEGIN " + r"(?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
         "AWS access key": r"\bAKIA[0-9A-Z]{16}\b",
