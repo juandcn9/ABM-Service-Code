@@ -4,6 +4,8 @@
 !.env.example
 *.pem
 *.key
+*.p12
+*.pfx
 
 # Python and test caches
 __pycache__/
@@ -36,3 +38,7 @@ evidence/private/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Unreviewed binaries
+*.exe
+*.dll
