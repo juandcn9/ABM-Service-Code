@@ -34,7 +34,7 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
-- Commands/checks and results: locally `pytest` 27 passed, `ruff check`, `ruff format --check`, `mypy src tests scripts`, `validate_governance.py`, `validate_toolchain.py` pass; CI results are on the PR.
-- Review findings/resolution: pending (`ponytail-review`, then a fresh-context review and Tester verification of the final head).
+- Commands/checks and results: locally `pytest` 28 passed, `ruff check`, `ruff format --check`, `mypy src tests scripts`, `validate_governance.py`, `validate_toolchain.py` pass; CI results are on the PR.
+- Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01): one Should-fix, a non-SQLite exception mid-migration would leave the transaction open; fixed by rolling back on any exception, with a test. A fresh-context review and Tester verification of the final head are still required.
 - Residual risks: schema correctness beyond sampled constraints is only exercised as later tasks use each table; no multi-process migration race test; checksum handling does not defend against someone editing both a migration file and the recorded history together (the history is trigger-protected but SQLite files can be edited directly; readiness in `TASK-12` is the detective control).
 - Next safe action: `TASK-07` (connection and transaction unit) after this PR is merged.

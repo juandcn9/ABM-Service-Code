@@ -109,12 +109,13 @@ def apply_migrations(
                 (migration.version, migration.name, migration.checksum, applied_at),
             )
         conn.execute("COMMIT")
-    except MigrationError:
+    except (
+        BaseException
+    ) as exc:  # never leave the migration transaction open, whatever failed
         _rollback(conn)
+        if isinstance(exc, sqlite3.Error):
+            raise MigrationError("MIGRATION_FAILED") from exc
         raise
-    except sqlite3.Error as exc:
-        _rollback(conn)
-        raise MigrationError("MIGRATION_FAILED") from exc
 
 
 def _rollback(conn: sqlite3.Connection) -> None:

@@ -241,3 +241,17 @@ def test_schema_enforces_core_money_constraints() -> None:
             " VALUES ('m-1', 'acct-1', 'card', 'pending', 0, 'USD', ?, ?)",
             (NOW, NOW),
         )
+
+
+def test_unexpected_exception_still_rolls_back_and_propagates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom(_sql: str) -> object:
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr("abm.persistence.migrations._statements", boom)
+    conn = connect()
+    with pytest.raises(RuntimeError):
+        apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    assert not conn.in_transaction
+    assert tables(conn) == set()
