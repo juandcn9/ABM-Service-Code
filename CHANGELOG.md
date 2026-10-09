@@ -10,3 +10,4 @@ All notable Code repository changes are recorded here.
 - Added the `TASK-04` required `quality-gates` CI job (pinned Python, hash-verified install, toolchain, lint, format, type, tests), a static SQL-formatting scan, LF normalization, and a tracked-file secret scan.
 - Added `TASK-08` domain value objects (integer-cent USD money, canonical identifiers and UTC instants), typed results with stable error codes, a canonical idempotency fingerprint, and the controllable clock port with a deterministic test double; CI type-checks `harness` too.
 - Added `TASK-09` trusted caller-context parsing, the deny-by-default role and account-scope authorization matrix, and strict transport validation helpers (strict JSON, exact fields, path/body account agreement) with security tests.
+- Added the `TASK-05` work item (Blocked on the Ponytail pin decision) and wired the Ponytail review commands into the repository policy.

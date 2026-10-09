@@ -35,10 +35,14 @@ class Money:
             raise InvalidValue("amount must be a positive integer number of cents")
         return cls(cents)
 
-    def __add__(self, other: Money) -> Money:
+    def __add__(self, other: object) -> Money:
+        if not isinstance(other, Money):
+            return NotImplemented
         return Money(self.cents + other.cents)
 
-    def __sub__(self, other: Money) -> Money:
+    def __sub__(self, other: object) -> Money:
+        if not isinstance(other, Money):
+            return NotImplemented
         return Money(self.cents - other.cents)
 
     def __neg__(self) -> Money:

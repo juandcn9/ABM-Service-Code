@@ -48,3 +48,16 @@ def test_currency_is_exactly_usd() -> None:
     for bad in ("usd", "EUR", "USD ", "", None, 840, b"USD"):
         with pytest.raises(InvalidValue):
             require_usd(bad)
+
+
+def test_the_bound_is_the_schema_literal() -> None:
+    # contracts/sqlite-schema.sql CHECK ranges use exactly 2**53 - 1
+    assert MAX_CENTS == 9_007_199_254_740_991 == 2**53 - 1
+
+
+def test_arithmetic_with_a_non_money_operand_is_a_type_error() -> None:
+    for other in (1, True, 1.5, "1", None):
+        with pytest.raises(TypeError):
+            Money(1) + other  # type: ignore[operator]
+        with pytest.raises(TypeError):
+            Money(1) - other  # type: ignore[operator]
