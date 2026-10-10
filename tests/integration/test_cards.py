@@ -182,7 +182,7 @@ def test_a_reused_movement_id_is_invalid_transition_and_declared(
     before = counts(conn)
     again = authorize(uow, clock, key="ka2", instruction="ia2")
     assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
-    assert counts(conn)[:3] == before[:3]
+    assert counts(conn) == before
 
 
 def test_clearing_at_the_authorized_amount_releases_the_hold_and_posts_one_debit(
@@ -619,8 +619,90 @@ def test_clearing_under_an_outgoing_restriction_posts_its_debit_and_releases_the
     funded(uow, clock)
     authorize(uow, clock)
     conn.execute(
-        "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1'"
+        "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1' WHERE account_id = 'acct-1'"
     )
     assert isinstance(step(clear_card, uow, clock, cents=400, ref="ev-c"), Success)
     assert state_of(conn) == "cleared"
     assert balances(conn) == (600, 0)
+
+
+def test_a_replayed_authorization_returns_the_stored_outcome_and_a_changed_one_conflicts(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    first = authorize(
+        uow, clock, movement="mv-f", cents=400, key="kf", instruction="if"
+    )
+    before = counts(conn)
+    again = authorize(
+        uow, clock, movement="mv-f", cents=400, key="kf", instruction="if"
+    )
+    assert isinstance(again, Success) and again.replayed is True
+    assert again.value == first.value
+    assert counts(conn) == before
+    changed = authorize(
+        uow, clock, movement="mv-f", cents=401, key="kf", instruction="if"
+    )
+    assert isinstance(changed, Failure) and changed.error.code == "IDEMPOTENCY_CONFLICT"
+    assert counts(conn) == before
+
+
+def test_a_replayed_clearing_returns_the_stored_outcome_and_a_changed_one_conflicts(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    first = step(clear_card, uow, clock, cents=400, ref="ev-c")
+    assert isinstance(first, Success)
+    before = counts(conn)
+    again = step(clear_card, uow, clock, cents=400, ref="ev-c")
+    assert isinstance(again, Success) and again.replayed is True
+    assert again.value == first.value
+    assert counts(conn) == before
+    changed = step(clear_card, uow, clock, cents=399, ref="ev-c")
+    assert isinstance(changed, Failure) and changed.error.code == "IDEMPOTENCY_CONFLICT"
+    assert counts(conn) == before
+
+
+def test_a_replayed_refund_returns_the_stored_outcome_and_a_changed_one_conflicts(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    assert isinstance(step(clear_card, uow, clock, cents=400, ref="ev-c"), Success)
+    first = step(refund_card, uow, clock, cents=400, ref="ev-f")
+    assert isinstance(first, Success)
+    before = counts(conn)
+    again = step(refund_card, uow, clock, cents=400, ref="ev-f")
+    assert isinstance(again, Success) and again.replayed is True
+    assert counts(conn) == before
+    changed = step(refund_card, uow, clock, cents=399, ref="ev-f")
+    assert isinstance(changed, Failure) and changed.error.code == "IDEMPOTENCY_CONFLICT"
+    assert counts(conn) == before
+
+
+def test_response_balances_match_the_database_for_authorize_clear_reverse_and_refund(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+
+    def assert_matches(data: dict[str, object]) -> None:
+        account = data["accounts"][0]  # type: ignore[index]
+        current, held = balances(conn)
+        assert account["current_balance_cents"] == current
+        assert account["held_balance_cents"] == held
+        assert account["available_balance_cents"] == current - held
+
+    assert_matches(data_of(authorize(uow, clock, movement="mv-b1")))
+    assert_matches(
+        data_of(step(clear_card, uow, clock, movement="mv-b1", cents=400, ref="ev-b1"))
+    )
+    assert_matches(
+        data_of(authorize(uow, clock, movement="mv-b2", key="kb2", instruction="ib2"))
+    )
+    assert_matches(
+        data_of(simple(reverse_card, uow, clock, movement="mv-b2", ref="ev-b2"))
+    )
+    assert_matches(
+        data_of(step(refund_card, uow, clock, movement="mv-b1", cents=400, ref="ev-b3"))
+    )
