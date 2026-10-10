@@ -9,9 +9,13 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCANNED = (ROOT / "src" / "abm", ROOT / "harness")
 EXECUTE = {"execute", "executemany", "executescript"}
-# Files whose execute() argument is reviewed, checksummed migration text, not request values.
+# Files whose execute() argument is reviewed constant text (migration files, or the fixed
+# inconsistency queries in readiness.py), never request values.
 # Formatted-SQL detection still applies to them; only the fixed-statement rule is waived.
-DYNAMIC_EXECUTE_ALLOWED = {"src/abm/persistence/migrations.py"}
+DYNAMIC_EXECUTE_ALLOWED = {
+    "src/abm/persistence/migrations.py",
+    "src/abm/persistence/readiness.py",
+}
 HOLE = "{}"  # stands in for every interpolated value; it counts as one non-space token
 SQL_STATEMENT = re.compile(
     r"\s*(?:"
@@ -164,7 +168,10 @@ def test_known_constants_from_other_modules_are_accepted() -> None:
 
 
 def test_dynamic_execute_allowance_is_narrow() -> None:
-    assert DYNAMIC_EXECUTE_ALLOWED == {"src/abm/persistence/migrations.py"}
+    assert DYNAMIC_EXECUTE_ALLOWED == {
+        "src/abm/persistence/migrations.py",
+        "src/abm/persistence/readiness.py",
+    }
     # the allowance waives only the fixed-statement rule, never value-formatted SQL
     assert formatted_sql("cur.execute(statement)", allow_dynamic_execute=True) == []
     assert formatted_sql(
