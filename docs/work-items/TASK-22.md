@@ -15,7 +15,7 @@
 - Each account has one retention row with `final_at` and `eligible_after` null until closure (TEST-19, DEC-0012).
 - Closure sets both. Each permitted late event after closure (return, refund, late clearing, correction) advances both in its own transaction (DEC-0046). `eligible_after` is seven calendar years after `final_at`.
 - The seven-year predicate keeps in-policy accounts and every dependent record. An account legal hold always blocks eligibility (TEST-19).
-- `retention_controller` alone sets or clears the account-level legal hold through a non-public port. The instruction carries `instruction_id`, `account_id`, `record_type` equal to `account`, `record_id` equal to `account_id`, `action` (`set` or `clear`), and an opaque `decision_reference` (TEST-45, specs/03 section 4).
+- `retention_controller` alone sets or clears the account-level legal hold through a non-public port. The instruction carries `instruction_id`, `account_id`, `record_type` equal to `account`, `record_id` equal to `account_id`, `action` (`set` or `clear`), and an opaque `decision_reference` (TEST-45, specs/03 section 8).
 - The legal-hold change is atomic with its trace row and its idempotency outcome. Replay is exact, and a fingerprint conflict writes nothing (TEST-45).
 - No public HTTP route exposes retention or legal-hold evaluation, and no operation deletes an account or a dependent record (TEST-37).
 
@@ -29,7 +29,7 @@
 ## Decisions taken where the Specs are silent (for JDC to redirect)
 
 - A late event advances the stored dates only when the account is closed. Retention starts at closure or the final resolution of a permitted later event, whichever is later (specs/02 section 9). Before closure, both dates stay null.
-- A legal-hold set on an already held account, or a clear on an account that has no hold, is refused with `INVALID_TRANSITION` (409), stored. The requested state must differ, as for the risk restriction (DEC-0043 pattern). Set and clear both trace.
+- A legal-hold set on an already held account, or a clear on an account that has no hold, is refused with `INVALID_TRANSITION` (409), stored. The requested state must differ, as for the risk restriction. Specs v1.9.3 do not state this rule. It is a pending JDC decision: until JDC records it in `governance/decisions.md`, the code must not ship this refusal. Set and clear both trace.
 - A legal-hold instruction on an unknown account is `ACCOUNT_NOT_FOUND` (404), stored. A wrong `record_type` or `record_id` is `VALIDATION_ERROR` (400), not stored.
 - The response data is `{account_id, legal_hold}`. The port is not public, so no envelope is defined here.
 - Legal hold may be set before or after closure (DEC-0012, specs/02 section 9).
