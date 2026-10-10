@@ -107,6 +107,9 @@ ATTACKS = [
     'DROP TABLE "Audit_Trace";',
     "DROP TABLE LEDGER_ENTRIES;",
     "ALTER TABLE ledger_entries RENAME TO old_ledger;",
+    "ALTER TABLE movements DROP COLUMN amount_cents;",
+    "ALTER TABLE movements RENAME COLUMN amount_cents TO amount;",
+    "ALTER TABLE holds RENAME TO holds_old;",
     "ALTER TABLE audit_trace ADD COLUMN extra TEXT;",
     "CREATE TEMP TABLE ledger_entries (x);",
     # change connection behavior that would outlive the migration
@@ -506,6 +509,34 @@ PINNED_TRIGGER_SQL = "CREATE TRIGGER ledger_entries_no_update BEFORE UPDATE ON l
                 )
             ),
             True,  # a pinned trigger whose text is not the shipped text
+        ),
+        # column layout: an existing column changed or dropped is refused; an appended column passes
+        (
+            snapshot(columns={"movements": (("0", "amount", "INTEGER", 1, None, 0),)}),
+            snapshot(columns={"movements": (("0", "amount", "TEXT", 1, None, 0),)}),
+            True,
+        ),
+        (
+            snapshot(columns={"movements": (("0", "amount", "INTEGER", 1, None, 0),)}),
+            snapshot(columns={"movements": ()}),
+            True,
+        ),
+        (
+            snapshot(columns={"movements": (("0", "amount", "INTEGER", 1, None, 0),)}),
+            snapshot(
+                columns={
+                    "movements": (
+                        ("0", "amount", "INTEGER", 1, None, 0),
+                        ("1", "note", "TEXT", 0, None, 0),
+                    )
+                }
+            ),
+            False,
+        ),
+        (
+            snapshot(columns={"holds": (("0", "hold_id", "TEXT", 1, None, 1),)}),
+            snapshot(columns={}),
+            True,
         ),
         (
             snapshot(history=HISTORY),

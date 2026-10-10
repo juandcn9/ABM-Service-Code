@@ -290,3 +290,25 @@ def test_destination_reference_is_an_additive_nullable_column_of_the_shipped_mig
         conn.execute(
             "UPDATE movements SET destination_reference = 'bad value!' WHERE movement_id = 'm-old'"
         )
+
+
+def test_0002_on_a_database_that_already_holds_a_movement_keeps_the_row_with_a_null_destination() -> (
+    None
+):
+    conn = connect()
+    apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
+    conn.execute(
+        "INSERT INTO accounts (account_id, customer_id, currency, eligibility_reference, status,"
+        " created_at) VALUES ('acct-1', 'cust-1', 'USD', 'elig-1', 'open', ?)",
+        (NOW,),
+    )
+    conn.execute(
+        "INSERT INTO movements (movement_id, account_id, movement_type, state, amount_cents,"
+        " currency, created_at, updated_at) VALUES ('m-old', 'acct-1', 'incoming_ach', 'settled',"
+        " 5, 'USD', ?, ?)",
+        (NOW, NOW),
+    )
+    apply_migrations(conn, load_migrations(MIGRATIONS), LATER)
+    assert conn.execute(
+        "SELECT movement_id, state, destination_reference FROM movements"
+    ).fetchall() == [("m-old", "settled", None)]

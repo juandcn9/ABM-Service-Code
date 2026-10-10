@@ -42,5 +42,6 @@
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: locally `pytest` 544 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; CI results are on the PR.
 - Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
-- Residual risks: the mutation check for TASK-14 is not yet recorded; no concurrency test (TASK-18); outgoing restriction is exercised only through the stored value.
+- Mutation checks (Tester, PR #22 head ddd3002): settlement not finalizing the hold: 4 failed; submission finalizing the hold: 3 failed; return skipping the amount check: 1 failed; outgoing create without the funds check: 1 failed; the column-layout check (migration step 7) removed: 0 failed on that head, now killed by 3 tests (the column-change attacks in the permissive matrix and the synthetic layout cases).
+- Residual risks: no concurrency test (TASK-18); outgoing restriction is exercised only through the stored value; the migration probe covers a populated database that already holds a movement.
 - Next safe action: review and Tester of the final head, then the PR is ready for JDC merge; `TASK-15` (internal transfer) after this PR merges, under the one-task rule.
