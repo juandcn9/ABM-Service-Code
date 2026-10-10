@@ -1,4 +1,4 @@
-# TASK-16 independent Tester report, re-verification after PR 43 (second record file)
+# TASK-16 independent Tester report, pass 3 (sanitized record)
 
 **Provenance:** fresh-context Tester agents, read-only, run on 2026-10-10. Pass 3 is the re-verification after the single Major below was closed.
 

@@ -42,6 +42,6 @@
 ## Verification (2026-10-10, JDC decision, recorded as DEC-0038 in Specs)
 
 - JDC decided TASK-16 is Verified on merged head `0ce8071` (PR #43), on the Tester pass in `docs/evidence/TASK-16-tester-report-2.md` (PR #44). The decision is recorded in the Specs repository as DEC-0038.
-- The Minors listed in PR #41 remain open and scheduled; they do not block this status.
-- Closed after Verified, by PR #48: fingerprint replay and conflict for authorize, clear and refund; response balances after authorize, clear, reverse and refund; full counts in the reused-id test; the restriction UPDATE names its account.
+- The Minors recorded in the TASK-16 reviews stay open and scheduled, except those closed by PRs #41 and #47; they do not block this status.
+- Scheduled to close on the merge of Code PR #48 (open, awaiting review and approval): fingerprint replay and conflict for authorize, clear and refund; response balances after authorize, clear, reverse and refund; full counts in the reused-id test; the restriction UPDATE names its account.
 - Scheduled (owner Builder, trigger TASK-21, closure): the closed-account card cases that set closure by direct SQL.
