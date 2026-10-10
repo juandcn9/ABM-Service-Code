@@ -7,16 +7,16 @@ one debit and may make the balance negative (INV-10). Each step is one write tra
 
 from __future__ import annotations
 
-import hashlib
-from collections.abc import Mapping
-
+from abm.application.ach import amount as to_cents
+from abm.application.ach import fields as to_fields
+from abm.application.ach import ledger_id, movement_data
 from abm.application.authorization import Operation, authorize
 from abm.application.caller import CallerContext
 from abm.application.idempotency import Response, run_idempotent, scope_key
 from abm.domain.errors import InvalidValue
 from abm.domain.fingerprint import fingerprint
 from abm.domain.identifiers import opaque_id
-from abm.domain.money import MAX_CENTS, require_usd
+from abm.domain.money import require_usd
 from abm.domain.results import Result, Success, failure
 from abm.ports.clock import Clock
 from abm.ports.storage import (
@@ -40,43 +40,6 @@ _RETURN_FIELDS = frozenset(
 )
 
 
-def _fields(body: object, expected: frozenset[str]) -> Mapping[str, object]:
-    """Exactly the contract fields; anything else is refused."""
-    if type(body) is not dict or set(body) != expected:
-        raise InvalidValue("request fields do not match the contract")
-    return body
-
-
-def _amount(value: object) -> int:
-    if type(value) is not int or not 1 <= value <= MAX_CENTS:
-        raise InvalidValue("amount is not a valid cents value")
-    return value
-
-
-def _ledger_id(movement_id: str, effect_kind: str) -> str:
-    """One stable id per movement effect, within the stored identifier length."""
-    return hashlib.sha256(f"{movement_id}\0{effect_kind}".encode()).hexdigest()
-
-
-def _movement_data(
-    movement_id: str, state: str, account_id: str, account: AccountSnapshot
-) -> dict[str, object]:
-    available = account.current_balance_cents - account.held_balance_cents
-    return {
-        "movement_id": movement_id,
-        "movement_type": "incoming_ach",
-        "state": state,
-        "accounts": [
-            {
-                "account_id": account_id,
-                "current_balance_cents": account.current_balance_cents,
-                "held_balance_cents": account.held_balance_cents,
-                "available_balance_cents": available,
-            }
-        ],
-    }
-
-
 def create_incoming_ach(
     uow: UnitOfWork,
     clock: Clock,
@@ -90,10 +53,10 @@ def create_incoming_ach(
         return denied
     try:
         target = opaque_id(account_id)
-        fields = _fields(body, _NOTICE_FIELDS)
+        fields = to_fields(body, _NOTICE_FIELDS)
         instruction_id = opaque_id(fields["instruction_id"])
         movement_id = opaque_id(fields["movement_id"])
-        amount = _amount(fields["amount_cents"])
+        amount = to_cents(fields["amount_cents"])
         require_usd(fields["currency"])
         external_reference = opaque_id(fields["external_reference"])
         key = opaque_id(idempotency_key)
@@ -134,7 +97,10 @@ def create_incoming_ach(
             )
         )
         return Success(
-            Response(201, _movement_data(movement_id, "pending", target, account))
+            Response(
+                201,
+                movement_data(movement_id, "incoming_ach", "pending", target, account),
+            )
         )
 
     return run_idempotent(
@@ -173,7 +139,7 @@ def settle_incoming_ach(
     try:
         target = opaque_id(account_id)
         movement = opaque_id(movement_id)
-        fields = _fields(body, _SETTLE_FIELDS)
+        fields = to_fields(body, _SETTLE_FIELDS)
         instruction_id = opaque_id(fields["instruction_id"])
         evidence = opaque_id(fields["evidence_reference"])
         key = opaque_id(idempotency_key)
@@ -199,7 +165,7 @@ def settle_incoming_ach(
             return failure(
                 "INVALID_TRANSITION", "The evidence reference was already used."
             )
-        credit = _ledger_id(movement, "incoming_settlement")
+        credit = ledger_id(movement, "incoming_settlement")
         tx.add_evidence(evidence, movement, "settlement", now)
         tx.post_ledger(
             LedgerPost(
@@ -239,7 +205,9 @@ def settle_incoming_ach(
             account.held_balance_cents,
         )
         return Success(
-            Response(200, _movement_data(movement, "settled", target, after))
+            Response(
+                200, movement_data(movement, "incoming_ach", "settled", target, after)
+            )
         )
 
     return run_idempotent(
@@ -276,10 +244,10 @@ def return_incoming_ach(
     try:
         target = opaque_id(account_id)
         movement = opaque_id(movement_id)
-        fields = _fields(body, _RETURN_FIELDS)
+        fields = to_fields(body, _RETURN_FIELDS)
         instruction_id = opaque_id(fields["instruction_id"])
         evidence = opaque_id(fields["evidence_reference"])
-        amount = _amount(fields["amount_cents"])
+        amount = to_cents(fields["amount_cents"])
         require_usd(fields["currency"])
         key = opaque_id(idempotency_key)
     except InvalidValue:
@@ -309,7 +277,7 @@ def return_incoming_ach(
             return failure(
                 "INVALID_TRANSITION", "The evidence reference was already used."
             )
-        debit = _ledger_id(movement, "incoming_return")
+        debit = ledger_id(movement, "incoming_return")
         tx.add_evidence(evidence, movement, "return", now)
         tx.post_ledger(
             LedgerPost(
@@ -349,7 +317,9 @@ def return_incoming_ach(
             account.held_balance_cents,
         )
         return Success(
-            Response(200, _movement_data(movement, "returned", target, after))
+            Response(
+                200, movement_data(movement, "incoming_ach", "returned", target, after)
+            )
         )
 
     return run_idempotent(

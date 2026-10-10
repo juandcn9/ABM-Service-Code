@@ -67,6 +67,7 @@ class AccountSnapshot:
     status: str
     current_balance_cents: int
     held_balance_cents: int
+    restriction: str = "none"
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,7 @@ class NewMovement:
     state: str
     amount_cents: int
     external_reference: str | None
+    destination_reference: str | None = None
 
 
 @dataclass(frozen=True)
@@ -142,6 +144,27 @@ class WriteTransaction(Protocol):
     def post_ledger(self, post: LedgerPost, created_at: str) -> None: ...
 
     def apply_balance(self, account_id: str, delta_cents: int) -> None: ...
+
+    def hold_state(self, movement_id: str) -> str | None:
+        """The state of the movement's hold, or None if it has none (one hold per movement)."""
+        ...
+
+    def create_hold(
+        self,
+        hold_id: str,
+        movement_id: str,
+        account_id: str,
+        amount_cents: int,
+        created_at: str,
+    ) -> None: ...
+
+    def finalize_hold(
+        self,
+        movement_id: str,
+        state: str,
+        evidence_reference: str | None,
+        finalized_at: str,
+    ) -> None: ...
 
 
 @dataclass(frozen=True)

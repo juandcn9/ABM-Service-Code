@@ -126,7 +126,7 @@ def test_a_locked_database_fails_safely_after_the_timeout(
     tmp_path: pathlib.Path,
 ) -> None:
     holder = file_db(tmp_path)
-    apply_migrations(holder, load_migrations(MIGRATIONS), NOW)
+    apply_migrations(holder, load_migrations(MIGRATIONS)[:1], NOW)
     extra = Migration(
         2,
         "0002_extra",
@@ -136,11 +136,11 @@ def test_a_locked_database_fails_safely_after_the_timeout(
     holder.execute("BEGIN IMMEDIATE")  # another writer holds the lock
     blocked = file_db(tmp_path, timeout=0.05)
     with pytest.raises(MigrationError) as excinfo:
-        apply_migrations(blocked, [*load_migrations(MIGRATIONS), extra], NOW)
+        apply_migrations(blocked, [*load_migrations(MIGRATIONS)[:1], extra], NOW)
     assert code(excinfo) == "MIGRATION_FAILED" and not blocked.in_transaction
     holder.execute("ROLLBACK")
     apply_migrations(
-        blocked, [*load_migrations(MIGRATIONS), extra], NOW
+        blocked, [*load_migrations(MIGRATIONS)[:1], extra], NOW
     )  # the retry succeeds
     assert blocked.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 2
 
@@ -148,7 +148,7 @@ def test_a_locked_database_fails_safely_after_the_timeout(
 def test_concurrent_runners_apply_each_migration_exactly_once(
     tmp_path: pathlib.Path,
 ) -> None:
-    migrations = load_migrations(MIGRATIONS)
+    migrations = load_migrations(MIGRATIONS)[:1]
     errors: list[BaseException] = []
 
     def run() -> None:
@@ -175,7 +175,7 @@ def test_ledger_evidence_and_audit_records_are_immutable_by_trigger(
     tmp_path: pathlib.Path,
 ) -> None:
     conn = file_db(tmp_path)
-    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute(
         "INSERT INTO accounts (account_id, customer_id, currency, eligibility_reference, status, created_at)"
@@ -241,11 +241,11 @@ def test_transaction_control_can_not_slip_past_the_lexical_check(
 ) -> None:
     """Whatever the loader lets through, SQLite itself refuses and nothing is left behind."""
     conn = file_db(tmp_path)
-    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
     before = list(conn.iterdump())
     bad = Migration(2, "0002_bad", sql, checksum(sql))
     with pytest.raises(MigrationError) as excinfo:
-        apply_migrations(conn, [*load_migrations(MIGRATIONS), bad], NOW)
+        apply_migrations(conn, [*load_migrations(MIGRATIONS)[:1], bad], NOW)
     assert code(excinfo) in {"MIGRATION_FAILED", "MIGRATION_FILES_INVALID"}
     assert not conn.in_transaction
     assert (
@@ -253,4 +253,4 @@ def test_transaction_control_can_not_slip_past_the_lexical_check(
     )  # no table, no history row, no partial change
     assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone() == (1,)
     # the authorizer is removed again, so the runner's own transaction control still works
-    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)

@@ -62,14 +62,14 @@ def test_first_migration_equals_the_schema_contract() -> None:
 
 
 def test_loads_the_repository_migrations_in_order() -> None:
-    found = load_migrations(MIGRATIONS)
+    found = load_migrations(MIGRATIONS)[:1]
     assert [(m.version, m.name) for m in found] == [(1, "0001_initial")]
     assert found[0].checksum == CONTRACT_SHA256
 
 
 def test_empty_database_converges_to_the_target_schema() -> None:
     conn = connect()
-    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
     assert tables(conn) == DATA_TABLES | {"schema_version"}
     assert history(conn) == [(1, "0001_initial", CONTRACT_SHA256, NOW)]
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
@@ -78,7 +78,7 @@ def test_empty_database_converges_to_the_target_schema() -> None:
 
 def test_rerun_is_a_no_op_and_keeps_the_original_applied_time() -> None:
     conn = connect()
-    migrations = load_migrations(MIGRATIONS)
+    migrations = load_migrations(MIGRATIONS)[:1]
     apply_migrations(conn, migrations, NOW)
     apply_migrations(conn, migrations, LATER)
     assert history(conn) == [(1, "0001_initial", CONTRACT_SHA256, NOW)]
@@ -86,7 +86,7 @@ def test_rerun_is_a_no_op_and_keeps_the_original_applied_time() -> None:
 
 def test_pending_migrations_apply_forward_in_one_run() -> None:
     conn = connect()
-    first = load_migrations(MIGRATIONS)
+    first = load_migrations(MIGRATIONS)[:1]
     apply_migrations(conn, first, NOW)
     second = make(2, "0002_extra", "CREATE TABLE extra (id INTEGER PRIMARY KEY);")
     apply_migrations(conn, [*first, second], LATER)
@@ -100,7 +100,7 @@ def test_pending_migrations_apply_forward_in_one_run() -> None:
 
 def test_edited_applied_migration_is_refused_without_changes() -> None:
     conn = connect()
-    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
     before = history(conn)
     edited = make(1, "0001_initial", "CREATE TABLE evil (id INTEGER);")
     with pytest.raises(MigrationError) as excinfo:
@@ -112,7 +112,7 @@ def test_edited_applied_migration_is_refused_without_changes() -> None:
 
 def test_renamed_applied_migration_is_refused() -> None:
     conn = connect()
-    original = load_migrations(MIGRATIONS)[0]
+    original = load_migrations(MIGRATIONS)[:1][0]
     apply_migrations(conn, [original], NOW)
     renamed = Migration(1, "0001_renamed", original.sql, original.checksum)
     with pytest.raises(MigrationError) as excinfo:
@@ -122,7 +122,7 @@ def test_renamed_applied_migration_is_refused() -> None:
 
 def test_database_newer_than_this_build_is_unsupported() -> None:
     conn = connect()
-    migrations = load_migrations(MIGRATIONS)
+    migrations = load_migrations(MIGRATIONS)[:1]
     apply_migrations(conn, migrations, NOW)
     conn.execute(
         "INSERT INTO schema_version VALUES (2, '0002_future', ?, ?)", ("a" * 64, NOW)
@@ -136,7 +136,7 @@ def test_populated_database_without_history_is_left_untouched() -> None:
     conn = connect()
     conn.execute("CREATE TABLE foreign_data (id INTEGER)")
     with pytest.raises(MigrationError) as excinfo:
-        apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+        apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
     assert code_of(excinfo) == "UNSUPPORTED_SCHEMA_VERSION"
     assert tables(conn) == {"foreign_data"}
 
@@ -145,7 +145,7 @@ def test_failure_rolls_back_every_pending_migration() -> None:
     conn = connect()
     bad = make(2, "0002_bad", "CREATE TABLE t (a);\nINSERT INTO nope VALUES (1);")
     with pytest.raises(MigrationError) as excinfo:
-        apply_migrations(conn, [*load_migrations(MIGRATIONS), bad], NOW)
+        apply_migrations(conn, [*load_migrations(MIGRATIONS)[:1], bad], NOW)
     assert code_of(excinfo) == "MIGRATION_FAILED"
     assert tables(conn) == set()  # the valid 0001 was rolled back with the failing 0002
     assert not conn.in_transaction
@@ -153,7 +153,7 @@ def test_failure_rolls_back_every_pending_migration() -> None:
 
 def test_failure_after_an_applied_version_keeps_that_version_only() -> None:
     conn = connect()
-    first = load_migrations(MIGRATIONS)
+    first = load_migrations(MIGRATIONS)[:1]
     apply_migrations(conn, first, NOW)
     bad = make(2, "0002_bad", "CREATE TABLE t (a);\nINSERT INTO nope VALUES (1);")
     with pytest.raises(MigrationError):
@@ -174,11 +174,11 @@ def test_error_exposes_only_a_safe_code() -> None:
 def test_runner_requires_an_autocommit_connection() -> None:
     conn = sqlite3.connect(":memory:")  # default isolation level
     with pytest.raises(MigrationError):
-        apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+        apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
     conn = connect()
     conn.execute("BEGIN")
     with pytest.raises(MigrationError):
-        apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+        apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
 
 
 def test_loader_rejects_gaps_duplicates_and_bad_names(tmp_path: pathlib.Path) -> None:
@@ -212,7 +212,7 @@ def test_checksum_ignores_line_ending_style() -> None:
 
 def test_history_and_ledger_are_immutable_in_the_schema() -> None:
     conn = connect()
-    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
     with pytest.raises(sqlite3.IntegrityError, match="immutable"):
         conn.execute("UPDATE schema_version SET checksum = ?", ("b" * 64,))
     with pytest.raises(sqlite3.IntegrityError, match="immutable"):
@@ -221,7 +221,7 @@ def test_history_and_ledger_are_immutable_in_the_schema() -> None:
 
 def test_schema_enforces_core_money_constraints() -> None:
     conn = connect()
-    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    apply_migrations(conn, load_migrations(MIGRATIONS)[:1], NOW)
     account = ("acct-1", "cust-1", "USD", "elig-1", "open", NOW)
     insert = (
         "INSERT INTO accounts (account_id, customer_id, currency, eligibility_reference,"
@@ -249,7 +249,7 @@ def test_unexpected_exception_still_rolls_back_and_propagates(
     def boom(_sql: str) -> object:
         raise RuntimeError("unexpected")
 
-    migrations = load_migrations(MIGRATIONS)
+    migrations = load_migrations(MIGRATIONS)[:1]
     monkeypatch.setattr("abm.persistence.migrations._statements", boom)
     conn = connect()
     with pytest.raises(RuntimeError):
@@ -261,5 +261,32 @@ def test_unexpected_exception_still_rolls_back_and_propagates(
 def test_two_statements_on_one_line_both_apply() -> None:
     conn = connect()
     one_line = make(2, "0002_one_line", "CREATE TABLE a (x); CREATE TABLE b (y);")
-    apply_migrations(conn, [*load_migrations(MIGRATIONS), one_line], NOW)
+    apply_migrations(conn, [*load_migrations(MIGRATIONS)[:1], one_line], NOW)
     assert {"a", "b"} <= tables(conn)
+
+
+def test_destination_reference_is_an_additive_nullable_column_of_the_shipped_migrations() -> (
+    None
+):
+    migrations = load_migrations(MIGRATIONS)
+    assert [m.name for m in migrations] == ["0001_initial", "0002_movement_destination"]
+    conn = connect()
+    apply_migrations(conn, migrations, NOW)
+    conn.execute(
+        "INSERT INTO accounts (account_id, customer_id, currency, eligibility_reference, status,"
+        " created_at) VALUES ('acct-1', 'cust-1', 'USD', 'elig-1', 'open', ?)",
+        (NOW,),
+    )
+    conn.execute(
+        "INSERT INTO movements (movement_id, account_id, movement_type, state, amount_cents,"
+        " currency, created_at, updated_at) VALUES ('m-old', 'acct-1', 'incoming_ach', 'pending',"
+        " 5, 'USD', ?, ?)",
+        (NOW, NOW),
+    )
+    assert conn.execute("SELECT destination_reference FROM movements").fetchone() == (
+        None,
+    )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "UPDATE movements SET destination_reference = 'bad value!' WHERE movement_id = 'm-old'"
+        )
