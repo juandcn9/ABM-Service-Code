@@ -80,7 +80,85 @@ class WriteTransaction(Protocol):
     def append_trace(self, entry: TraceEntry) -> None: ...
 
 
+@dataclass(frozen=True)
+class HoldRecord:
+    hold_id: str
+    movement_id: str
+    amount_cents: int
+    state: str
+
+
+@dataclass(frozen=True)
+class AccountRecord:
+    """Stored facts of one account; available balance is derived from them, never stored."""
+
+    account_id: str
+    status: str
+    restriction: str
+    current_balance_cents: int
+    active_holds: tuple[HoldRecord, ...]
+
+
+@dataclass(frozen=True)
+class LedgerRow:
+    sequence: int
+    entry_id: str
+    movement_id: str
+    effect_kind: str
+    direction: str
+    amount_cents: int
+    created_at: str
+
+
+@dataclass(frozen=True)
+class TraceRow:
+    """One accepted trace record joined only to immutable ledger data (specs/05 section 6)."""
+
+    sequence: int
+    account_id: str | None
+    instruction_id: str
+    movement_id: str | None
+    operation: str
+    caller_id: str
+    caller_role: str
+    correlation_id: str
+    occurred_at: str
+    ledger_entry_id: str | None
+    movement_state: str | None
+    effect_kind: str | None
+    direction: str | None
+    amount_cents: int | None
+    evidence_reference: str | None
+    external_reference: str | None
+
+
+class ReadTransaction(Protocol):
+    """Reads inside one consistent snapshot; nothing here can write."""
+
+    def get_account(self, account_id: str) -> AccountRecord | None: ...
+
+    def history_page(
+        self, account_id: str, after_sequence: int, limit: int
+    ) -> list[LedgerRow]:
+        """Ledger entries with sequence > after_sequence, ascending, at most limit rows."""
+        ...
+
+    def trace_cutoff(self) -> int:
+        """The highest committed audit sequence, or 0 when there is none."""
+        ...
+
+    def trace_page(
+        self, after_sequence: int, cutoff_sequence: int, limit: int
+    ) -> list[TraceRow]:
+        """Records with after_sequence < sequence <= cutoff_sequence, ascending."""
+        ...
+
+
 class UnitOfWork(Protocol):
     def write(self) -> AbstractContextManager[WriteTransaction]:
         """BEGIN IMMEDIATE ... COMMIT; any exception rolls back everything (INV-06)."""
+        ...
+
+    def read(self) -> AbstractContextManager[ReadTransaction]:
+        """One consistent read snapshot; everything read inside shares the same committed state."""
         ...
