@@ -60,6 +60,50 @@ class TraceEntry:
     external_reference: str | None = None
 
 
+@dataclass(frozen=True)
+class AccountSnapshot:
+    """An account's status and balances inside one write transaction."""
+
+    status: str
+    current_balance_cents: int
+    held_balance_cents: int
+
+
+@dataclass(frozen=True)
+class MovementRecord:
+    movement_id: str
+    account_id: str
+    movement_type: str
+    state: str
+    amount_cents: int
+    external_reference: str | None
+
+
+@dataclass(frozen=True)
+class NewMovement:
+    movement_id: str
+    account_id: str
+    movement_type: str
+    state: str
+    amount_cents: int
+    external_reference: str | None
+
+
+@dataclass(frozen=True)
+class LedgerPost:
+    """One append-only ledger effect (DATA-02, INV-07)."""
+
+    entry_id: str
+    account_id: str
+    movement_id: str
+    effect_kind: str
+    direction: str
+    amount_cents: int
+    caller_id: str
+    caller_role: str
+    external_reference: str | None
+
+
 class WriteTransaction(Protocol):
     """Everything a state-changing instruction may do inside its one write transaction."""
 
@@ -78,6 +122,26 @@ class WriteTransaction(Protocol):
         ...
 
     def append_trace(self, entry: TraceEntry) -> None: ...
+
+    def account_snapshot(self, account_id: str) -> AccountSnapshot | None: ...
+
+    def get_movement(self, movement_id: str) -> MovementRecord | None: ...
+
+    def create_movement(self, movement: NewMovement, created_at: str) -> None: ...
+
+    def set_movement_state(
+        self, movement_id: str, state: str, updated_at: str
+    ) -> None: ...
+
+    def evidence_reference_taken(self, evidence_reference: str) -> bool: ...
+
+    def add_evidence(
+        self, evidence_reference: str, movement_id: str, kind: str, occurred_at: str
+    ) -> None: ...
+
+    def post_ledger(self, post: LedgerPost, created_at: str) -> None: ...
+
+    def apply_balance(self, account_id: str, delta_cents: int) -> None: ...
 
 
 @dataclass(frozen=True)
