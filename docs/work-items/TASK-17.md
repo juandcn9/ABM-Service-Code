@@ -5,12 +5,12 @@
 ## Authority
 
 - Specs version and exact SHA: `v1.8.3` / `c24abb2b31f0969c8e8c6eee24d9187a52df6c0b`
-- TASK and affected IDs: `TASK-17`; `TEST-15`, `TEST-17`, `TEST-46`; `specs/02` idempotency rules and `specs/04` section 3 (every command)
+- TASK and affected IDs: `TASK-17`; `TEST-15`, `TEST-46`; `specs/02` idempotency rules and `specs/04` section 3 (every command)
 - Decision records: `DEC-0011` (which outcomes are stored), `DEC-0014`, `DEC-0023`, `DEC-0025`, `DEC-0026` (reuse is `INVALID_TRANSITION`)
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required
 - Dependencies: `TASK-10` through `TASK-16` merged (true on `main` at `d7b31fa`)
 
-## Acceptance (from the Specs)
+## Acceptance (paraphrased from the Specs; TEST-15 and TEST-46 are the sources)
 
 - The same idempotency key and fingerprint exactly replays the stored 2xx, deterministic 404, non-conflict 409, and 422 status and body, with only replay metadata changed (TEST-15).
 - A changed fingerprint returns `IDEMPOTENCY_CONFLICT` and stores nothing.
