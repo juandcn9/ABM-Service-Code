@@ -6,6 +6,7 @@ import itertools
 import pathlib
 import sqlite3
 import threading
+import time
 
 import pytest
 
@@ -162,6 +163,52 @@ def test_writers_are_serialized_not_interleaved(db_path: pathlib.Path) -> None:
     assert changes == 3  # each transaction's 20 rows are contiguous
 
 
+def test_second_writer_waits_for_the_first_and_then_sees_its_commit(
+    db_path: pathlib.Path,
+) -> None:
+    # Without BEGIN IMMEDIATE the second writer reads a stale snapshot and fails on its write,
+    # and it does not wait for the lock, so both the outcome and the wait are asserted.
+    first = open_database(db_path, busy_timeout_ms=10_000)
+    seen: list[int] = []
+    waited: list[float] = []
+    errors: list[BaseException] = []
+
+    def contend() -> None:
+        second = open_database(
+            db_path, busy_timeout_ms=10_000
+        )  # opened on the thread that uses it
+        started = time.monotonic()
+        try:
+            with write_transaction(second):
+                waited.append(time.monotonic() - started)
+                seen.append(count(second))
+                second.execute("INSERT INTO t (v) VALUES ('second')")
+        except sqlite3.Error as exc:  # reported on the test thread below
+            errors.append(exc)
+        finally:
+            second.close()
+
+    with write_transaction(first):
+        first.execute("INSERT INTO t (v) VALUES ('first')")
+        thread = threading.Thread(target=contend)
+        thread.start()
+        time.sleep(0.2)  # the second writer is now waiting for the lock
+    thread.join()
+    first.close()
+    assert errors == []
+    assert waited and waited[0] >= 0.1  # it really waited for the first writer's lock
+    assert seen == [1]  # then read the first writer's row
+    assert count(open_database(db_path)) == 2
+
+
+def test_every_valid_busy_timeout_is_applied_exactly() -> None:
+    # every value in the accepted range; the driver truncates, so plain division fails 372 of them
+    for busy_timeout_ms in range(1, 60_001):
+        conn = open_database(":memory:", busy_timeout_ms=busy_timeout_ms)
+        assert conn.execute("PRAGMA busy_timeout").fetchone() == (busy_timeout_ms,)
+        conn.close()
+
+
 def test_read_transaction_sees_one_consistent_snapshot(db_path: pathlib.Path) -> None:
     reader = open_database(db_path)
     writer = open_database(db_path)
@@ -188,6 +235,30 @@ def test_disk_full_is_a_safe_failure_with_no_partial_effect(
     assert isinstance(result, Failure)
     assert result.error.code == "SERVICE_UNREADY" and result.error.retryable is False
     assert count(conn) == 0
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        (5, "SERVICE_BUSY"),  # SQLITE_BUSY
+        (6, "SERVICE_BUSY"),  # SQLITE_LOCKED
+        (517, "SERVICE_BUSY"),  # SQLITE_BUSY_SNAPSHOT: the primary code is what counts
+        (8, "SERVICE_UNREADY"),  # SQLITE_READONLY
+        (10, "SERVICE_UNREADY"),  # SQLITE_IOERR
+        (11, "SERVICE_UNREADY"),  # SQLITE_CORRUPT
+        (13, "SERVICE_UNREADY"),  # SQLITE_FULL
+        (14, "SERVICE_UNREADY"),  # SQLITE_CANTOPEN
+        (26, "SERVICE_UNREADY"),  # SQLITE_NOTADB
+        (1, "INTERNAL_ERROR"),  # SQLITE_ERROR is not a readiness problem
+    ],
+)
+def test_each_sqlite_code_maps_to_its_safe_failure(code: int, expected: str) -> None:
+    class Coded(sqlite3.DatabaseError):
+        sqlite_errorcode = code
+
+    result = to_failure(Coded("driver text"))
+    assert isinstance(result, Failure)
+    assert result.error.code == expected
 
 
 def test_error_mapping_never_exposes_driver_text() -> None:

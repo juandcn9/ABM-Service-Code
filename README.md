@@ -13,7 +13,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 ## Current scope
 
-`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. `TASK-06` adds the immutable SQLite migrations and runner. The repository intentionally contains no service behavior, API route, built container, cloud resource, credential, or real customer data.
+`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. `TASK-06` adds the immutable SQLite migrations and runner. `TASK-05` records the Ponytail configuration work item (Blocked on the pin decision). `TASK-08` adds the pure domain value objects, typed results, idempotency fingerprint, and clock port. `TASK-09` adds trusted caller-context parsing, the role and account-scope authorization matrix, and strict transport validation. `TASK-02`, `TASK-03`, `TASK-04`, `TASK-08`, and `TASK-09` have independent Tester records under `docs/evidence/`. The repository intentionally contains no service implementation, API route, built container, cloud resource, credential, or real customer data.
 
 ## Repository map
 
@@ -40,7 +40,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 Implement only one dependency-ready Specs TASK at a time. A normative ambiguity or proposed change to money, customer rights, public behavior, ownership, retention, security, architecture, or governance stops affected work and returns to the Specs change process.
 
-Ponytail is not applicable to this Codex-authored task. Any future Claude Code task must follow the exact Ponytail `v4.13.0` governance in the approved Specs; tool output is never authority.
+Ponytail was not applicable to the original Codex-authored tasks. Claude Code tasks follow the Ponytail governance in the approved Specs and record `ponytail-review` evidence in the pull request; the version in use and any deviation are recorded in `docs/governance/deviations.md`. Tool output is never authority.
 
 ## Non-claims
 

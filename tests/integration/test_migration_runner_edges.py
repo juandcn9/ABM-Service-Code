@@ -84,8 +84,8 @@ def test_a_trigger_body_is_not_mistaken_for_transaction_control(
     [
         {"0001_a.sql": b"\xff\xfe"},  # not UTF-8
         {
-            "0001_a.sql": b"CREATE TABLE a(x);\n-- trailing comment only"
-        },  # not whole statements
+            "0001_a.sql": b"CREATE TABLE a(x);\nCREATE TABLE b(y"
+        },  # half a statement at the end
         {
             "0001_a.sql": b"SELECT 1;",
             "0002_b.SQL": b"SELECT 2;",
@@ -214,3 +214,43 @@ def test_ledger_evidence_and_audit_records_are_immutable_by_trigger(
         with pytest.raises(sqlite3.IntegrityError, match="immutable|not implemented"):
             conn.execute(statement)
     assert conn.execute("SELECT COUNT(*) FROM ledger_entries").fetchone()[0] == 1
+
+
+def test_a_trailing_comment_is_allowed(tmp_path: pathlib.Path) -> None:
+    sql = b"CREATE TABLE a(x);\n-- done\n/* and that is all */\n"
+    assert len(load_migrations(folder(tmp_path, {"0001_x.sql": sql}))) == 1
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        ";ROLLBACK;\nCREATE TABLE a(x);\nINSERT INTO nope VALUES(1);",
+        ";COMMIT;\nCREATE TABLE a(x);\nINSERT INTO nope VALUES(1);",
+        "﻿ROLLBACK;\nCREATE TABLE a(x);",
+        "﻿COMMIT;\nCREATE TABLE a(x);",
+        "CREATE TABLE a(x); COMMIT; CREATE TABLE b(y);",
+        "CREATE TABLE a(x);\n;BEGIN;\nCREATE TABLE b(y);",
+        "CREATE TABLE a(x);\nSAVEPOINT s;\nCREATE TABLE b(y);",
+        "ATTACH DATABASE ':memory:' AS other;\nCREATE TABLE a(x);",
+        "CREATE TABLE a(x);\nDETACH DATABASE main;",
+        "PRAGMA writable_schema = ON;\nDELETE FROM sqlite_master;",
+    ],
+)
+def test_transaction_control_can_not_slip_past_the_lexical_check(
+    tmp_path: pathlib.Path, sql: str
+) -> None:
+    """Whatever the loader lets through, SQLite itself refuses and nothing is left behind."""
+    conn = file_db(tmp_path)
+    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)
+    before = list(conn.iterdump())
+    bad = Migration(2, "0002_bad", sql, checksum(sql))
+    with pytest.raises(MigrationError) as excinfo:
+        apply_migrations(conn, [*load_migrations(MIGRATIONS), bad], NOW)
+    assert code(excinfo) in {"MIGRATION_FAILED", "MIGRATION_FILES_INVALID"}
+    assert not conn.in_transaction
+    assert (
+        list(conn.iterdump()) == before
+    )  # no table, no history row, no partial change
+    assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone() == (1,)
+    # the authorizer is removed again, so the runner's own transaction control still works
+    apply_migrations(conn, load_migrations(MIGRATIONS), NOW)

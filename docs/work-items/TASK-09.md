@@ -1,13 +1,13 @@
 # Work item: TASK-09 — caller context, role/scope authorization, strict transport validation
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
 - TASK and affected IDs: `TASK-09`; `INV-13`; `SEC-01` through `SEC-04`; `TEST-21` through `TEST-24` (parsing, authorization, and transport halves)
 - Decision, gap, or risk records: `DEC-0004`, `RISK-0002`; no new decision or gap; DV-01 and DV-02 in `docs/governance/deviations.md`
-- Owner role: Builder (Claude Code); independent Tester verification of the final head is required
+- Owner role: Builder (Claude Code); independently verified (see Independent verification)
 
 ## Scope
 
@@ -35,8 +35,16 @@
 
 ## Completion
 
-- Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR targets the `TASK-08` branch until PR #9 merges, then it must be retargeted to `main`.
-- Commands/checks and results: locally `pytest` 45 passed in this stacked branch, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass; CI results are on the PR.
-- Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01): one Should-fix, an over-long integer in a JSON body raised a plain `ValueError` and would have become an unexpected 500; fixed with a test. A fresh-context review and Tester verification of the final head are still required.
+- Code commit/PR: PR #10, merged as `e3aada8` (it was stacked on `TASK-08` until PR #9 merged).
+- Commands/checks and results: locally `pytest` 55 passed in this stacked branch, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass; CI results are on the PR.
+- Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01): one Should-fix, an over-long integer in a JSON body raised a plain `ValueError`; fixed with a test. Independent fresh-context review of head `977272c`: implementation correct (matrix equals both `specs/06` section 4 and every `x-authorized-role` in the OpenAPI), no Blocker; two Major test-evidence findings, resolved with tests only: F1 (the matrix test checked the granted set and uniqueness but not which role holds which operation, so moving `API-12` to `card_orchestrator` kept every test green) now compares each role's operations with an independent literal from the Specs; F2 (cross-account denial for the history read was untested and `ACCOUNT_SCOPED` was taken from the implementation) now asserts the scoped set literally and denies wrong, padded, case-changed, empty, missing, and absent accounts for history; both mutations now fail tests. F3 (stale test counts) corrected. F4 (non-text input to `strict_json` and non-mapping headers raised `AttributeError`) now give `InvalidValue` and `UNAUTHORIZED`. F5 (`1e999` becomes Infinity and a lone-surrogate escape cannot be encoded) now rejected. Observations carried to `TASK-25`: the adapter must pass one normalized string-keyed header mapping and must limit body size; an unknown role is a 403 (a reading of `specs/06` section 4, recorded above). Independently verified (see Independent verification).
 - Residual risks: the header-to-context contract assumes a trusted ingress (`RISK-0002`); duplicate-key rejection depends on callers using `strict_json`, so `TASK-25` must route every body through it or an equivalent Pydantic setting; cross-account substitution and deployment-mode trust are not covered here.
-- Next safe action: `TASK-10` after PR #8 (migrations) and PR #9 (this stack's base) and `TASK-07` are merged.
+- Next safe action: `TASK-10` after `TASK-06` (migrations, Code PR #8) and `TASK-07` are merged.
+
+## Independent verification
+
+- Role and context: Tester, fresh-context agents that did not build `TASK-09`, 2026-10-09. The sanitized report is committed at [`docs/evidence/TASK-09-tester-report.md`](../evidence/TASK-09-tester-report.md).
+- Revision tested: Code PR #10 fix head `4161710816189ab271c867199155dea7a3103010`; the merged head `4598e06` (merge commit `e3aada8`) has an identical tree. Specs `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`.
+- Result: PASS on re-verification of the fix head; the first review's two Major test-evidence findings and three smaller findings are resolved; zero Blocker.
+- Scope of "Verified": parsing of the trusted caller context, the deny-by-default role and account-scope matrix, and the strict transport helpers. `TEST-21` to `TEST-24` stay partly open for HTTP wiring, the deployment-mode trust check, cross-account movement substitution, and the "contradictory context" interpretation (`TASK-23`, `TASK-25`). `RISK-0002` (trusted ingress) is unchanged.
+- Not verified: HTTP-level behavior (no routes exist); Python 3.12.15 locally.
