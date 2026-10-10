@@ -35,8 +35,8 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
-- Commands/checks and results: locally `pytest` 497 passed on this branch after merging `main`; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py`, `validate_toolchain.py` pass; CI results are on the PR.
-- Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
+- Commands/checks and results: locally `pytest` 501 passed on this branch after merging `main` (CI 501 passed on the head); `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py`, `validate_toolchain.py` pass; CI results are on the PR.
+- Review findings/resolution: fresh-context review of 706d81e (PASS with findings; the Major was fixed in 706d81e and 3636232); independent Tester of 3636232 PASS (CI green on CPython 3.12.15).
 - Residual risks: the snapshot test uses a second connection in one process; cross-process isolation is `TASK-28`. Immutability of trace fields is covered by the schema triggers, not by a read test. The 'available only when the ledger allows' rule is tested for the negative result only.
 - Next safe action: TASK-13 (incoming ACH) after this PR merges, or the next dependency-ready TASK in `specs/09-delivery-plan.md`.
 
