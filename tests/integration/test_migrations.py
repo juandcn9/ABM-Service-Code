@@ -269,7 +269,11 @@ def test_destination_reference_is_an_additive_nullable_column_of_the_shipped_mig
     None
 ):
     migrations = load_migrations(MIGRATIONS)
-    assert [m.name for m in migrations] == ["0001_initial", "0002_movement_destination"]
+    assert [m.name for m in migrations] == [
+        "0001_initial",
+        "0002_movement_destination",
+        "0003_card_and_correction_references",
+    ]
     conn = connect()
     apply_migrations(conn, migrations, NOW)
     conn.execute(

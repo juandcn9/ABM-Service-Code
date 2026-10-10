@@ -90,6 +90,7 @@ class NewMovement:
     external_reference: str | None
     destination_reference: str | None = None
     counterparty_account_id: str | None = None
+    merchant_reference: str | None = None
 
 
 @dataclass(frozen=True)
@@ -145,6 +146,10 @@ class WriteTransaction(Protocol):
     def post_ledger(self, post: LedgerPost, created_at: str) -> None: ...
 
     def apply_balance(self, account_id: str, delta_cents: int) -> None: ...
+
+    def ledger_amount(self, movement_id: str, effect_kind: str) -> int | None:
+        """The amount of one ledger effect of a movement, or None if it has not been posted."""
+        ...
 
     def hold_state(self, movement_id: str) -> str | None:
         """The state of the movement's hold, or None if it has none (one hold per movement)."""
