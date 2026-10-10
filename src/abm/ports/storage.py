@@ -163,6 +163,14 @@ class WriteTransaction(Protocol):
         """Set or clear the outgoing block with its decision reference (INV-11, specs/02 section 7)."""
         ...
 
+    def has_open_obligation(self, account_id: str) -> bool:
+        """True if the account has an active hold or an unresolved movement (INV-15, DEC-0044)."""
+        ...
+
+    def close_account(self, account_id: str, closed_at: str) -> None:
+        """Set the account terminal (INV-15); the restriction and balances are not touched."""
+        ...
+
     def ledger_amount(self, movement_id: str, effect_kind: str) -> int | None:
         """The amount of one ledger effect of a movement, or None if it has not been posted."""
         ...
