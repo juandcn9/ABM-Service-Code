@@ -18,7 +18,7 @@ from abm.domain.results import Failure, Success, failure
 from abm.persistence.database import open_database, write_transaction
 from abm.persistence.migrations import apply_migrations, load_migrations
 from abm.persistence.sqlite_store import SqliteUnitOfWork
-from abm.ports.storage import UnitOfWork, WriteTransaction
+from abm.ports.storage import NewAccount, UnitOfWork, WriteTransaction
 from harness.clock import ControllableClock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -336,9 +336,7 @@ def test_transient_failure_is_rolled_back_and_not_stored(
 ) -> None:
     def work(tx: WriteTransaction, now: str) -> Success[Response] | Failure:
         tx.create_account(
-            __import__("abm.ports.storage", fromlist=["NewAccount"]).NewAccount(
-                "a", "c", "e"
-            ),
+            NewAccount("a", "c", "e"),
             now,
         )
         return failure("SERVICE_BUSY", "Retry.", retryable=True)

@@ -37,7 +37,12 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR is opened after the `TASK-06` through `TASK-09` PRs merge.
-- Commands/checks and results: locally `pytest` 122 passed in this branch (includes the merged `TASK-06` to `TASK-09` tests), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
+- Commands/checks and results: locally `pytest` 434 passed in this branch after merging `main` (includes the merged `TASK-06` to `TASK-09` tests), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
 - Review findings/resolution: Builder Audit `ponytail-review` (installed plugin 5.1.0, `full`, DV-01) found nothing further to fix. A fresh-context review and Tester verification of the final head are still required.
 - Residual risks: `work` callbacks must return a `Failure` only before writing, which is enforced by convention and by the abort path for non-storable failures but not for storable ones (a later task should add a savepoint if an operation needs to reject after partial work); the safe rejected-request security evidence for deterministic rejections is not emitted yet; replay across a real restart is untested until `TASK-28`.
 - Next safe action: `TASK-11` (account reads and trace sequencing) and `TASK-12` (startup and readiness) after this PR is merged.
+
+## Carried to later tasks (review of PR #14)
+
+- `TASK-25` (API edge): `run_idempotent` lets unexpected exceptions from the instruction propagate after rollback. The edge must map them to the safe `INTERNAL_ERROR` response that `specs/04` requires.
+- Scope key label: the stored scope hashes `register_account` as the operation name, while the Specs pair is `customer_id` + `registration`. Internal and deterministic; recorded here so the Updater can confirm the label.
