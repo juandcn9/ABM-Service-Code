@@ -4,7 +4,7 @@
 
 ## Authority
 
-- Specs version and exact SHA: `v1.2.0` / `32befdaa710404145fa2c13128a8015da761d1f5`
+- Specs version and exact SHA: `v1.6.0` / `fa3250e38d04bfc442ee037466a159219092701c` (advanced from `v1.2.0`; the TASK-14 rules DEC-0023 and DEC-0024 are in this tag)
 - TASK and affected IDs: `TASK-14`; `FR-04`, `FR-05`; `API-07`, `API-08`, `API-09`, `API-10`, `API-11`, `API-22`; `INV-07`, `INV-10`, `INV-15`, `INV-16`; `DATA-02`, `DATA-04`
 - Decision, gap, or risk records: `DEC-0017` (destination reference, migration `0002`, Specs PR #8 merged as `1c7213c`); `DEC-0015` and `DEC-0016` (closure); DV-01 closed by `DEC-0020`
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required
@@ -14,7 +14,7 @@
 - Objective: outgoing ACH as six state changes. Acceptance reserves funds with one active hold; submission keeps the hold; settlement posts one debit and posts the hold in the same transaction; rejection and pre-submission cancellation release the hold without a debit; one full return after settlement posts one credit.
 - Included files/components: `migrations/0002_movement_destination.sql` (the exact statement in `specs/05` section 8); `src/abm/persistence/migrations.py` (additive `ALTER TABLE` allowed on non-retained tables, verified by a column-layout check; read-only `quick_check` allowed); `src/abm/application/ach.py` (helpers shared with incoming ACH); `src/abm/application/outgoing_ach.py`; `src/abm/application/incoming_ach.py` (switched to the shared helpers, behaviour unchanged); `src/abm/ports/storage.py` and `src/abm/persistence/sqlite_store.py` (holds, restriction, destination); tests `tests/integration/test_outgoing_ach.py`, additions to `tests/integration/test_migrations.py` and `tests/integration/test_migration_protections.py`.
 - Explicit exclusions: API routes and envelopes (`TASK-25`); the outgoing-block restriction set and clear (`TASK-20`, the check is in place and tested via the stored restriction); concurrency and fault barriers (`TASK-18`); closure rules for outgoing movements (`TASK-21`).
-- Dependencies and entry gate: `TASK-10` and `TASK-11` (merged); Specs `v1.2.0` pointer (Code PR #21 merged).
+- Dependencies and entry gate: `TASK-10` and `TASK-11` (merged); Specs pointer `v1.6.0` (Code PR #29 merged).
 
 ## Acceptance evidence
 
@@ -57,4 +57,4 @@
 ## Independent Tester evidence
 
 - Revision: merge `a893cc3`. Report: [`docs/evidence/TASK-14-tester-report.md`](../evidence/TASK-14-tester-report.md).
-- Result: PASS with findings: 0 Blocker, 1 Major (pin v1.2.0 lacks DEC-0023 and DEC-0024), 4 Minor. Status stays Implemented until the Major findings are resolved.
+- Result: PASS with findings: 0 Blocker, 1 Major (pin v1.2.0 lacks DEC-0023 and DEC-0024), 4 Minor. Resolution of the Major: the pin was advanced to `v1.6.0`, which contains DEC-0023 and DEC-0024 and declares API-07 `INVALID_TRANSITION`. No code change was needed. Status stays Implemented; the Minor items and the final-head Tester decision remain open.
