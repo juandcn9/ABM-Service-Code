@@ -1,6 +1,6 @@
 # Work item: TASK-19 — append-only approved corrections and permitted negative behavior
 
-**Status:** Draft (opened; implementation on `feat/task-19-corrections`)
+**Status:** Draft
 
 ## Authority
 
