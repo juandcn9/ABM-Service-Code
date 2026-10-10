@@ -40,7 +40,10 @@
 - Commands/checks and results: locally `pytest` 523 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; CI results are on the PR.
 - Review findings/resolution: fresh-context review of 0cd1f1d PASS with findings; Tester of 0cd1f1d PASS (no Blocker or Major).
   - Fixed: settlement trace and closed-account settle and return now tested; reopen asserts the trace outcome; the authorization test proves denial happens before any storage access; one cents bound (shared with the domain).
-  - Open for JDC decision (contract, not code): (1) `INVALID_TRANSITION` (409) on a duplicate `movement_id` is not declared for the create operation in `contracts/openapi.yaml`, and the stored-rejection list there names only 404 and 422; (2) `ACCOUNT_CLOSED` (422) on settlement and return is not declared in the OpenAPI, and `specs/02` INV-16 names return as permitted late evidence after closure while `specs/04` section 3.1 does not, so the Builder's closed-account refusal conflicts with INV-16.
+  - Decided by JDC (contract change, Specs PR #5, awaiting approval):
+    1. Duplicate `movement_id` on create is `INVALID_TRANSITION` (409). The Specs PR declares it on create and lists it as stored.
+    2. Settlement on a closed account is `ACCOUNT_CLOSED` (422), declared on settlement. A return on a closed account is accepted, as INV-16 permits; `specs/04` section 3.1 now lists API-06 accordingly.
+    This PR stays draft until Specs PR #5 is approved, so the contract and the code agree.
   - Recorded, not fixed: a credit past the schema's cents bound becomes `INTERNAL_ERROR` (no defined rejection); `external_reference` is not unique (the Specs wording 'new movement/reference' is ambiguous).
 - Residual risks: the closed-account rule for incoming evidence is a Builder decision (see above); no outgoing debit yet, so the negative-balance return path is untested.
 - Next safe action: `TASK-14` (outgoing ACH) and `TASK-15` (transfer) after this PR merges, under the one-task rule.
