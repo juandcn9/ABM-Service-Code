@@ -46,3 +46,8 @@
 - `readiness_reasons` now calls `retained_history_protected()` (deferred from TASK-06). A guard trigger removed or a retained table altered outside the runner reports `INTEGRITY_FAILED`; the Specs' six reason codes are unchanged. Covered by `test_a_guard_trigger_removed_outside_the_runner_is_not_ready`.
 - The direct-corruption test helper drops guard triggers to insert bad rows; that now counts as tampering, so the missing-account case expects `INTEGRITY_FAILED` as well as `FOREIGN_KEY_FAILED`.
 
+
+## Specs check of the inconsistency queries (Tester, PR #15)
+
+- Matches `specs/05-data-model.md` section 7: projection equals signed ledger sum; holds only for outgoing ACH in `accepted_with_hold|submitted` and card in `authorized_with_hold`, and every such movement has its hold; a hold reserves its own movement's account; no active hold on a closed account; transfer source debits equal destination credits; registration trace and retention row per account; every accepted trace has a committed successful outcome.
+- Not yet checked, recorded as open: the explicit available-balance identity (posted minus active held must equal the projection; no separate column exists, so it is implied by the projection check), and the closure and finalized-effects rules, which need data from TASK-13 to TASK-21.
