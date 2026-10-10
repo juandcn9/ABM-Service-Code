@@ -1,8 +1,8 @@
 # Work item: TASK-05 — Ponytail configuration and review wiring
 
-**Status:** Blocked
+**Status:** Implemented (pin verified, 2026-10-10)
 
-Blocker: the Specs require the exact Ponytail `v4.13.0` source, tag, and commit (`development-workflow.md` section 4), and JDC decided on 2026-10-09 to use the installed plugin 5.1.0 instead (deviation DV-01). The pin cannot be configured or verified without either installing `v4.13.0`, which is a global plugin installation needing explicit approval for the exact action, or an approved Specs upgrade (a dedicated Specs PR with manifest/hook diff and JDC approval of the exact Specs SHA). Next authorized action: JDC chooses one of the options under Decision.
+Resolved: the Specs now pin Ponytail `v5.1.0` (DEC-0013, merged with Specs PR #3). The installed copy was verified against the pinned tree; see Verification below. Deviation DV-01 is closed.
 
 ## Authority
 
@@ -52,4 +52,10 @@ Recommendation: option 1.
 - Commands/checks and results: pending.
 - Review findings/resolution: pending.
 - Residual risks: Gate 8 Ponytail evidence comes from an unpinned tool until a decision is implemented.
-- Next safe action: JDC decision on the options above.
+- Next safe action: none for TASK-05. `SPEC_VERSION` still names `v1.0.1`; a Specs release tag for the upgrade is a separate JDC decision.
+
+## Verification (2026-10-10)
+
+- Source: `https://github.com/DietrichGebert/ponytail`, tag `v5.1.0` resolves to commit `9cc65d03aa2da1db7121b912d03596409ee340b8` (DEC-0013).
+- Installed copy: the plugin cache directory for version `5.1.0`, compared file by file with `git archive` of the pinned commit: 199 files on both sides, all contents identical, no file missing or extra. The only installed extra is `.in_use/31236`, a runtime marker of the plugin, excluded from the comparison.
+- Method: read-only. The upstream repository was cloned into a scratch folder and nothing from it was executed.
