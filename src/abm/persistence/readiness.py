@@ -17,7 +17,12 @@ from abm.persistence.database import (
     open_database,
     to_failure,
 )
-from abm.persistence.migrations import Migration, MigrationError, apply_migrations
+from abm.persistence.migrations import (
+    Migration,
+    MigrationError,
+    apply_migrations,
+    retained_history_protected,
+)
 
 # the controlled reason codes of the HealthResponse schema
 CONFIG_INVALID = "CONFIG_INVALID"
@@ -99,6 +104,10 @@ def readiness_reasons(
             reasons.add(FOREIGN_KEY_FAILED)
         if any(conn.execute(sql).fetchone() is not None for sql in _INCONSISTENCIES):
             reasons.add(INTEGRITY_FAILED)
+        if not retained_history_protected(conn):
+            reasons.add(
+                INTEGRITY_FAILED
+            )  # a retained table or guard trigger was altered outside the runner
         if not _can_begin_write(conn):
             reasons.add(DATABASE_BUSY)
     except sqlite3.Error as exc:

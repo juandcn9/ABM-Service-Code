@@ -274,7 +274,8 @@ HOLD = (
                     (NOW, NOW),
                 )
             ],
-            [FOREIGN_KEY_FAILED],
+            # tamper() drops the guard triggers, and dropping them is itself reported
+            [FOREIGN_KEY_FAILED, INTEGRITY_FAILED],
         ),
     ],
 )
@@ -339,3 +340,15 @@ def test_reason_codes_are_controlled_values_only(path: pathlib.Path) -> None:
     found = reasons(conn)
     assert found and set(found) <= ALLOWED_REASONS
     assert all(code.isupper() and "acct" not in code for code in found)
+
+
+def test_a_guard_trigger_removed_outside_the_runner_is_not_ready(
+    path: pathlib.Path,
+) -> None:
+    started = start_database(path, MIGRATIONS, NOW)
+    assert started.connection is not None
+    assert readiness_reasons(started.connection, MIGRATIONS) == []
+    started.connection.execute(
+        "DROP TRIGGER ledger_entries_no_update"
+    )  # bypasses the runner
+    assert readiness_reasons(started.connection, MIGRATIONS) == [INTEGRITY_FAILED]
