@@ -129,8 +129,8 @@ class SqliteWriteTransaction:
         self._conn.execute(
             "INSERT INTO movements (movement_id, account_id, counterparty_account_id,"
             " movement_type, state, amount_cents, currency, external_reference,"
-            " destination_reference, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?)",
+            " destination_reference, merchant_reference, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?)",
             (
                 movement.movement_id,
                 movement.account_id,
@@ -140,6 +140,7 @@ class SqliteWriteTransaction:
                 movement.amount_cents,
                 movement.external_reference,
                 movement.destination_reference,
+                movement.merchant_reference,
                 created_at,
                 created_at,
             ),
@@ -185,6 +186,13 @@ class SqliteWriteTransaction:
                 created_at,
             ),
         )
+
+    def ledger_amount(self, movement_id: str, effect_kind: str) -> int | None:
+        row = self._conn.execute(
+            "SELECT amount_cents FROM ledger_entries WHERE movement_id = ? AND effect_kind = ?",
+            (movement_id, effect_kind),
+        ).fetchone()
+        return None if row is None else row[0]
 
     def apply_balance(self, account_id: str, delta_cents: int) -> None:
         self._conn.execute(
