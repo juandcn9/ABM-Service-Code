@@ -21,7 +21,7 @@
 - Focused tests (`pytest tests/integration/test_reads.py`, real SQLite files): a new account reads as zero state; posted, held and derived available balances are consistent; released holds are not listed or counted; available may be negative only when the ledger allows it; a reader sees only its exact account, and an unknown account is not found; denied reads never touch storage.
 - History: stable sequence order; pages without gaps or duplicates; the exact page boundary has no phantom next page; query bounds enforced; an unknown account is not found and another scope is denied.
 - Trace: the first page captures the cutoff and later pages honour it; a full walk returns every record once in order; records expose immutable matching fields; an empty database has cutoff zero; a cutoff beyond the committed end is refused; only the reconciliation reader may read the trace; query bounds enforced.
-- Reads change nothing and store no outcome (asserted by table counts).
+- Reads change nothing and store no outcome (asserted by a full database dump before and after).
 - Required broader gates: local pytest, ruff, format, mypy, both validators; `validate-governance` and `quality-gates` on the PR head.
 - Failure and concurrency: a read runs inside one consistent snapshot (BT-04, BT-05). Cross-process concurrency is not tested here (`TASK-24`, `TASK-28`).
 
@@ -37,13 +37,15 @@
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: locally `pytest` 497 passed on this branch after merging `main`; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py`, `validate_toolchain.py` pass; CI results are on the PR.
 - Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
-- Residual risks: none new beyond the cross-process concurrency limit above.
+- Residual risks: the snapshot test uses a second connection in one process; cross-process isolation is `TASK-28`. Immutability of trace fields is covered by the schema triggers, not by a read test. The 'available only when the ledger allows' rule is tested for the negative result only.
 - Next safe action: TASK-13 (incoming ACH) after this PR merges, or the next dependency-ready TASK in `specs/09-delivery-plan.md`.
 
 ## Review fixes (PR #16)
 
 - Major 1: an oversized cursor (2**63 or more) raised an unhandled `OverflowError` at the SQLite binding. Cursors and the trace cutoff are now capped at the SQLite INTEGER maximum and return `VALIDATION_ERROR`. Covered by `test_oversized_or_negative_cursors_are_validation_errors`.
 - Minor: a no-op statement left in a test was removed; the paging comment moved above its line.
+- Tester finding: the cursor regression test did not reach the query (no account seeded), so it proved nothing for history. It now registers the account first, and the trace after-cursor is capped too. Without the cap the test fails (2 cases).
+- Tester finding: no test covered the single-snapshot claim (BT-04, BT-05). `test_a_read_transaction_keeps_one_snapshot_while_another_connection_commits` now does; removing the read transaction fails it.
 - Carried to later tasks (not TASK-11 defects):
   - `TASK-25`/`TASK-27`: `specs/04-api.md` (API-02, API-03) and the OpenAPI API-19 text require safe access evidence for authorized reads. Reads emit none today; the owning task must add it.
   - `TASK-13` onward (write paths): `contracts/openapi.yaml` TraceRecord requires an evidence or external reference for settlement, return, clearing and refund effects. The schema has no CHECK for this, so each write path must guarantee it.

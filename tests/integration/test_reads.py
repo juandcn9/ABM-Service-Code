@@ -13,6 +13,7 @@ from abm.application.idempotency import Response
 from abm.application.reads import get_account, get_history, get_trace
 from abm.application.registration import register_account
 from abm.domain.results import Failure, Result, Success
+from abm.persistence.database import open_database
 from abm.persistence.migrations import load_migrations
 from abm.persistence.readiness import start_database
 from abm.persistence.sqlite_store import SqliteUnitOfWork
@@ -485,7 +486,27 @@ def test_oversized_or_negative_cursors_are_validation_errors(
     uow: SqliteUnitOfWork, value: int
 ) -> None:
     # values beyond the SQLite INTEGER range must be refused before any query binds them
+    register(uow, "acct-1")  # an existing account, so the query itself is reached
     history = get_history(uow, READER, "acct-1", after_sequence=value)
     trace = get_trace(uow, RECON, after_sequence=value)
     assert isinstance(history, Failure) and history.error.code == "VALIDATION_ERROR"
     assert isinstance(trace, Failure) and trace.error.code == "VALIDATION_ERROR"
+
+
+def test_a_read_transaction_keeps_one_snapshot_while_another_connection_commits(
+    tmp_path: pathlib.Path, conn: sqlite3.Connection, uow: SqliteUnitOfWork
+) -> None:
+    # BT-04 and BT-05: balances, history and trace seen inside one read come from one committed state
+    register(uow, "acct-1")
+    other = open_database(tmp_path / "abm.sqlite3")
+    with uow.read() as tx:
+        before_history = tx.history_page("acct-1", 0, 100)
+        before_cutoff = tx.trace_cutoff()
+        register(
+            SqliteUnitOfWork(other), "acct-2", "cust-2"
+        )  # committed by another connection mid-read
+        assert tx.history_page("acct-1", 0, 100) == before_history
+        assert tx.trace_cutoff() == before_cutoff
+    with uow.read() as fresh:
+        assert fresh.trace_cutoff() > before_cutoff  # a fresh read sees the new commit
+    other.close()
