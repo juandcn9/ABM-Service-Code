@@ -39,10 +39,7 @@
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
 - Next safe action: JDC decides whether TASK-16 becomes Verified on the merged head (the Tester evidence covers `92dc02f`; see the report). Then continue with the next task JDC selects (see the Specs status file).
 
-## Verification (2026-10-10, JDC decision)
+## Verification (2026-10-10, JDC decision, recorded as DEC-0038 in Specs)
 
-
-
-- JDC decided TASK-16 is Verified on merged head `0ce8071` (PR #43), after the Tester pass recorded in `docs/evidence/TASK-16-tester-report-2.md` (first pass FAIL at `377de0e` for an untested evidence-reuse guard, fixed by PR #43; PASS at `0ce8071`, all gates green, all four mutants killed).
-
+- JDC decided TASK-16 is Verified on merged head `0ce8071` (PR #43), on the Tester pass in `docs/evidence/TASK-16-tester-report-2.md` (PR #44). The decision is recorded in the Specs repository as DEC-0038.
 - The Minors listed in PR #41 remain open and scheduled; they do not block this status.
