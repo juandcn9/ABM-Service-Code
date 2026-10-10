@@ -48,8 +48,8 @@
 ## Scheduled items
 
 - Closed-account restriction test pinning DEC-0042 (set and clear on a closed account). Owner Builder. Trigger: TASK-21 (closure).
-- Outgoing ACH settle and return while the block is set are not tested, though the Specs permit resolution of accepted movements. Owner Builder. Trigger: TASK-23 (negative and unsupported-operation tests).
-- The clear-path trace row is not asserted (operation and `external_reference`). Owner Builder. Trigger: TASK-23.
+- Resolved by TASK-23 PR #79: outgoing ACH settle and return remain permitted while the block is set.
+- Resolved by TASK-23 PR #79: the clear-path trace asserts its operation and decision reference.
 
 ## Process record
 

@@ -48,8 +48,8 @@
 ## Scheduled items
 
 - M-1: explicit null `corrected_entry_reference` is accepted, but the contract types it as a string. Owner Builder. Trigger: TASK-25 (HTTP binding and exact envelopes).
-- M-2: no committed test for replay of a stored 409 (`INVALID_TRANSITION`). Owner Builder. Trigger: TASK-23 (negative and unsupported-operation tests).
-- M-3: the original movement and trace rows are not asserted unchanged; no correction-level tests for zero, over-maximum or non-USD amounts. Owner Builder. Trigger: TASK-23.
+- M-2 resolved by TASK-23 PR #79: a stored `INVALID_TRANSITION` replay is exact and creates no second effect.
+- M-3 resolved by TASK-23 PR #79: original movement/trace rows remain unchanged, and correction-level zero, over-maximum, and non-USD cases have no effect.
 - Closed-account correction cases (INV-16) are owned by TASK-21 (closure).
 - The `specs/09` row for TASK-19 still reads Draft; its status change is normative and needs JDC approval.
 

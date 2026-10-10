@@ -44,8 +44,8 @@
 
 ## Scheduled items
 
-- Minor: the `submitted` blocking case and the settle-side ACCOUNT_CLOSED branch (`incoming_ach.py` settle) are not tested in `test_closure.py`. Owner Builder. Trigger: TASK-23 (negative and unsupported-operation tests).
-- Minor: the post-closure settlement readiness test does not isolate its clause (the balance check flags the same row). Owner Builder. Trigger: TASK-23.
+- Resolved by TASK-23 PR #79: the `submitted` blocking case and incoming-settlement `ACCOUNT_CLOSED` branch are tested without financial mutation.
+- Resolved by TASK-23 PR #79: the post-closure settlement readiness case keeps the balance projection consistent and therefore isolates the post-closure rule.
 - Same-second post-closure effects are not flagged (documented shortcut in readiness). Owner Builder. Trigger: a later hardening task (ledger sequence at closure).
 - Retention dates after closure belong to TASK-22.
 
