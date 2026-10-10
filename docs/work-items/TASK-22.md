@@ -1,6 +1,6 @@
 # Work item: TASK-22 — seven-year retention evaluation and non-public legal-hold port
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -29,7 +29,7 @@
 ## Decisions taken where the Specs are silent (for JDC to redirect)
 
 - A late event advances the stored dates only when the account is closed. Retention starts at closure or the final resolution of a permitted later event, whichever is later (specs/02 section 9). Before closure, both dates stay null.
-- A legal-hold set on an already held account, or a clear on an account that has no hold, is refused with `INVALID_TRANSITION` (409), stored. The requested state must differ, as for the risk restriction. Specs v1.9.3 do not state this rule. It is a pending JDC decision: until JDC records it in `governance/decisions.md`, the code must not ship this refusal. Set and clear both trace.
+- A legal-hold set on an already held account, or a clear on an account that has no hold, is refused with `INVALID_TRANSITION` (409), stored, with no write. The requested state must differ, as for the risk restriction. Approved by JDC as DEC-0047 (Specs v1.9.4). `ACCOUNT_NOT_FOUND` is stored; a `record_type` or `record_id` mismatch is `VALIDATION_ERROR` and is not stored. Set and clear both trace.
 - A legal-hold instruction on an unknown account is `ACCOUNT_NOT_FOUND` (404), stored. A wrong `record_type` or `record_id` is `VALIDATION_ERROR` (400), not stored.
 - The response data is `{account_id, legal_hold}`. The port is not public, so no envelope is defined here.
 - Legal hold may be set before or after closure (DEC-0012, specs/02 section 9).
@@ -42,8 +42,9 @@
 
 ## Implementation and evidence
 
-- Pending: Code PR on `feat/task-22-retention`, Tester pass, and JDC approval of the exact code head before merge.
+- Code PR #74, merged to `main` as `9811a61` (head `caacace`; JDC approved the exact head in the session, 2026-10-10). Tester record: [`docs/evidence/TASK-22-tester-report.md`](../evidence/TASK-22-tester-report.md). Pass 1 on `07d12eb` found two Majors, both fixed; pass 2 on `caacace` PASS. Full suite 770 passing. The legal-hold refusal rule is DEC-0047 (Specs v1.9.4).
 
 ## Scheduled items
 
-- None yet.
+- Minor: the docstring of `test_retention_late_events.py` overstates coverage; the incoming return is covered only by `test_retention.py`. Owner Builder. Trigger: TASK-23.
+- Minor: README on `main` states Specs `v1.9.0`, predating the current pins. Owner Builder. Trigger: a docs-only fix before the next release.
