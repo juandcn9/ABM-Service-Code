@@ -35,6 +35,6 @@
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: locally `pytest` 587 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py` pass.
-- Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
+- Review findings/resolution: fresh-context review of the final head `8827002`: no Blocker or Major. Its one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest 590, ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. Minor findings are listed in the Specs status file. These results are not yet a committed evidence report under `docs/evidence/`.
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
-- Next safe action: review and Tester of the final head; then `TASK-17` after this PR merges.
+- Next safe action: write the committed Tester evidence for `8827002` before this task is Verified. Then continue with the next task JDC selects (see the Specs status file).

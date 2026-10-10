@@ -49,10 +49,10 @@ Recommendation: option 1.
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
-- Commands/checks and results: pending.
-- Review findings/resolution: pending.
-- Residual risks: Gate 8 Ponytail evidence comes from an unpinned tool until a decision is implemented.
-- Next safe action: none for TASK-05. `SPEC_VERSION` still names `v1.0.1`; a Specs release tag for the upgrade is a separate JDC decision.
+- Commands/checks and results: the file-tree verification of the installed Ponytail 5.1.0 against tag `v5.1.0` (commit `9cc65d0`) is recorded in PR #18, which closes DV-01.
+- Review findings/resolution: no separate review is recorded for PR #18.
+- Residual risks: the plugin is installed per machine; a new environment must install 5.1.0 and repeat the file-tree check.
+- Next safe action: none for TASK-05. The Code pin is `v1.6.0` (PR #29).
 
 ## Verification (2026-10-10)
 
