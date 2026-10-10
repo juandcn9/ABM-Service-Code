@@ -13,6 +13,7 @@ from abm.application.ach import ledger_id, movement_data
 from abm.application.authorization import Operation, authorize
 from abm.application.caller import CallerContext
 from abm.application.idempotency import Response, run_idempotent, scope_key
+from abm.application.retention import finalize
 from abm.domain.errors import InvalidValue
 from abm.domain.fingerprint import fingerprint
 from abm.domain.identifiers import opaque_id
@@ -141,6 +142,7 @@ def create_correction(
             account.held_balance_cents,
             account.restriction,
         )
+        finalize(tx, target, now)
         return Success(
             Response(
                 201,

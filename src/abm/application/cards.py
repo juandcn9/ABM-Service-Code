@@ -17,6 +17,7 @@ from abm.application.ach import hold_id, ledger_id, movement_data
 from abm.application.authorization import Operation, authorize
 from abm.application.caller import CallerContext
 from abm.application.idempotency import Response, run_idempotent, scope_key
+from abm.application.retention import finalize
 from abm.domain.errors import InvalidValue
 from abm.domain.fingerprint import fingerprint
 from abm.domain.identifiers import opaque_id
@@ -285,6 +286,7 @@ def clear_card(
             held,
             account.restriction,
         )
+        finalize(tx, target, now)
         return Success(
             Response(200, movement_data(movement, "card", new_state, target, after))
         )
@@ -489,6 +491,7 @@ def refund_card(
             account.held_balance_cents,
             account.restriction,
         )
+        finalize(tx, target, now)
         return Success(
             Response(200, movement_data(movement, "card", "refunded", target, after))
         )

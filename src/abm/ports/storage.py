@@ -171,6 +171,20 @@ class WriteTransaction(Protocol):
         """Set the account terminal (INV-15); the restriction and balances are not touched."""
         ...
 
+    def get_retention(self, account_id: str) -> RetentionRecord | None: ...
+
+    def set_retention_dates(
+        self, account_id: str, final_at: str, eligible_after: str
+    ) -> None:
+        """Store closure or late-resolution dates together (DEC-0046, schema pair rule)."""
+        ...
+
+    def set_legal_hold(
+        self, account_id: str, held: bool, decision_reference: str | None
+    ) -> None:
+        """Set or clear the account-level legal hold (DEC-0010, DEC-0012)."""
+        ...
+
     def ledger_amount(self, movement_id: str, effect_kind: str) -> int | None:
         """The amount of one ledger effect of a movement, or None if it has not been posted."""
         ...
@@ -217,6 +231,16 @@ class AccountRecord:
 
 
 @dataclass(frozen=True)
+class RetentionRecord:
+    """The account's retention row: dates are null until closure (TEST-19, DEC-0012, DEC-0046)."""
+
+    account_id: str
+    final_at: str | None
+    eligible_after: str | None
+    legal_hold: bool
+
+
+@dataclass(frozen=True)
 class LedgerRow:
     sequence: int
     entry_id: str
@@ -253,6 +277,8 @@ class ReadTransaction(Protocol):
     """Reads inside one consistent snapshot; nothing here can write."""
 
     def get_account(self, account_id: str) -> AccountRecord | None: ...
+
+    def get_retention(self, account_id: str) -> RetentionRecord | None: ...
 
     def history_page(
         self, account_id: str, after_sequence: int, limit: int
