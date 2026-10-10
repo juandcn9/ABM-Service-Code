@@ -157,6 +157,12 @@ class WriteTransaction(Protocol):
 
     def apply_balance(self, account_id: str, delta_cents: int) -> None: ...
 
+    def set_restriction(
+        self, account_id: str, restriction: str, decision_reference: str | None
+    ) -> None:
+        """Set or clear the outgoing block with its decision reference (INV-11, specs/02 section 7)."""
+        ...
+
     def ledger_amount(self, movement_id: str, effect_kind: str) -> int | None:
         """The amount of one ledger effect of a movement, or None if it has not been posted."""
         ...

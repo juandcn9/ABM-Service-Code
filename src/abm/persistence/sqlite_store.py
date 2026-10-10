@@ -217,6 +217,16 @@ class SqliteWriteTransaction:
             (delta_cents, account_id),
         )
 
+    def set_restriction(
+        self, account_id: str, restriction: str, decision_reference: str | None
+    ) -> None:
+        # the schema requires the decision reference exactly when a block is set
+        self._conn.execute(
+            "UPDATE accounts SET restriction = ?, restriction_decision_reference = ?"
+            " WHERE account_id = ?",
+            (restriction, decision_reference, account_id),
+        )
+
     def hold_state(self, movement_id: str) -> str | None:
         row = self._conn.execute(
             "SELECT state FROM holds WHERE movement_id = ?", (movement_id,)
