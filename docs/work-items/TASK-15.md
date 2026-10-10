@@ -34,7 +34,14 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
-- Commands/checks and results: locally `pytest` 570 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py` pass.
+- Commands/checks and results: locally `pytest` 572 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py` pass.
 - Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
 - Residual risks: no concurrency test (TASK-18).
 - Next safe action: review and Tester of the final head; then `TASK-16` (card) after this PR merges.
+
+## Review fixes (PR #24)
+
+- Duplicate movement id: `INVALID_TRANSITION` is now declared on API-12 by DEC-0025 (Specs v1.3.0 plus DEC-0025). Test `test_a_reused_movement_id_under_a_new_key_is_invalid_transition`; removing the check fails it.
+- Destination credit: one trace row per ledger effect (the source debit and the destination credit), so reconciliation sees both ledger IDs. Test `test_both_ledger_effects_appear_in_the_trace`. Builder choice; reversible.
+- Insufficient funds: the test now asserts the stored outcome row.
+- Pin: the branch merges `main` after PR #23, so the work item's `v1.3.0` pin is the code's pin.

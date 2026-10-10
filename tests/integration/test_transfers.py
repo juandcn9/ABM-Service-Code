@@ -158,7 +158,11 @@ def test_insufficient_funds_is_refused_with_only_the_outcome_stored(
     before = counts(conn)
     result = transfer(uow, clock, cents=1500)
     assert isinstance(result, Failure) and result.error.code == "INSUFFICIENT_FUNDS"
+    # the refusal is a deterministic rejection: its outcome is stored, nothing else changes
     assert counts(conn) == before
+    assert conn.execute(
+        "SELECT COUNT(*) FROM idempotency_outcomes WHERE http_status = 422"
+    ).fetchone() == (1,)
     assert balances(conn) == {"acct-a": (1000, 0), "acct-b": (0, 0)}
 
 
@@ -314,3 +318,17 @@ def test_a_reused_movement_id_under_a_new_key_is_invalid_transition(
     # the refusal is a deterministic rejection: only its stored outcome is added (DEC-0025)
     assert counts(conn)[:3] == before[:3]
     assert balances(conn) == {"acct-a": (700, 0), "acct-b": (300, 0)}
+
+
+def test_both_ledger_effects_appear_in_the_trace(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    ready_setup(uow, clock)
+    assert isinstance(transfer(uow, clock), Success)
+    traced = conn.execute(
+        "SELECT account_id, ledger_entry_id FROM audit_trace WHERE operation = 'internal_transfer' ORDER BY sequence"
+    ).fetchall()
+    ledger = conn.execute(
+        "SELECT account_id, entry_id FROM ledger_entries WHERE movement_id = 'mv-t' ORDER BY sequence"
+    ).fetchall()
+    assert traced == ledger

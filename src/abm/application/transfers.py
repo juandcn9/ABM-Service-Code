@@ -149,6 +149,21 @@ def internal_transfer(
                 movement_state="completed",
             )
         )
+        # one trace row per ledger effect, so reconciliation sees the destination credit too
+        tx.append_trace(
+            TraceEntry(
+                account_id=destination,
+                instruction_id=instruction_id,
+                operation=OPERATION,
+                caller_id=caller.caller_id,
+                caller_role=caller.role,
+                correlation_id=caller.correlation_id,
+                occurred_at=now,
+                movement_id=movement_id,
+                ledger_entry_id=credit,
+                movement_state="completed",
+            )
+        )
         after_src = AccountSnapshot(
             src.status,
             src.current_balance_cents - cents,
