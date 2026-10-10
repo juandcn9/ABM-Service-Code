@@ -283,6 +283,22 @@ HOLD = (
             ],
             [FOREIGN_KEY_FAILED],
         ),
+        (
+            "stored idempotency response that is not valid JSON (specs/05 s7)",
+            [
+                ("PRAGMA ignore_check_constraints = ON", ()),
+                (
+                    (
+                        "INSERT INTO idempotency_outcomes (scope, idempotency_key, fingerprint,"
+                        " instruction_id, outcome_class, http_status, response_json, created_at)"
+                        " VALUES ('bad-json', 'k', ?, 'i', 'success', 200, '{not json', ?)"
+                    ),
+                    ("f" * 64, NOW),
+                ),
+                ("PRAGMA ignore_check_constraints = OFF", ()),
+            ],
+            [INTEGRITY_FAILED],
+        ),
     ],
 )
 def test_direct_corruption_makes_readiness_fail_with_a_safe_code(

@@ -436,3 +436,64 @@ def test_a_duplicate_movement_id_under_a_new_key_is_invalid_transition(
     again = notice(uow, clock, key="key-n-new", instruction="ins-n-new")
     assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
     assert counts(conn)[:4] == before[:4] and counts(conn)[4] == before[4] + 1
+
+
+def test_another_accounts_movement_is_not_found_for_settlement_or_return(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    registered(uow, clock)
+    other = {
+        "instruction_id": "ins-reg-2",
+        "account_id": "acct-2",
+        "customer_id": "cust-2",
+        "currency": "USD",
+        "eligibility_reference": "elig-2",
+    }
+    assert isinstance(
+        register_account(uow, clock, REGISTRAR, "key-reg-2", other), Success
+    )
+    assert isinstance(notice(uow, clock, movement="mv-1"), Success)
+    assert isinstance(
+        notice(uow, clock, movement="mv-2", key="key-n2", instruction="ins-n2"),
+        Success,
+    )
+    assert isinstance(settle(uow, clock, movement="mv-1"), Success)
+
+    def effects() -> tuple[object, ...]:
+        return (
+            conn.execute("SELECT COUNT(*) FROM movements").fetchone()[0],
+            conn.execute("SELECT COUNT(*) FROM ledger_entries").fetchone()[0],
+            conn.execute(
+                "SELECT account_id, current_balance_cents FROM accounts ORDER BY account_id"
+            ).fetchall(),
+        )
+
+    before = effects()
+    wrong_settle = settle_incoming_ach(
+        uow,
+        clock,
+        PAYER,
+        "key-x1",
+        "acct-2",
+        "mv-2",
+        {"instruction_id": "ins-x1", "evidence_reference": "ev-x1"},
+    )
+    assert isinstance(wrong_settle, Failure)
+    assert wrong_settle.error.code == "MOVEMENT_NOT_FOUND"
+    wrong_return = return_incoming_ach(
+        uow,
+        clock,
+        PAYER,
+        "key-x2",
+        "acct-2",
+        "mv-1",
+        {
+            "instruction_id": "ins-x2",
+            "evidence_reference": "ev-x2",
+            "amount_cents": 500,
+            "currency": "USD",
+        },
+    )
+    assert isinstance(wrong_return, Failure)
+    assert wrong_return.error.code == "MOVEMENT_NOT_FOUND"
+    assert effects() == before

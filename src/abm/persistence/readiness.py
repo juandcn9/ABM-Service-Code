@@ -89,6 +89,11 @@ _INCONSISTENCIES: tuple[str, ...] = (
     ),
 )
 
+# stored idempotency outcomes must hold valid JSON (specs/05 s7); json_valid never raises
+_INVALID_JSON = (
+    "SELECT 1 FROM idempotency_outcomes WHERE NOT json_valid(response_json) LIMIT 1"
+)
+
 
 def readiness_reasons(
     conn: sqlite3.Connection, migrations: Sequence[Migration]
@@ -102,7 +107,10 @@ def readiness_reasons(
         if _objects(conn) != _shipped_objects(tuple(migrations)):
             # a table, index or trigger is missing or extra: the data checks cannot be trusted
             return [INTEGRITY_FAILED]
-        if conn.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
+        if conn.execute(_INVALID_JSON).fetchone() is not None:
+            # integrity_check raises on malformed stored JSON, so it is not run in that case
+            reasons.add(INTEGRITY_FAILED)
+        elif conn.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
             reasons.add(INTEGRITY_FAILED)
         if conn.execute("PRAGMA foreign_key_check").fetchall():
             reasons.add(FOREIGN_KEY_FAILED)

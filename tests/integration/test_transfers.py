@@ -332,3 +332,17 @@ def test_both_ledger_effects_appear_in_the_trace(
         "SELECT account_id, entry_id FROM ledger_entries WHERE movement_id = 'mv-t' ORDER BY sequence"
     ).fetchall()
     assert traced == ledger
+
+
+def test_a_closed_source_account_takes_no_transfer_and_nothing_is_written(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    ready_setup(uow, clock)
+    conn.execute(
+        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-a'",
+        (NOW,),
+    )
+    before = (counts(conn), balances(conn))
+    closed = transfer(uow, clock, movement="mv-cs", key="kcs", instruction="ins-cs")
+    assert isinstance(closed, Failure) and closed.error.code == "ACCOUNT_CLOSED"
+    assert (counts(conn), balances(conn)) == before
