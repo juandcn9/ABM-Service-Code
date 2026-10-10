@@ -17,11 +17,23 @@ from abm.ports.storage import (
     MovementRecord,
     NewAccount,
     NewMovement,
+    RetentionRecord,
     StorageFailure,
     StoredOutcome,
     TraceEntry,
     TraceRow,
 )
+
+
+def _retention(conn: sqlite3.Connection, account_id: str) -> RetentionRecord | None:
+    row = conn.execute(
+        "SELECT account_id, final_at, eligible_after, legal_hold FROM retention_metadata"
+        " WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return RetentionRecord(row[0], row[1], row[2], bool(row[3]))
 
 
 class SqliteWriteTransaction:
@@ -279,6 +291,27 @@ class SqliteWriteTransaction:
             # no single active hold: never finalize silently; the write rolls back as INTERNAL_ERROR
             raise sqlite3.IntegrityError("no single active hold to finalize")
 
+    def get_retention(self, account_id: str) -> RetentionRecord | None:
+        return _retention(self._conn, account_id)
+
+    def set_retention_dates(
+        self, account_id: str, final_at: str, eligible_after: str
+    ) -> None:
+        self._conn.execute(
+            "UPDATE retention_metadata SET final_at = ?, eligible_after = ? WHERE account_id = ?",
+            (final_at, eligible_after, account_id),
+        )
+
+    def set_legal_hold(
+        self, account_id: str, held: bool, decision_reference: str | None
+    ) -> None:
+        # the schema requires the decision reference exactly when a hold is set
+        self._conn.execute(
+            "UPDATE retention_metadata SET legal_hold = ?, legal_hold_decision_reference = ?"
+            " WHERE account_id = ?",
+            (int(held), decision_reference, account_id),
+        )
+
 
 class SqliteReadTransaction:
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -301,6 +334,9 @@ class SqliteReadTransaction:
             )
         )
         return AccountRecord(row[0], row[1], row[2], row[3], holds)
+
+    def get_retention(self, account_id: str) -> RetentionRecord | None:
+        return _retention(self._conn, account_id)
 
     def history_page(
         self, account_id: str, after_sequence: int, limit: int

@@ -13,6 +13,7 @@ from abm.application.ach import ledger_id, movement_data
 from abm.application.authorization import Operation, authorize
 from abm.application.caller import CallerContext
 from abm.application.idempotency import Response, run_idempotent, scope_key
+from abm.application.retention import finalize
 from abm.domain.errors import InvalidValue
 from abm.domain.fingerprint import fingerprint
 from abm.domain.identifiers import opaque_id
@@ -316,6 +317,7 @@ def return_incoming_ach(
             account.current_balance_cents - record.amount_cents,
             account.held_balance_cents,
         )
+        finalize(tx, target, now)
         return Success(
             Response(
                 200, movement_data(movement, "incoming_ach", "returned", target, after)

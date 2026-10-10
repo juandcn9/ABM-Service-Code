@@ -10,6 +10,7 @@ from abm.application.ach import fields as to_fields
 from abm.application.authorization import Operation, authorize
 from abm.application.caller import CallerContext
 from abm.application.idempotency import Response, run_idempotent, scope_key
+from abm.application.retention import finalize
 from abm.domain.errors import InvalidValue
 from abm.domain.fingerprint import fingerprint
 from abm.domain.identifiers import opaque_id
@@ -63,6 +64,7 @@ def close_account(
                 occurred_at=now,
             )
         )
+        finalize(tx, target, now)
         return Success(Response(200, {"account_id": target, "status": "closed"}))
 
     return run_idempotent(
