@@ -127,12 +127,14 @@ class SqliteWriteTransaction:
 
     def create_movement(self, movement: NewMovement, created_at: str) -> None:
         self._conn.execute(
-            "INSERT INTO movements (movement_id, account_id, movement_type, state,"
-            " amount_cents, currency, external_reference, destination_reference,"
-            " created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?)",
+            "INSERT INTO movements (movement_id, account_id, counterparty_account_id,"
+            " movement_type, state, amount_cents, currency, external_reference,"
+            " destination_reference, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?)",
             (
                 movement.movement_id,
                 movement.account_id,
+                movement.counterparty_account_id,
                 movement.movement_type,
                 movement.state,
                 movement.amount_cents,

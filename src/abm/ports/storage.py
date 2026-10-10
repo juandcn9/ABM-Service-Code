@@ -89,6 +89,7 @@ class NewMovement:
     amount_cents: int
     external_reference: str | None
     destination_reference: str | None = None
+    counterparty_account_id: str | None = None
 
 
 @dataclass(frozen=True)
