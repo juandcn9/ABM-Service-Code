@@ -1,4 +1,4 @@
-# TASK-16 independent Tester report, pass 3 (sanitized record)
+# TASK-16 independent Tester report, re-verification after PR 43 (second record file)
 
 **Provenance:** fresh-context Tester agents, read-only, run on 2026-10-10. Pass 3 is the re-verification after the single Major below was closed.
 
@@ -42,4 +42,4 @@ Verdict: **PASS** for TASK-16 at `0ce8071`: no open Blocker or Major.
 
 - The Minors listed in PR #41 remain open and scheduled (for example the refund from `late_cleared`, zero-side-effect checks on rejected clear and reverse, the authorization boundary, and card fingerprint tests). They are not blocking this verdict.
 - The closed-account card cases that close an account by direct SQL stay with TASK-21 (closure).
-- Status: TASK-16 remains **Implemented**. Moving it to Verified is JDC's decision.
+- Status: **Verified** (JDC decision, recorded as DEC-0038 in Specs). This record is the evidence for it.
