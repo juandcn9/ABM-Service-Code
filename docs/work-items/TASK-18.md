@@ -1,6 +1,6 @@
 # Work item: TASK-18 — concurrency barriers and fault injection; funds protection, final-effect uniqueness, and rollback
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -32,3 +32,21 @@
 - No production concurrency or scale claim (DEC-0003: single-writer demonstration store).
 - Backup and restore are outside this task (intact-volume restart only).
 - Closed-account card cases that set closure by direct SQL stay with TASK-21.
+
+## Implementation and evidence (2026-10-10)
+
+- Code PR #57, merged to `main` as `2eb7a4c` (merged head `da05269`). JDC approved the exact head `da05269ffc7c14070e7d0218e2e00301388acf57`.
+- Tests only: concurrency and fault-injection files (724 tests passing).
+- Tester record: [`docs/evidence/TASK-18-tester-report.md`](../evidence/TASK-18-tester-report.md).
+
+## Scheduled items
+
+- Outgoing settlement evidence guard not distinguished by the TEST-36 races. Owner Builder. Trigger: TASK-18 follow-up.
+- M09 deferred-BEGIN mutant not named by the new tests (TASK-06 test is its only detector). Owner Builder. Trigger: TASK-18 follow-up.
+- Subprocess kill lands after the first balance update, not during COMMIT; faults are simulated. Owner Builder. Trigger: a later hardening task.
+- Test hygiene in the concurrency and fault files. Owner Builder.
+
+## Non-claims
+
+- No production concurrency or real disk-full claim.
+- The `specs/09` row for TASK-18 still reads Draft; its status change is normative and needs JDC approval.
