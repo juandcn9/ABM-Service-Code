@@ -228,11 +228,14 @@ class SqliteWriteTransaction:
         evidence_reference: str | None,
         finalized_at: str,
     ) -> None:
-        self._conn.execute(
+        cursor = self._conn.execute(
             "UPDATE holds SET state = ?, evidence_reference = ?, finalized_at = ?"
             " WHERE movement_id = ? AND state = 'active'",
             (state, evidence_reference, finalized_at, movement_id),
         )
+        if cursor.rowcount != 1:
+            # no single active hold: never finalize silently; the write rolls back as INTERNAL_ERROR
+            raise sqlite3.IntegrityError("no single active hold to finalize")
 
 
 class SqliteReadTransaction:
