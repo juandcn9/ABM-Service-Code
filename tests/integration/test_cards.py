@@ -244,8 +244,14 @@ def test_a_late_clearing_after_reversal_posts_one_debit_without_a_hold(
     funded(uow, clock)
     authorize(uow, clock)
     simple(reverse_card, uow, clock, ref="ev-r")
-    assert data_of(step(clear_card, uow, clock, cents=400))["state"] == "late_cleared"
+    data = data_of(step(clear_card, uow, clock, cents=400))
+    assert data["state"] == "late_cleared"
     assert balances(conn) == (600, 0)
+    # the response reports the same balances as the database: no hold is released or created
+    account = data["accounts"][0]
+    assert account["current_balance_cents"] == 600
+    assert account["held_balance_cents"] == 0
+    assert account["available_balance_cents"] == 600
 
 
 def test_a_late_clearing_is_accepted_after_closure_and_never_reopens_the_account(
