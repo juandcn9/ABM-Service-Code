@@ -65,6 +65,16 @@ _INCONSISTENCIES: tuple[str, ...] = (
         "SELECT 1 FROM holds h JOIN accounts a ON a.account_id = h.account_id"
         " WHERE a.status = 'closed' AND h.state = 'active' LIMIT 1"
     ),
+    # after closure only permitted late evidence is posted (INV-16). shortcut: same-second
+    # effects are not ordered against closed_at; upgrade by storing a ledger sequence at closure
+    (
+        "SELECT 1 FROM ledger_entries e JOIN accounts a ON a.account_id = e.account_id"
+        " LEFT JOIN movements m ON m.movement_id = e.movement_id"
+        " WHERE a.status = 'closed' AND e.created_at > a.closed_at AND (e.effect_kind IN"
+        " ('incoming_settlement','outgoing_settlement','transfer_source_debit',"
+        "'transfer_destination_credit') OR (e.effect_kind = 'card_clearing'"
+        " AND m.state <> 'late_cleared')) LIMIT 1"
+    ),
     # a transfer's source debits equal its destination credits
     (
         "SELECT 1 FROM movements m WHERE m.movement_type = 'internal_transfer'"

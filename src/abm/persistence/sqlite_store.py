@@ -227,6 +227,22 @@ class SqliteWriteTransaction:
             (restriction, decision_reference, account_id),
         )
 
+    def has_open_obligation(self, account_id: str) -> bool:
+        # DEC-0044: pending, accepted_with_hold, submitted and authorized_with_hold block closure
+        row = self._conn.execute(
+            "SELECT EXISTS (SELECT 1 FROM holds WHERE account_id = ? AND state = 'active')"
+            " OR EXISTS (SELECT 1 FROM movements WHERE account_id = ? AND state IN"
+            " ('pending','accepted_with_hold','submitted','authorized_with_hold'))",
+            (account_id, account_id),
+        ).fetchone()
+        return bool(row[0])
+
+    def close_account(self, account_id: str, closed_at: str) -> None:
+        self._conn.execute(
+            "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = ?",
+            (closed_at, account_id),
+        )
+
     def hold_state(self, movement_id: str) -> str | None:
         row = self._conn.execute(
             "SELECT state FROM holds WHERE movement_id = ?", (movement_id,)
