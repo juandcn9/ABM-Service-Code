@@ -41,7 +41,15 @@
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: locally `pytest` 544 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; CI results are on the PR.
-- Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
+- Review findings/resolution:
+  - Fresh-context review of `ddd3002`: FAIL on four Majors. Resolved:
+    - Major 1 (duplicate outgoing movement code not declared): JDC option A, DEC-0023 (Specs PR #11, merged); contract API-07 declares `INVALID_TRANSITION`.
+    - Major 2 (settlement after an incoming return can leave the balance negative): JDC option B, DEC-0024 (Specs PR #11, merged); INV-10 extended for settlement of a reserved outgoing movement. Test `test_settling_a_reserved_movement_may_leave_the_balance_negative_and_stays_ready`.
+    - Major 3 (no test that a hold reduces available funds): `test_an_existing_hold_reduces_the_funds_available_to_a_new_acceptance`; fails when holds are ignored.
+    - Major 4 (column-layout check untested): synthetic layout cases and permissive-matrix attacks; fails when the check is disabled.
+  - Minor 5 (stale shortcut comment in the migration runner): removed.
+  - Open debt, recorded: Minor 6 (verification does not compare constraints of non-retained tables; the real authorizer refuses the rename-and-recreate case); Minor 7 (some refusals come from SQLite's internal statements, not explicit rules); Minor 8 (several migration tests pin to the first migration with `[:1]`, so the shipped 0002 chain is not exercised there); Minor 9 (some assertions are weaker than their names).
+  - Re-review and Tester verification of the final head: pending.
 - Mutation checks (Tester, PR #22 head ddd3002): settlement not finalizing the hold: 4 failed; submission finalizing the hold: 3 failed; return skipping the amount check: 1 failed; outgoing create without the funds check: 1 failed; the column-layout check (migration step 7) removed: 0 failed on that head, now killed by 3 tests (the column-change attacks in the permissive matrix and the synthetic layout cases).
 - Residual risks: no concurrency test (TASK-18); outgoing restriction is exercised only through the stored value; the migration probe covers a populated database that already holds a movement.
 - Next safe action: review and Tester of the final head, then the PR is ready for JDC merge; `TASK-15` (internal transfer) after this PR merges, under the one-task rule.

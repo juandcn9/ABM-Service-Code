@@ -10,7 +10,11 @@ import pytest
 
 from abm.application.caller import CallerContext
 from abm.application.idempotency import Response
-from abm.application.incoming_ach import create_incoming_ach, settle_incoming_ach
+from abm.application.incoming_ach import (
+    create_incoming_ach,
+    return_incoming_ach,
+    settle_incoming_ach,
+)
 from abm.application.outgoing_ach import (
     cancel_outgoing_ach,
     create_outgoing_ach,
@@ -360,3 +364,41 @@ def test_the_database_is_ready_after_settlement_return_and_a_restart(
     reopened = start_database(tmp_path / "abm.sqlite3", MIGRATIONS, NOW)
     assert reopened.ready and reopened.connection is not None
     assert readiness_reasons(reopened.connection, MIGRATIONS) == []
+
+
+def test_settling_a_reserved_movement_may_leave_the_balance_negative_and_stays_ready(
+    tmp_path: pathlib.Path,
+    uow: SqliteUnitOfWork,
+    conn: sqlite3.Connection,
+    clock: ControllableClock,
+) -> None:
+    # DEC-0024: the hold reserved the funds at acceptance; an incoming return may then consume them
+    funded(uow, clock)
+    create(uow, clock, cents=1000)
+    evidence(submit_outgoing_ach, uow, clock)
+    assert isinstance(
+        return_incoming_ach(
+            uow,
+            clock,
+            PAYER,
+            "key-in-r",
+            "acct-1",
+            "mv-in",
+            {
+                "instruction_id": "ins-in-r",
+                "evidence_reference": "ev-in-r",
+                "amount_cents": 1000,
+                "currency": "USD",
+            },
+        ),
+        Success,
+    )
+    assert balances(conn) == (0, 1000)
+    assert (
+        data_of(evidence(settle_outgoing_ach, uow, clock, ref="ev-s"))["state"]
+        == "settled"
+    )
+    assert balances(conn) == (-1000, 0)
+    conn.close()
+    reopened = start_database(tmp_path / "abm.sqlite3", MIGRATIONS, NOW)
+    assert reopened.ready and reopened.connection is not None
