@@ -15,6 +15,7 @@ from abm.domain.results import Result, Success, failure
 from abm.ports.storage import StorageFailure, TraceRow, UnitOfWork
 
 MAX_HISTORY_LIMIT = 200
+MAX_CURSOR = 2**63 - 1  # the largest SQLite INTEGER; larger values cannot be bound
 DEFAULT_HISTORY_LIMIT = 50
 MAX_TRACE_LIMIT = 1000
 DEFAULT_TRACE_LIMIT = 100
@@ -90,7 +91,7 @@ def get_history(
     """Retained ledger entries in stable sequence order, with a bounded cursor (API-03)."""
     try:
         target = opaque_id(account_id)
-        after = _count(after_sequence, 0)
+        after = _count(after_sequence, 0, MAX_CURSOR)
         size = _count(limit, 1, MAX_HISTORY_LIMIT)
     except InvalidValue:
         return _INVALID
@@ -101,9 +102,8 @@ def get_history(
         with uow.read() as tx:
             if tx.get_account(target) is None:
                 return failure("ACCOUNT_NOT_FOUND", "The account was not found.")
-            rows = tx.history_page(
-                target, after, size + 1
-            )  # one extra row marks another page
+            # one extra row marks another page
+            rows = tx.history_page(target, after, size + 1)
     except StorageFailure as exc:
         return exc.failure
     page = rows[:size]
@@ -169,9 +169,11 @@ def get_trace(
     if denied is not None:
         return denied
     try:
-        after = _count(after_sequence, 0)
+        after = _count(after_sequence, 0, MAX_CURSOR)
         size = _count(limit, 1, MAX_TRACE_LIMIT)
-        requested = None if cutoff_sequence is None else _count(cutoff_sequence, 0)
+        requested = (
+            None if cutoff_sequence is None else _count(cutoff_sequence, 0, MAX_CURSOR)
+        )
     except InvalidValue:
         return _INVALID
     try:

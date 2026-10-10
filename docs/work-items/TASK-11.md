@@ -39,3 +39,11 @@
 - Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
 - Residual risks: none new beyond the cross-process concurrency limit above.
 - Next safe action: TASK-13 (incoming ACH) after this PR merges, or the next dependency-ready TASK in `specs/09-delivery-plan.md`.
+
+## Review fixes (PR #16)
+
+- Major 1: an oversized cursor (2**63 or more) raised an unhandled `OverflowError` at the SQLite binding. Cursors and the trace cutoff are now capped at the SQLite INTEGER maximum and return `VALIDATION_ERROR`. Covered by `test_oversized_or_negative_cursors_are_validation_errors`.
+- Minor: a no-op statement left in a test was removed; the paging comment moved above its line.
+- Carried to later tasks (not TASK-11 defects):
+  - `TASK-25`/`TASK-27`: `specs/04-api.md` (API-02, API-03) and the OpenAPI API-19 text require safe access evidence for authorized reads. Reads emit none today; the owning task must add it.
+  - `TASK-13` onward (write paths): `contracts/openapi.yaml` TraceRecord requires an evidence or external reference for settlement, return, clearing and refund effects. The schema has no CHECK for this, so each write path must guarantee it.

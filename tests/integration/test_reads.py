@@ -184,7 +184,6 @@ def test_released_holds_are_not_listed_or_counted(
     register(uow)
     post(conn, "acct-1", 1, "credit", 500)
     hold(conn, "acct-1", 1, 200)
-    conn.execute("DROP TRIGGER IF EXISTS no_such_trigger")
     conn.execute("UPDATE holds SET state = 'released', finalized_at = ?", (NOW,))
     data = ok(get_account(uow, READER, "acct-1"))
     assert data["active_holds"] == []
@@ -479,3 +478,14 @@ def test_reads_change_nothing_and_store_no_outcome(
     get_trace(uow, RECON)
     assert snapshot(conn) == before
     assert not conn.in_transaction
+
+
+@pytest.mark.parametrize("value", [2**63, 2**64, -1])
+def test_oversized_or_negative_cursors_are_validation_errors(
+    uow: SqliteUnitOfWork, value: int
+) -> None:
+    # values beyond the SQLite INTEGER range must be refused before any query binds them
+    history = get_history(uow, READER, "acct-1", after_sequence=value)
+    trace = get_trace(uow, RECON, after_sequence=value)
+    assert isinstance(history, Failure) and history.error.code == "VALIDATION_ERROR"
+    assert isinstance(trace, Failure) and trace.error.code == "VALIDATION_ERROR"
