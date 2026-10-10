@@ -7,6 +7,7 @@ import sqlite3
 from datetime import UTC, datetime
 
 from abm.application.caller import CallerContext
+from abm.application.cards import authorize_card
 from abm.application.incoming_ach import create_incoming_ach, settle_incoming_ach
 from abm.application.outgoing_ach import (
     create_outgoing_ach,
@@ -25,6 +26,7 @@ MIGRATIONS = load_migrations(ROOT / "migrations")
 NOW = "2026-10-10T12:00:00Z"
 REGISTRAR = CallerContext("registrar-1", "account_registrar", "corr-1")
 PAYER = CallerContext("pay-1", "payment_orchestrator", "corr-p")
+CARD = CallerContext("card-1", "card_orchestrator", "corr-c")
 
 
 def clock() -> ControllableClock:
@@ -108,6 +110,23 @@ def setup_submitted(path: pathlib.Path) -> None:
         submit_outgoing_ach(uow, now, PAYER, "ksub", "acct-a", "mv-o", evidence),
         Success,
     )
+    conn.close()
+
+
+def setup_card_authorized(path: pathlib.Path) -> None:
+    """Funded acct-a with card authorization mv-card (400 cents) holding the funds."""
+    setup_funded(path)
+    conn = open_started(path)
+    uow, now = SqliteUnitOfWork(conn), clock()
+    body = {
+        "instruction_id": "ins-card",
+        "movement_id": "mv-card",
+        "amount_cents": 400,
+        "currency": "USD",
+        "external_reference": "ext-card",
+        "merchant_reference": "merchant-1",
+    }
+    assert isinstance(authorize_card(uow, now, CARD, "kauth", "acct-a", body), Success)
     conn.close()
 
 

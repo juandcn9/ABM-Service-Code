@@ -13,6 +13,8 @@ from typing import Any
 
 import pytest
 
+from abm.application.caller import CallerContext
+from abm.application.cards import clear_card, refund_card
 from abm.application.idempotency import Response
 from abm.application.outgoing_ach import (
     create_outgoing_ach,
@@ -31,12 +33,19 @@ from tests.integration.store_support import (
     PAYER,
     clock,
     open_started,
+    setup_card_authorized,
     setup_funded,
     setup_settled,
     setup_submitted,
 )
 
 REPEATS = 20
+CARD = CallerContext("card-1", "card_orchestrator", "corr-c")
+EVIDENCE_OF_FINAL_STATE = {
+    "settled": "settlement",
+    "rejected": "rejection",
+    "returned": "return",
+}
 
 Contender = Callable[[SqliteUnitOfWork, ControllableClock], Result[Response]]
 
@@ -265,6 +274,15 @@ def test_two_contenders_for_one_movement_produce_exactly_one_final_effect(
             scalar(path, "SELECT state FROM movements WHERE movement_id = 'mv-o'")
             == final_states[won[0]]
         )
+        # TEST-36: exactly one evidence row, of the winning kind (UNIQUE per movement and kind)
+        assert (
+            scalar(
+                path,
+                "SELECT COUNT(*) FROM movement_evidence WHERE movement_id = 'mv-o' AND evidence_kind = ?",
+                EVIDENCE_OF_FINAL_STATE[final_states[won[0]]],
+            )
+            == 1
+        )
         trace_after = scalar(
             path, "SELECT COUNT(*) FROM audit_trace WHERE movement_id = 'mv-o'"
         )
@@ -308,3 +326,96 @@ def test_the_same_key_and_body_from_two_connections_applies_once(
             )
             == 1
         )
+
+
+def _offset(fn: Callable[..., Result[Response]], key: str, evidence: str) -> Contender:
+    body = {
+        "instruction_id": f"ins-{key}",
+        "evidence_reference": evidence,
+        "amount_cents": 400,
+        "currency": "USD",
+    }
+    return lambda uow, now: fn(uow, now, CARD, key, "acct-a", "mv-card", body)
+
+
+def test_clearing_and_refund_of_one_card_movement_keep_at_most_one_effect_of_each_kind(
+    tmp_path: pathlib.Path,
+) -> None:
+    for repeat in range(REPEATS):
+        path = tmp_path / f"card-pair-{repeat}.sqlite3"
+        setup_card_authorized(path)
+        results = race(
+            path,
+            [_offset(clear_card, "kc1", "ev-c1"), _offset(refund_card, "kc2", "ev-c2")],
+        )
+
+        # clearing never waits on a refund, so it always succeeds; a refund succeeds only after clearing commits
+        assert isinstance(results[0], Success), results
+        refund_ok = isinstance(results[1], Success)
+        if not refund_ok:
+            assert isinstance(results[1], Failure)
+            assert results[1].error.code == "INVALID_TRANSITION"
+
+        assert scalar(
+            path, "SELECT state FROM movements WHERE movement_id = 'mv-card'"
+        ) == ("refunded" if refund_ok else "cleared")
+        for kind, effect, expected in (
+            ("clearing", "card_clearing", 1),
+            ("refund", "card_refund", int(refund_ok)),
+        ):
+            assert (
+                scalar(
+                    path,
+                    "SELECT COUNT(*) FROM movement_evidence WHERE movement_id = 'mv-card' AND evidence_kind = ?",
+                    kind,
+                )
+                == expected
+            )
+            assert (
+                scalar(
+                    path,
+                    "SELECT COUNT(*) FROM ledger_entries WHERE movement_id = 'mv-card' AND effect_kind = ?",
+                    effect,
+                )
+                == expected
+            )
+
+
+def test_settlement_and_return_of_one_movement_keep_at_most_one_effect_of_each_kind(
+    tmp_path: pathlib.Path,
+) -> None:
+    for repeat in range(REPEATS):
+        path = tmp_path / f"offset-pair-{repeat}.sqlite3"
+        setup_submitted(path)
+        results = race(path, [_settle("ka", "ev-a"), _return("kb", "ev-b")])
+
+        # a return needs a settled movement, so it succeeds only when it runs after the settlement commits
+        assert isinstance(results[0], Success), results
+        return_ok = isinstance(results[1], Success)
+        if not return_ok:
+            assert isinstance(results[1], Failure)
+            assert results[1].error.code == "INVALID_TRANSITION"
+
+        assert scalar(
+            path, "SELECT state FROM movements WHERE movement_id = 'mv-o'"
+        ) == ("returned" if return_ok else "settled")
+        for kind, effect, expected in (
+            ("settlement", "outgoing_settlement", 1),
+            ("return", "outgoing_return", int(return_ok)),
+        ):
+            assert (
+                scalar(
+                    path,
+                    "SELECT COUNT(*) FROM movement_evidence WHERE movement_id = 'mv-o' AND evidence_kind = ?",
+                    kind,
+                )
+                == expected
+            )
+            assert (
+                scalar(
+                    path,
+                    "SELECT COUNT(*) FROM ledger_entries WHERE movement_id = 'mv-o' AND effect_kind = ?",
+                    effect,
+                )
+                == expected
+            )
