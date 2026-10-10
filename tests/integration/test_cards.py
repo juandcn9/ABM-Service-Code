@@ -538,3 +538,89 @@ def test_a_clearing_that_reuses_an_evidence_reference_is_refused_and_writes_noth
     assert isinstance(reused, Failure) and reused.error.code == "INVALID_TRANSITION"
     assert state_of(conn, "mv-b") == "authorized_with_hold"
     assert (counts(conn), balances(conn)) == before
+
+
+def test_a_refund_from_a_late_cleared_movement_posts_one_full_credit(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    simple(reverse_card, uow, clock, ref="ev-r")
+    assert state_of(conn) == "reversed"
+    assert isinstance(step(clear_card, uow, clock, cents=400, ref="ev-c"), Success)
+    assert state_of(conn) == "late_cleared"
+    assert isinstance(step(refund_card, uow, clock, cents=400, ref="ev-f"), Success)
+    assert state_of(conn) == "refunded"
+    assert balances(conn) == (1000, 0)
+
+
+def test_a_second_clearing_of_a_late_cleared_movement_is_refused_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    simple(reverse_card, uow, clock, ref="ev-r")
+    assert isinstance(step(clear_card, uow, clock, cents=400, ref="ev-c"), Success)
+    before = (counts(conn), balances(conn))
+    again = step(clear_card, uow, clock, cents=400, ref="ev-c2")
+    assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
+    assert state_of(conn) == "late_cleared"
+    assert (counts(conn), balances(conn)) == before
+
+
+def test_a_reversal_that_reuses_an_evidence_reference_is_refused_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock, movement="mv-a")
+    authorize(uow, clock, movement="mv-b", key="kb", instruction="ib")
+    assert isinstance(
+        step(clear_card, uow, clock, movement="mv-a", ref="ev-shared"), Success
+    )
+    before = (counts(conn), balances(conn))
+    reused = simple(
+        reverse_card, uow, clock, movement="mv-b", ref="ev-shared", key="kr"
+    )
+    assert isinstance(reused, Failure) and reused.error.code == "INVALID_TRANSITION"
+    assert state_of(conn, "mv-b") == "authorized_with_hold"
+    assert (counts(conn), balances(conn)) == before
+
+
+def test_authorization_takes_exactly_the_available_amount_and_one_cent_more_is_refused(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock, cents=1000)
+    assert isinstance(authorize(uow, clock, movement="mv-all", cents=1000), Success)
+    assert balances(conn) == (1000, 1000)
+    before = (counts(conn), balances(conn))
+    over = authorize(
+        uow, clock, movement="mv-cent", cents=1, key="kc", instruction="ic"
+    )
+    assert isinstance(over, Failure) and over.error.code == "INSUFFICIENT_FUNDS"
+    assert (counts(conn), balances(conn)) == before
+
+
+def test_a_rejected_reversal_after_clearing_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    assert isinstance(step(clear_card, uow, clock, cents=400, ref="ev-c"), Success)
+    before = (counts(conn), balances(conn))
+    late = simple(reverse_card, uow, clock, ref="ev-r")
+    assert isinstance(late, Failure) and late.error.code == "INVALID_TRANSITION"
+    assert state_of(conn) == "cleared"
+    assert (counts(conn), balances(conn)) == before
+
+
+def test_clearing_under_an_outgoing_restriction_posts_its_debit_and_releases_the_hold(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    conn.execute(
+        "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1'"
+    )
+    assert isinstance(step(clear_card, uow, clock, cents=400, ref="ev-c"), Success)
+    assert state_of(conn) == "cleared"
+    assert balances(conn) == (600, 0)
