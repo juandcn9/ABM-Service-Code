@@ -105,7 +105,7 @@ class SqliteWriteTransaction:
 
     def account_snapshot(self, account_id: str) -> AccountSnapshot | None:
         row = self._conn.execute(
-            "SELECT status, current_balance_cents FROM accounts WHERE account_id = ?",
+            "SELECT status, current_balance_cents, restriction FROM accounts WHERE account_id = ?",
             (account_id,),
         ).fetchone()
         if row is None:
@@ -115,7 +115,7 @@ class SqliteWriteTransaction:
             " WHERE account_id = ? AND state = 'active'",
             (account_id,),
         ).fetchone()[0]
-        return AccountSnapshot(row[0], row[1], held)
+        return AccountSnapshot(row[0], row[1], held, row[2])
 
     def get_movement(self, movement_id: str) -> MovementRecord | None:
         row = self._conn.execute(
@@ -128,8 +128,8 @@ class SqliteWriteTransaction:
     def create_movement(self, movement: NewMovement, created_at: str) -> None:
         self._conn.execute(
             "INSERT INTO movements (movement_id, account_id, movement_type, state,"
-            " amount_cents, currency, external_reference, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, 'USD', ?, ?, ?)",
+            " amount_cents, currency, external_reference, destination_reference,"
+            " created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?)",
             (
                 movement.movement_id,
                 movement.account_id,
@@ -137,6 +137,7 @@ class SqliteWriteTransaction:
                 movement.state,
                 movement.amount_cents,
                 movement.external_reference,
+                movement.destination_reference,
                 created_at,
                 created_at,
             ),
@@ -188,6 +189,39 @@ class SqliteWriteTransaction:
             "UPDATE accounts SET current_balance_cents = current_balance_cents + ?"
             " WHERE account_id = ?",
             (delta_cents, account_id),
+        )
+
+    def hold_state(self, movement_id: str) -> str | None:
+        row = self._conn.execute(
+            "SELECT state FROM holds WHERE movement_id = ?", (movement_id,)
+        ).fetchone()
+        return None if row is None else row[0]
+
+    def create_hold(
+        self,
+        hold_id: str,
+        movement_id: str,
+        account_id: str,
+        amount_cents: int,
+        created_at: str,
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO holds (hold_id, movement_id, account_id, amount_cents, state, created_at)"
+            " VALUES (?, ?, ?, ?, 'active', ?)",
+            (hold_id, movement_id, account_id, amount_cents, created_at),
+        )
+
+    def finalize_hold(
+        self,
+        movement_id: str,
+        state: str,
+        evidence_reference: str | None,
+        finalized_at: str,
+    ) -> None:
+        self._conn.execute(
+            "UPDATE holds SET state = ?, evidence_reference = ?, finalized_at = ?"
+            " WHERE movement_id = ? AND state = 'active'",
+            (state, evidence_reference, finalized_at, movement_id),
         )
 
 

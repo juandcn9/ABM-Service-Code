@@ -84,7 +84,7 @@ def test_empty_volume_starts_ready_and_records_the_schema_version(
     assert started.connection is not None
     assert started.connection.execute(
         "SELECT version FROM schema_version"
-    ).fetchall() == [(1,)]
+    ).fetchall() == [(m.version,) for m in MIGRATIONS]
     assert started.connection.execute("PRAGMA foreign_keys").fetchone() == (1,)
 
 
@@ -115,7 +115,7 @@ def test_unsupported_schema_is_never_ready_and_leaves_no_connection(
     known = list(MIGRATIONS)
     if bad == "newer":
         conn.execute(
-            "INSERT INTO schema_version VALUES (2, '0002_future', ?, ?)",
+            f"INSERT INTO schema_version VALUES ({len(MIGRATIONS) + 1}, '{len(MIGRATIONS) + 1:04d}_future', ?, ?)",
             ("a" * 64, NOW),
         )
     elif bad == "edited":

@@ -79,7 +79,9 @@ def migrated(tmp_path: pathlib.Path) -> sqlite3.Connection:
 
 
 def second(sql: str) -> Migration:
-    return Migration(2, "0002_test", sql, checksum(sql))
+    # the next free version after the shipped migrations
+    version = len(BASE) + 1
+    return Migration(version, f"{version:04d}_test", sql, checksum(sql))
 
 
 def state(conn: sqlite3.Connection) -> list[str]:
@@ -105,6 +107,9 @@ ATTACKS = [
     'DROP TABLE "Audit_Trace";',
     "DROP TABLE LEDGER_ENTRIES;",
     "ALTER TABLE ledger_entries RENAME TO old_ledger;",
+    "ALTER TABLE movements DROP COLUMN amount_cents;",
+    "ALTER TABLE movements RENAME COLUMN amount_cents TO amount;",
+    "ALTER TABLE holds RENAME TO holds_old;",
     "ALTER TABLE audit_trace ADD COLUMN extra TEXT;",
     "CREATE TEMP TABLE ledger_entries (x);",
     # change connection behavior that would outlive the migration
@@ -198,7 +203,9 @@ def test_attacks_on_retained_history_or_the_connection_are_refused_with_nothing_
         assert excinfo.value.code == "MIGRATION_FAILED"
     assert not conn.in_transaction
     assert state(conn) == before
-    assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone() == (1,)
+    assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone() == (
+        len(BASE),
+    )
     after = [
         conn.execute(f"PRAGMA {p}").fetchone()[0]
         for p in ("query_only", "recursive_triggers", "trusted_schema")
@@ -268,6 +275,7 @@ def test_the_post_migration_verification_catches_what_the_authorizer_would_miss(
         # accepted only if the statement changed nothing retained; then 0002 is simply appended
         after = migrations_module._snapshot(conn)
         assert retained_history_protected(conn)
+        assert after.columns == before_snapshot.columns
         assert (after.rows, after.sequences, after.schema, after.temp, after.state) == (
             before_snapshot.rows,
             before_snapshot.sequences,
@@ -276,8 +284,8 @@ def test_the_post_migration_verification_catches_what_the_authorizer_would_miss(
             before_snapshot.state,
         )
         assert after.history == [
-            (1, "0001_initial", BASE[0].checksum),
-            (2, "0002_test", second(attack).checksum),
+            *[(m.version, m.name, m.checksum) for m in BASE],
+            (second(attack).version, second(attack).name, second(attack).checksum),
         ]
         assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
         return
@@ -285,6 +293,7 @@ def test_the_post_migration_verification_catches_what_the_authorizer_would_miss(
 
 
 LEGITIMATE = (
+    "ALTER TABLE accounts ADD COLUMN display_note TEXT;\n"
     "CREATE TABLE extra (id INTEGER PRIMARY KEY, label TEXT);\n"
     "CREATE INDEX idx_extra_label ON extra(label);\n"
     "CREATE VIEW extra_labels AS SELECT label FROM extra;\n"
@@ -304,8 +313,8 @@ def test_legitimate_additive_migrations_still_apply_and_leave_history_protected(
         r[:2]
         for r in conn.execute("SELECT version, migration_name FROM schema_version")
     ] == [
-        (1, "0001_initial"),
-        (2, "0002_test"),
+        *[(m.version, m.name) for m in BASE],
+        (len(BASE) + 1, f"{len(BASE) + 1:04d}_test"),
     ]
     assert conn.execute("SELECT label FROM extra").fetchall() == [
         ("seed -- not a comment",)
@@ -373,7 +382,12 @@ AUTHORIZER_DECISIONS = [
     (sqlite3.SQLITE_DROP_TRIGGER, "ledger_entries_no_update", "ledger_entries", False),
     (sqlite3.SQLITE_DROP_TRIGGER, "note_trigger", "note", False),
     (sqlite3.SQLITE_ALTER_TABLE, "main", "ledger_entries", False),
-    (sqlite3.SQLITE_ALTER_TABLE, "main", "accounts", False),
+    (
+        sqlite3.SQLITE_ALTER_TABLE,
+        "main",
+        "accounts",
+        True,
+    ),  # additive changes are verified, not refused here
     (sqlite3.SQLITE_UPDATE, "movements", "amount_cents", False),
     (sqlite3.SQLITE_DELETE, "retention_metadata", None, False),
     (sqlite3.SQLITE_DROP_TABLE, "holds", None, False),
@@ -414,7 +428,9 @@ def test_a_fast_migration_is_not_interrupted_by_the_time_limit(
 ) -> None:
     conn = migrated(tmp_path)
     apply_migrations(conn, [*BASE, second(LEGITIMATE)], NOW, time_limit_seconds=600.0)
-    assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone() == (2,)
+    assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone() == (
+        len(BASE) + 1,
+    )
 
 
 def test_a_temp_object_or_a_renamed_retained_table_breaks_the_readiness_check(
@@ -437,12 +453,13 @@ def snapshot(**changes: object) -> migrations_module._Snapshot:
         schema=frozenset(),
         temp=frozenset(),
         state=(),
+        columns={},
         history=HISTORY,
     )
     return dataclasses.replace(empty, **changes)  # type: ignore[arg-type]
 
 
-HISTORY = [(1, "0001_initial", BASE[0].checksum)]
+HISTORY = [(m.version, m.name, m.checksum) for m in BASE]
 # Verification clauses that a migration cannot reach with the shipped schema (every retained table
 # and pinned object already exists after 0001), so they are checked on synthetic snapshots.
 PINNED_TABLE_SQL = "CREATE TABLE ledger_entries (x)"
@@ -494,6 +511,34 @@ PINNED_TRIGGER_SQL = "CREATE TRIGGER ledger_entries_no_update BEFORE UPDATE ON l
             ),
             True,  # a pinned trigger whose text is not the shipped text
         ),
+        # column layout: an existing column changed or dropped is refused; an appended column passes
+        (
+            snapshot(columns={"movements": (("0", "amount", "INTEGER", 1, None, 0),)}),
+            snapshot(columns={"movements": (("0", "amount", "TEXT", 1, None, 0),)}),
+            True,
+        ),
+        (
+            snapshot(columns={"movements": (("0", "amount", "INTEGER", 1, None, 0),)}),
+            snapshot(columns={"movements": ()}),
+            True,
+        ),
+        (
+            snapshot(columns={"movements": (("0", "amount", "INTEGER", 1, None, 0),)}),
+            snapshot(
+                columns={
+                    "movements": (
+                        ("0", "amount", "INTEGER", 1, None, 0),
+                        ("1", "note", "TEXT", 0, None, 0),
+                    )
+                }
+            ),
+            False,
+        ),
+        (
+            snapshot(columns={"holds": (("0", "hold_id", "TEXT", 1, None, 1),)}),
+            snapshot(columns={}),
+            True,
+        ),
         (
             snapshot(history=HISTORY),
             snapshot(history=[*HISTORY, (9, "0009_forged", "c")]),
@@ -532,7 +577,9 @@ def test_a_temp_view_cannot_fake_the_migration_history(tmp_path: pathlib.Path) -
     Now it reads the real history, sees the connection's temp object, and refuses."""
     conn = migrated(tmp_path)
     extra = second(LEGITIMATE)
-    fake = [(1, "0001_initial", BASE[0].checksum), (2, extra.name, extra.checksum)]
+    fake = [(m.version, m.name, m.checksum) for m in BASE] + [
+        (extra.version, extra.name, extra.checksum)
+    ]
     rows = [
         f"SELECT {v} AS version, '{n}' AS migration_name, '{c}' AS checksum, '{NOW}' AS applied_at"
         for v, n, c in fake
@@ -542,7 +589,7 @@ def test_a_temp_view_cannot_fake_the_migration_history(tmp_path: pathlib.Path) -
         apply_migrations(conn, [*BASE, extra], NOW)
     assert excinfo.value.code == "MIGRATION_FAILED"
     assert conn.execute("SELECT MAX(version) FROM main.schema_version").fetchone() == (
-        1,
+        len(BASE),
     )
 
 
@@ -552,7 +599,8 @@ DESTRUCTIVE_ON_OPEN_TABLES = [
     "DROP TABLE holds;",
     "UPDATE movements SET amount_cents = 1;",
     "DELETE FROM retention_metadata;",
-    "ALTER TABLE accounts ADD COLUMN display_note TEXT;",
+    "ALTER TABLE movements DROP COLUMN amount_cents;",
+    "ALTER TABLE holds RENAME TO holds_old;",
     "DROP INDEX idx_holds_account_state;",
     "DELETE FROM sqlite_master;",
     "UPDATE sqlite_master SET sql = 'x' WHERE name = 'holds';",

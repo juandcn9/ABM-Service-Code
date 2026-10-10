@@ -171,20 +171,17 @@ _DENIED_ACTIONS = frozenset(
         sqlite3.SQLITE_CREATE_TEMP_INDEX,
         sqlite3.SQLITE_CREATE_VTABLE,
         # destructive work on any table: the Specs permit no destructive migration (specs/05 s.8).
-        # shortcut: ALTER TABLE is refused for all tables because SQLite reports ADD COLUMN and
-        # DROP COLUMN alike, upgrade to allow ADD COLUMN once told apart
         sqlite3.SQLITE_DROP_TABLE,
         sqlite3.SQLITE_DROP_INDEX,
         sqlite3.SQLITE_DROP_VIEW,
         sqlite3.SQLITE_DROP_TRIGGER,
-        sqlite3.SQLITE_ALTER_TABLE,
     }
 )
 # inserts into a retained table would append forged history; SQLite's own bookkeeping is refused too
 _TABLE_ACTIONS = frozenset({sqlite3.SQLITE_INSERT})
 _ALLOWED_PRAGMAS = frozenset(
-    {"foreign_keys"}
-)  # migration 0001 opens with PRAGMA foreign_keys = ON
+    {"foreign_keys", "quick_check"}
+)  # 0001 opens with PRAGMA foreign_keys = ON; ALTER TABLE runs the read-only quick_check
 
 
 def _migration_authorizer(
@@ -212,6 +209,9 @@ def _migration_authorizer(
         action in (sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE)
         and first != "sqlite_master"
     ):
+        return sqlite3.SQLITE_DENY
+    # additive ALTER on other tables is allowed; verification checks the column layout afterwards
+    if action == sqlite3.SQLITE_ALTER_TABLE and second in PROTECTED_TABLES:
         return sqlite3.SQLITE_DENY
     return sqlite3.SQLITE_OK
 
@@ -254,6 +254,9 @@ class _Snapshot:
         tuple[str, str, str, str]
     ]  # retained tables' objects and every trigger
     temp: frozenset[tuple[str, str, str]]  # per-connection (temp) schema objects
+    columns: dict[
+        str, tuple[tuple[object, ...], ...]
+    ]  # every user table's column layout
     state: tuple[object, ...]  # connection settings
     history: list[tuple[int, str, str]]  # applied migrations
 
@@ -300,6 +303,16 @@ def _snapshot(conn: sqlite3.Connection) -> _Snapshot:
             *(conn.execute(sql).fetchone()[0] for sql in _STATE_PRAGMAS),
             tuple(conn.execute("PRAGMA database_list")),
         ),
+        columns={
+            name: tuple(
+                conn.execute(
+                    'SELECT cid, name, type, "notnull", dflt_value, pk FROM pragma_table_info(?)',
+                    (name,),
+                ).fetchall()
+            )
+            for name in present
+            if not name.startswith("sqlite_")
+        },
         history=_applied(conn),
     )
 
@@ -347,7 +360,14 @@ def _violations(
     if after.state != before.state:
         return True
     # 6. the history table holds exactly the migrations applied so far
-    return after.history != expected_history
+    if after.history != expected_history:
+        return True
+    # 7. no table disappears and no existing column is dropped, renamed, or changed; appends pass
+    for table, layout in before.columns.items():
+        now = after.columns.get(table)
+        if now is None or now[: len(layout)] != layout:
+            return True
+    return False
 
 
 def _integrity_ok(conn: sqlite3.Connection) -> bool:

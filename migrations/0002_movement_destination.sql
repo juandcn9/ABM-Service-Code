@@ -1,0 +1,1 @@
+ALTER TABLE movements ADD COLUMN destination_reference TEXT CHECK (destination_reference IS NULL OR (length(destination_reference) BETWEEN 1 AND 128 AND destination_reference NOT GLOB '*[^-A-Za-z0-9._~]*'));
