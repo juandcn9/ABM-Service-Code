@@ -37,7 +37,7 @@
 - Commands/checks and results: locally `pytest` 572 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py` pass.
 - Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
 - Residual risks: no concurrency test (TASK-18).
-- Next safe action: review and Tester of the final head; then `TASK-16` (card) after this PR merges.
+- Next safe action: TASK-15 is merged (PR #24). Record its fresh review and Tester pass before it is Verified. No such record exists yet.
 
 ## Review fixes (PR #24)
 
