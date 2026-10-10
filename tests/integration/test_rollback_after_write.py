@@ -7,7 +7,7 @@ import pathlib
 from abm.application.caller import CallerContext
 from abm.application.idempotency import Response, run_idempotent, scope_key
 from abm.domain.fingerprint import fingerprint
-from abm.domain.results import Result, failure
+from abm.domain.results import Failure, Result, failure
 from abm.persistence.sqlite_store import SqliteUnitOfWork
 from abm.ports.storage import NewAccount, WriteTransaction
 from tests.integration.store_support import clock, open_started
@@ -33,6 +33,6 @@ def test_a_busy_failure_after_a_write_commits_nothing(tmp_path: pathlib.Path):
         work=work,
     )
 
-    assert not result.ok and result.error.code == "SERVICE_BUSY"
+    assert isinstance(result, Failure) and result.error.code == "SERVICE_BUSY"
     assert conn.execute("SELECT COUNT(*) FROM accounts").fetchone() == (0,)
     assert conn.execute("SELECT COUNT(*) FROM idempotency_outcomes").fetchone() == (0,)
