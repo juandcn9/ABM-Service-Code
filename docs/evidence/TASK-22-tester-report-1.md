@@ -1,11 +1,11 @@
 # TASK-22 Tester report, pass 1
 
-**Verdict: conditional PASS on head `07d12eb`** (Code PR #74). Two Majors, both fixed before merge. Stored as its own record because the merge rule requires review evidence before merge. This record was committed after the merge (see the process record in the TASK-22 work item).
+**Verdict: conditional PASS on head `07d12eb`** (Code PR #74). Two Majors, both resolved before merge: Major 1 by tests (in `caacace`), Major 2 by DEC-0047 (a Specs decision, not a code change). Stored as its own record because the merge rule requires review evidence before merge. This record was committed after the merge (see the process record in the TASK-22 work item).
 
 ## Subjects
 
 - Code: `07d12ebe3ee60a490d21d5bdefa1121bf2afe7c0`, branch `feat/task-22-retention`, base `main` at `0ab745d`. One commit, 10 files, +490 lines.
-- Docs: PR #73, head `91c3f30ed1d80abbaedc8383f4f4d65c818a2587`, file `docs/work-items/TASK-22.md`.
+- Docs: PR #73, head `91c3f30ed1d80abbaedc8383f4f4d65c818a2587` (superseded; merged head `693d1b458cc16c83a3cf680e0c2472edf47b5175`), file `docs/work-items/TASK-22.md`.
 - Specs: tag `v1.9.3`, `e72391c0f53d678c6e013cc0f1d9808f730994fa`.
 
 ## Gate results (`07d12eb`)
