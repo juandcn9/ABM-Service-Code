@@ -289,8 +289,7 @@ def return_incoming_ach(
         account = tx.account_snapshot(target)
         if account is None:
             return failure("ACCOUNT_NOT_FOUND", "The account was not found.")
-        if account.status != "open":
-            return failure("ACCOUNT_CLOSED", "The account is closed.")
+        # a closed account may still receive its return (INV-16, permitted late evidence)
         record = tx.get_movement(movement)
         if (
             record is None

@@ -401,12 +401,13 @@ def test_settlement_records_its_trace_entry_with_the_credit_and_evidence(
 
 
 @pytest.mark.parametrize("operation", ["settle", "return"])
-def test_a_closed_account_takes_no_settlement_or_return(
+def test_a_closed_account_refuses_settlement_but_accepts_its_return(
     uow: SqliteUnitOfWork,
     conn: sqlite3.Connection,
     clock: ControllableClock,
     operation: str,
 ) -> None:
+    # INV-16 permits return as late evidence after closure; settlement is not on that list
     registered(uow, clock)
     notice(uow, clock)
     if operation == "return":
@@ -416,10 +417,22 @@ def test_a_closed_account_takes_no_settlement_or_return(
         (NOW,),
     )
     before = counts(conn)
-    result = (
-        settle(uow, clock, evidence="ev-c", key="key-c")
-        if operation == "settle"
-        else give_back(uow, clock, evidence="ev-c", key="key-c")
-    )
-    assert isinstance(result, Failure) and result.error.code == "ACCOUNT_CLOSED"
-    assert counts(conn)[:4] == before[:4]
+    if operation == "settle":
+        result = settle(uow, clock, evidence="ev-c", key="key-c")
+        assert isinstance(result, Failure) and result.error.code == "ACCOUNT_CLOSED"
+        assert counts(conn)[:4] == before[:4]
+    else:
+        result = give_back(uow, clock, evidence="ev-c", key="key-c")
+        assert isinstance(result, Success) and data_of(result)["state"] == "returned"
+        assert balance(conn) == 0
+
+
+def test_a_duplicate_movement_id_under_a_new_key_is_invalid_transition(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    registered(uow, clock)
+    notice(uow, clock)
+    before = counts(conn)
+    again = notice(uow, clock, key="key-n-new", instruction="ins-n-new")
+    assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
+    assert counts(conn)[:4] == before[:4] and counts(conn)[4] == before[4] + 1
