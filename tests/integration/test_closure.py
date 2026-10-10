@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import sqlite3
+from datetime import UTC, datetime
 
 from abm.application.caller import CallerContext
 from abm.application.cards import authorize_card, clear_card, refund_card, reverse_card
@@ -16,6 +17,7 @@ from abm.application.transfers import internal_transfer
 from abm.domain.results import Failure, Success
 from abm.persistence.readiness import readiness_reasons
 from abm.persistence.sqlite_store import SqliteUnitOfWork
+from harness.clock import ControllableClock
 from tests.integration.store_support import (
     MIGRATIONS,
     clock,
@@ -461,3 +463,85 @@ def test_replay_returns_the_stored_closure_without_a_second_trace(tmp_path):
     assert isinstance(replay, Success) and replay.replayed is True
     assert replay.value.data == first.value.data
     assert closure_traces(conn) == 1
+
+
+def test_late_clearing_then_refund_after_closure_is_clean_with_time_advancing(tmp_path):
+    """The clock moves after closure, so late effects are strictly later than closed_at (readiness)."""
+    ticking = ControllableClock(datetime(2026, 10, 10, 12, 0, 0, tzinfo=UTC))
+    conn, uow = setup(tmp_path)
+    authorize_card(
+        uow,
+        ticking,
+        CARD,
+        "k-auth",
+        "acct-a",
+        {
+            "instruction_id": "ins-auth",
+            "movement_id": "mv-late",
+            "amount_cents": 400,
+            "currency": "USD",
+            "external_reference": "ext-late",
+            "merchant_reference": "m-1",
+        },
+    )
+    reverse_card(
+        uow,
+        ticking,
+        CARD,
+        "k-rev",
+        "acct-a",
+        "mv-late",
+        {"instruction_id": "ins-rev", "evidence_reference": "ev-rev"},
+    )
+    drain_to_zero(uow)
+    ticking.advance(60)
+    assert isinstance(
+        close_account(
+            uow,
+            ticking,
+            REGISTRAR,
+            "k-close",
+            "acct-a",
+            {"instruction_id": "ins-close"},
+        ),
+        Success,
+    )
+
+    ticking.advance(60)
+    late = clear_card(
+        uow,
+        ticking,
+        CARD,
+        "k-late",
+        "acct-a",
+        "mv-late",
+        {
+            "instruction_id": "ins-late",
+            "evidence_reference": "ev-late",
+            "amount_cents": 400,
+            "currency": "USD",
+        },
+    )
+    assert isinstance(late, Success)
+    assert readiness_reasons(conn, MIGRATIONS) == []
+
+    ticking.advance(60)
+    refund = refund_card(
+        uow,
+        ticking,
+        CARD,
+        "k-refund",
+        "acct-a",
+        "mv-late",
+        {
+            "instruction_id": "ins-refund",
+            "evidence_reference": "ev-refund",
+            "amount_cents": 400,
+            "currency": "USD",
+        },
+    )
+    assert isinstance(refund, Success)
+    assert conn.execute(
+        "SELECT state FROM movements WHERE movement_id = 'mv-late'"
+    ).fetchone() == ("refunded",)
+    assert readiness_reasons(conn, MIGRATIONS) == []

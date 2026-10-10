@@ -73,7 +73,7 @@ _INCONSISTENCIES: tuple[str, ...] = (
         " WHERE a.status = 'closed' AND e.created_at > a.closed_at AND (e.effect_kind IN"
         " ('incoming_settlement','outgoing_settlement','transfer_source_debit',"
         "'transfer_destination_credit') OR (e.effect_kind = 'card_clearing'"
-        " AND m.state <> 'late_cleared')) LIMIT 1"
+        " AND m.state NOT IN ('late_cleared','refunded'))) LIMIT 1"
     ),
     # a transfer's source debits equal its destination credits
     (
