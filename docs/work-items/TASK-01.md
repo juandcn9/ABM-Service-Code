@@ -4,7 +4,7 @@
 
 ## Authority
 
-- Specs version and exact SHA: `v1.8.0` / `e4d97ff294dbc0d6d94e88991b65f59badebd6fc`
+- Specs version and exact SHA: `v1.8.1` / `26e30b91fc527fc79578192e840d35ca6317a4fe`
 - TASK and affected IDs: `TASK-01`; `BT-06`; `SEC-11`; `TEST-26`; governance controls
 - Decision, gap, or risk records: no new decision or gap; existing Specs risks remain unchanged
 - Owner roles: Updater + Builder Auditor; Codex was the execution runtime for the original implementation and Claude Code for the follow-up change, and final verification requires an independent Tester
