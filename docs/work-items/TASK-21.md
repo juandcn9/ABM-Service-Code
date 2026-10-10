@@ -1,6 +1,6 @@
 # Work item: TASK-21 — closure eligibility, terminal state, and permitted late evidence
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -40,10 +40,11 @@
 
 ## Implementation and evidence
 
-- Code PR #70 on `feat/task-21-closure`. Tester pass on head `7729b9c` found one Major: readiness reported INTEGRITY_FAILED after a permitted late clearing followed by a refund (the movement becomes `refunded`). Fixed on the next head by accepting `refunded` in the post-closure clearing clause, and covered by a test that advances the clock through clearing and refund. The Tester pass on the fixed head and JDC approval of its exact SHA are pending.
+- Code PR #70, merged to `main` as `6653ce1` (head `c7c5048`; JDC approved the exact head in the session, 2026-10-10). Tester record: [`docs/evidence/TASK-21-tester-report.md`](../evidence/TASK-21-tester-report.md). Pass 1 on `7729b9c` found one Major (readiness after a refunded late clearing), fixed in `c7c5048`; pass 2 on `c7c5048` PASS. Full suite 755 passing.
 
 ## Scheduled items
 
 - Minor: the `submitted` blocking case and the settle-side ACCOUNT_CLOSED branch (`incoming_ach.py` settle) are not tested in `test_closure.py`. Owner Builder. Trigger: TASK-23 (negative and unsupported-operation tests).
+- Minor: the post-closure settlement readiness test does not isolate its clause (the balance check flags the same row). Owner Builder. Trigger: TASK-23.
 - Same-second post-closure effects are not flagged (documented shortcut in readiness). Owner Builder. Trigger: a later hardening task (ledger sequence at closure).
 - Retention dates after closure belong to TASK-22.
