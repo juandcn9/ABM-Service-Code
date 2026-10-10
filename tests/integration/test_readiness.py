@@ -170,10 +170,17 @@ def test_readiness_reports_busy_for_an_already_open_connection(
 def tamper(
     conn: sqlite3.Connection, statements: list[tuple[str, tuple[object, ...]]]
 ) -> None:
+    """Write bad rows past the guards, then restore the guards, so only the data checks are tested."""
+    saved = [
+        r[0]
+        for r in conn.execute("SELECT sql FROM sqlite_master WHERE type = 'trigger'")
+    ]
     drop_guards(conn)
     conn.execute("PRAGMA foreign_keys = OFF")
     for sql, params in statements:
         conn.execute(sql, params)
+    for sql in saved:
+        conn.execute(sql)
 
 
 MOVEMENT = (
@@ -338,4 +345,39 @@ def test_reason_codes_are_controlled_values_only(path: pathlib.Path) -> None:
     )
     found = reasons(conn)
     assert found and set(found) <= ALLOWED_REASONS
-    assert all(code.isupper() and "acct" not in code for code in found)
+
+
+def test_a_guard_trigger_removed_outside_the_runner_is_not_ready(
+    path: pathlib.Path,
+) -> None:
+    started = start_database(path, MIGRATIONS, NOW)
+    assert started.connection is not None
+    assert readiness_reasons(started.connection, MIGRATIONS) == []
+    started.connection.execute(
+        "DROP TRIGGER ledger_entries_no_update"
+    )  # bypasses the runner
+    assert readiness_reasons(started.connection, MIGRATIONS) == [INTEGRITY_FAILED]
+
+
+def test_a_missing_table_is_integrity_failed_not_database_unavailable(
+    path: pathlib.Path,
+) -> None:
+    conn = registered(path)
+    conn.execute("ALTER TABLE ledger_entries RENAME TO ledger_old")
+    assert readiness_reasons(conn, MIGRATIONS) == [INTEGRITY_FAILED]
+
+
+def test_a_dropped_index_is_integrity_failed(path: pathlib.Path) -> None:
+    conn = registered(path)
+    conn.execute("DROP INDEX idx_ledger_account_sequence")
+    assert readiness_reasons(conn, MIGRATIONS) == [INTEGRITY_FAILED]
+
+
+def test_a_temp_object_on_the_checked_connection_is_integrity_failed(
+    path: pathlib.Path,
+) -> None:
+    conn = registered(path)
+    conn.execute(
+        "CREATE TEMP VIEW shadow_probe AS SELECT 1 AS x"
+    )  # invisible to the main object set
+    assert readiness_reasons(conn, MIGRATIONS) == [INTEGRITY_FAILED]

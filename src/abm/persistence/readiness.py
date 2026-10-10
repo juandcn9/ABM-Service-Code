@@ -6,6 +6,7 @@ and never with paths, SQL text, counts, row data, or raw check output.
 
 from __future__ import annotations
 
+import functools
 import pathlib
 import sqlite3
 from collections.abc import Sequence
@@ -17,7 +18,12 @@ from abm.persistence.database import (
     open_database,
     to_failure,
 )
-from abm.persistence.migrations import Migration, MigrationError, apply_migrations
+from abm.persistence.migrations import (
+    Migration,
+    MigrationError,
+    apply_migrations,
+    retained_history_protected,
+)
 
 # the controlled reason codes of the HealthResponse schema
 CONFIG_INVALID = "CONFIG_INVALID"
@@ -93,12 +99,19 @@ def readiness_reasons(
         if not _schema_supported(conn, migrations):
             # nothing else can be trusted on an unknown or missing schema
             return [SCHEMA_UNSUPPORTED]
+        if _objects(conn) != _shipped_objects(tuple(migrations)):
+            # a table, index or trigger is missing or extra: the data checks cannot be trusted
+            return [INTEGRITY_FAILED]
         if conn.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
             reasons.add(INTEGRITY_FAILED)
         if conn.execute("PRAGMA foreign_key_check").fetchall():
             reasons.add(FOREIGN_KEY_FAILED)
         if any(conn.execute(sql).fetchone() is not None for sql in _INCONSISTENCIES):
             reasons.add(INTEGRITY_FAILED)
+        if not retained_history_protected(conn):
+            reasons.add(
+                INTEGRITY_FAILED
+            )  # a retained table or guard trigger was altered outside the runner
         if not _can_begin_write(conn):
             reasons.add(DATABASE_BUSY)
     except sqlite3.Error as exc:
@@ -110,6 +123,31 @@ def readiness_reasons(
         else:
             reasons.add(DATABASE_UNAVAILABLE)
     return sorted(reasons)
+
+
+_SHAPE_APPLIED_AT = (
+    "2000-01-01T00:00:00Z"  # any valid instant; only the object names matter here
+)
+
+
+def _objects(conn: sqlite3.Connection) -> frozenset[tuple[str, str]]:
+    """Every named table, index, view and trigger, excluding SQLite's own sqlite_* objects."""
+    return frozenset(
+        conn.execute(
+            "SELECT type, name FROM sqlite_master WHERE substr(name, 1, 7) <> 'sqlite_'"
+        )
+    )
+
+
+@functools.lru_cache(maxsize=8)
+def _shipped_objects(migrations: tuple[Migration, ...]) -> frozenset[tuple[str, str]]:
+    """The objects the reviewed migrations create, built once in memory."""
+    shipped = sqlite3.connect(":memory:", isolation_level=None)
+    try:
+        apply_migrations(shipped, migrations, _SHAPE_APPLIED_AT)
+        return _objects(shipped)
+    finally:
+        shipped.close()
 
 
 def _schema_supported(

@@ -36,7 +36,27 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR is opened after the `TASK-06` through `TASK-10` PRs merge.
-- Commands/checks and results: locally `pytest` 144 passed in this branch (includes the merged earlier tasks), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
-- Review findings/resolution: pending (`ponytail-review`, fresh-context review, Tester verification of the final head).
+- Commands/checks and results: locally `pytest` 460 passed in this branch (CI 460 passed on the head) (includes the merged earlier tasks), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
+- Review findings/resolution: fresh-context review of ce8b25d (FAIL: three Majors, all fixed in eb1a4e8); focused re-review of eb1a4e8 PASS with findings (no Blocker or Major); independent Tester pass of eb1a4e8 PASS (CI green on CPython 3.12.15). Not run: `ponytail-review` for this branch (DV-01 applies).
 - Residual risks: a very large database makes `PRAGMA integrity_check` slow at startup (acceptable for the single-writer demonstration, `RISK-0001`); the inconsistency queries encode the Builder's reading of `specs/05` section 7 and need a Tester pass against the Specs; readiness is computed on demand, so caching or rate limiting for the health route is a `TASK-25`/`TASK-26` decision.
-- Next safe action: `TASK-11` (account reads and trace sequencing).
+- Next safe action: `TASK-11` (account reads and trace sequencing), after this PR merges.
+
+## Wiring added before merge
+
+- `readiness_reasons` now calls `retained_history_protected()` (deferred from TASK-06). A guard trigger removed or a retained table altered outside the runner reports `INTEGRITY_FAILED`; the Specs' six reason codes are unchanged. The object-set check catches a dropped trigger first, so `test_a_guard_trigger_removed_outside_the_runner_is_not_ready` does not exercise this call; `test_a_temp_object_on_the_checked_connection_is_integrity_failed` does.
+- The direct-corruption test helper drops guard triggers to insert bad rows; that now counts as tampering, so the missing-account case expects `INTEGRITY_FAILED` as well as `FOREIGN_KEY_FAILED`.
+
+
+## Specs check of the inconsistency queries (Tester, PR #15)
+
+- Matches `specs/05-data-model.md` section 7: projection equals signed ledger sum; holds only for outgoing ACH in `accepted_with_hold|submitted` and card in `authorized_with_hold`, and every such movement has its hold; a hold reserves its own movement's account; no active hold on a closed account; transfer source debits equal destination credits; registration trace and retention row per account; every accepted trace has a committed successful outcome.
+- Not yet checked, recorded as open: the explicit available-balance identity (posted minus active held must equal the projection; no separate column exists, so it is implied by the projection check), and the closure and finalized-effects rules, which need data from TASK-13 to TASK-21.
+
+## Review fixes (PR #15, fresh-context review of ce8b25d)
+
+- Major 1 (vacuous corruption evidence): the test helper dropped the guard triggers for every case, so the nine data checks were never the reason. `tamper()` now restores the guard triggers after the bad rows are written. Removing the inconsistency loop now fails 11 readiness tests.
+- Major 2 (wrong code for a missing object): readiness now compares the set of tables, indexes, views and triggers with the set the reviewed migrations create. A mismatch is `INTEGRITY_FAILED` and stops before the data queries, so a missing table no longer surfaces as `DATABASE_UNAVAILABLE`. Covered by `test_a_missing_table_is_integrity_failed_not_database_unavailable`.
+- Major 3 (index checks): the same object comparison covers indexes, so a dropped required index is `INTEGRITY_FAILED` (`test_a_dropped_index_is_integrity_failed`; specs/07 section 3 step 6).
+- Minor: the controlled-codes test no longer asserts a string check that could never fail.
+- Recorded, not changed: a non-migration exception from `apply_migrations` (or a rollback error) escapes `start_database` without a result; no connection is returned, so it is not fail-open. The static-scan waiver for `readiness.py` is file-wide (the fixed-statement rule); formatted-SQL detection still applies to the file.
+- The temp-object check on the readiness connection is covered by `test_a_temp_object_on_the_checked_connection_is_integrity_failed`.
