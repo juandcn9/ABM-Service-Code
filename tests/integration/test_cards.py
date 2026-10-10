@@ -363,3 +363,43 @@ def test_a_storage_fault_during_clearing_rolls_everything_back(
     assert isinstance(result, Failure)
     assert counts(conn) == before and balances(conn) == balances_before
     assert state_of(conn) == "authorized_with_hold"
+
+
+def test_a_card_operation_on_another_accounts_movement_is_not_found(
+    uow: SqliteUnitOfWork,
+    conn: sqlite3.Connection,
+    clock: ControllableClock,
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    other = {
+        "instruction_id": "ins-reg-2",
+        "account_id": "acct-2",
+        "customer_id": "cust-2",
+        "currency": "USD",
+        "eligibility_reference": "elig-2",
+    }
+    assert isinstance(
+        register_account(uow, clock, REGISTRAR, "key-reg-2", other), Success
+    )
+    before = (balances(conn), counts(conn))
+    with_amount = {
+        "instruction_id": "i-x",
+        "evidence_reference": "ev-x",
+        "amount_cents": 400,
+        "currency": "USD",
+    }
+    without_amount = {"instruction_id": "i-y", "evidence_reference": "ev-y"}
+    attempts = [
+        (clear_card, with_amount),
+        (reverse_card, without_amount),
+        (expire_card, without_amount),
+        (refund_card, with_amount),
+    ]
+    for fn, body in attempts:
+        result = fn(uow, clock, CARD, f"k-{fn.__name__}", "acct-2", "mv-card", body)
+        assert (
+            isinstance(result, Failure) and result.error.code == "MOVEMENT_NOT_FOUND"
+        ), fn.__name__
+    assert (balances(conn), counts(conn)) == before
+    assert state_of(conn) == "authorized_with_hold"
