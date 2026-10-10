@@ -42,4 +42,4 @@ Verdict: **PASS** for TASK-16 at `0ce8071`: no open Blocker or Major.
 
 - The Minors listed in PR #41 remain open and scheduled (for example the refund from `late_cleared`, zero-side-effect checks on rejected clear and reverse, the authorization boundary, and card fingerprint tests). They are not blocking this verdict.
 - The closed-account card cases that close an account by direct SQL stay with TASK-21 (closure).
-- Status: TASK-16 remains **Implemented**. Moving it to Verified is JDC's decision.
+- Status: **Verified** (JDC decision, recorded as DEC-0038 in Specs). This record is the evidence for it.
