@@ -1,6 +1,6 @@
 # Work item: TASK-15 — atomic internal transfer
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -54,3 +54,5 @@
 ## Remediation of the Tester Major (2026-10-10)
 
 - Closed: `test_a_closed_source_account_takes_no_transfer_and_nothing_is_written` in `tests/integration/test_transfers.py` closes the source account and asserts ACCOUNT_CLOSED with no write. The mutant that drops the source status check fails it. Code commit `43ffbfb`.
+
+- Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`.

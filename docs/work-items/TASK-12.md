@@ -1,6 +1,6 @@
 # Work item: TASK-12 — startup migration, integrity, and fail-closed readiness
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -70,3 +70,5 @@
 
 - Gap closed: readiness now checks that stored idempotency responses are valid JSON (specs/05 s7) before `integrity_check`, and reports `INTEGRITY_FAILED`, not `DATABASE_UNAVAILABLE`. Regression test: `tests/integration/test_readiness.py` (malformed-row case); the test fails without the check. Code commit `43ffbfb` on branch `fix/majors-task-12-13-15`.
 - Scheduled Minor (owner Builder, trigger TASK-25): the unsupported-schema branch of `readiness_reasons` has no direct test (mutant M1 in the Tester report); add it when readiness is computed on demand.
+
+- Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`. Scheduled Minors listed above remain open.
