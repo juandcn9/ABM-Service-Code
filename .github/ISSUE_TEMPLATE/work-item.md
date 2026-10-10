@@ -29,7 +29,7 @@ assignees: []
 
 ## Implementation notes
 
-Record reversible technical choices only. A normative ambiguity becomes a Specs GAP and pauses affected work.
+Record reversible technical choices only. A normative ambiguity becomes GAP-nnnn and pauses affected work.
 
 ## Completion
 

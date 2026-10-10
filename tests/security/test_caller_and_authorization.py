@@ -268,3 +268,90 @@ def test_json_numbers_never_become_money_by_accident() -> None:
         else:
             with pytest.raises(InvalidValue):
                 Money.positive(value["v"])
+
+
+# Independent literals from specs/06-security.md section 4, so the tests do not read the table they check
+
+SPEC_MATRIX = {
+    "account_registrar": {"API-01", "API-18"},
+    "account_reader": {"API-02", "API-03"},
+    "payment_orchestrator": {
+        f"API-{n:02d}" for n in (4, 5, 6, 7, 8, 9, 10, 11, 12, 22)
+    },
+    "card_orchestrator": {"API-13", "API-14", "API-15", "API-23", "API-24"},
+    "correction_authority": {"API-16"},
+    "risk_controller": {"API-17"},
+    "reconciliation_reader": {"API-19"},
+    "retention_controller": {"LEGAL-HOLD"},
+}
+
+
+def test_each_role_holds_exactly_the_operations_the_specification_assigns_it() -> None:
+    held = {role: {op.value for op in ops} for role, ops in PERMISSIONS.items()}
+    assert held == SPEC_MATRIX
+    # spot checks that name the dangerous swaps explicitly
+    assert authorize(ctx("payment_orchestrator"), Operation.INTERNAL_TRANSFER) is None
+    assert isinstance(
+        authorize(ctx("card_orchestrator"), Operation.INTERNAL_TRANSFER), Failure
+    )
+    assert isinstance(
+        authorize(ctx("payment_orchestrator"), Operation.CARD_AUTHORIZE), Failure
+    )
+    assert isinstance(authorize(ctx("risk_controller"), Operation.CORRECTION), Failure)
+
+
+def test_only_the_two_account_reads_are_scoped_to_one_account() -> None:
+    assert ACCOUNT_SCOPED == {Operation("API-02"), Operation("API-03")}
+    assert Operation.READ_HISTORY in ACCOUNT_SCOPED
+
+
+def test_history_reads_are_limited_to_the_trusted_account_exactly_like_balance_reads() -> (
+    None
+):
+    reader = ctx("account_reader", "acct-1")
+    assert authorize(reader, Operation.READ_HISTORY, "acct-1") is None
+    for account in ("acct-2", "ACCT-1", "acct-1 ", "acct-1x", "", None):
+        assert isinstance(
+            authorize(reader, Operation.READ_HISTORY, account), Failure
+        ), account
+    assert isinstance(
+        authorize(ctx("account_reader"), Operation.READ_HISTORY, "acct-1"), Failure
+    )
+    assert isinstance(authorize(ctx("account_reader"), Operation.READ_HISTORY), Failure)
+    assert isinstance(
+        authorize(
+            ctx("reconciliation_reader", "acct-1"), Operation.READ_HISTORY, "acct-1"
+        ),
+        Failure,
+    )
+
+
+def test_strict_json_rejects_non_text_input_with_the_validation_error() -> None:
+    for raw in (None, 1, 1.5, [], {}, memoryview(b"{}"), object()):
+        with pytest.raises(InvalidValue):
+            strict_json(raw)  # type: ignore[arg-type]
+    assert strict_json(bytearray(b'{"a": 1}')) == {"a": 1}
+
+
+def test_strict_json_rejects_values_that_are_unsafe_downstream() -> None:
+    unsafe = [
+        b'{"a": 1e999}',  # Infinity by another spelling
+        b'{"a": -1e999}',
+        b'{"a": 1E+99999999999}',
+        rb'{"a": "\ud800"}',  # lone surrogate cannot be encoded to UTF-8
+        rb'{"\udfff": 1}',
+        rb'["ok", {"nested": ["\ud83d"]}]',
+    ]
+    for raw in unsafe:
+        with pytest.raises(InvalidValue):
+            strict_json(raw)
+    assert strict_json(rb'{"a": 1.5, "b": "\ud83d\ude00"}') == {
+        "a": 1.5,
+        "b": "\U0001f600",
+    }
+
+
+def test_non_mapping_header_input_is_unauthorized_not_an_exception() -> None:
+    for headers in (None, [], [("X-Caller-Id", "a")], "headers", 5):
+        result = parse_caller_context(headers)  # type: ignore[arg-type]
+        assert isinstance(result, Failure) and result.error.code == "UNAUTHORIZED"

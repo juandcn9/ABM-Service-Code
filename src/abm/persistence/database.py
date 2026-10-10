@@ -51,23 +51,25 @@ def open_database(
         raise DatabaseUnavailable("invalid busy timeout")
     conn = None
     try:
+        # sqlite3 turns the timeout into whole milliseconds by truncation; the half millisecond
+        # makes every valid value land on the requested one
         conn = sqlite3.connect(
-            str(path), isolation_level=None, timeout=busy_timeout_ms / 1000
+            str(path), isolation_level=None, timeout=(busy_timeout_ms + 0.5) / 1000
         )
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("PRAGMA synchronous = FULL")
         mode = conn.execute("PRAGMA journal_mode = WAL").fetchone()[0]
+        settings = (
+            conn.execute("PRAGMA foreign_keys").fetchone()[0],
+            conn.execute("PRAGMA synchronous").fetchone()[0],  # 2 = FULL
+            conn.execute("PRAGMA busy_timeout").fetchone()[0],
+        )
     except sqlite3.Error as exc:
         if conn is not None:
             conn.close()  # do not leak a half-configured handle
         raise DatabaseUnavailable("database could not be opened") from exc
     # an in-memory database cannot use WAL; every file database must
     wal_ok = mode == "wal" or (str(path) == ":memory:" and mode == "memory")
-    settings = (
-        conn.execute("PRAGMA foreign_keys").fetchone()[0],
-        conn.execute("PRAGMA synchronous").fetchone()[0],  # 2 = FULL
-        conn.execute("PRAGMA busy_timeout").fetchone()[0],
-    )
     if not wal_ok or settings != (1, 2, busy_timeout_ms):
         conn.close()
         raise DatabaseUnavailable("database settings were not applied")
@@ -93,7 +95,7 @@ def write_transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
 
 @contextmanager
 def read_transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
-    """One consistent read snapshot (WAL): every read inside sees the same committed state."""
+    """One read snapshot (WAL). BEGIN is deferred, so the snapshot starts at the first read."""
     conn.execute("BEGIN")
     try:
         yield conn
