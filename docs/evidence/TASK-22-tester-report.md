@@ -4,6 +4,7 @@
 
 ## Subjects
 
+- Pass 1 is recorded in `docs/evidence/TASK-22-tester-report-1.md`. This pass was committed after the merge; the review was not recorded in PR #74 before merge (see the TASK-22 work item).
 - Code: `caacace`, branch `feat/task-22-retention`. Files: `src/abm/application/retention.py`, `src/abm/application/legal_hold.py`, finalize calls in `closure.py`, `incoming_ach.py`, `outgoing_ach.py`, `cards.py`, `corrections.py`, store and port changes, and three new test files.
 - Specs: `v1.9.4`, merge `f4f4f2061739c5b2a20c0e4715f2caeecd3bb2b4`, including DEC-0046 (retention dates stored) and DEC-0047 (legal-hold refusal rule).
 - Work item: `docs/work-items/TASK-22.md` (PR #73, merged as `534ee02`).
@@ -25,7 +26,7 @@
 
 Mutants (two new files): removing the outgoing-return advance, the correction advance, or the card refund advance is caught. Changing the legal-hold refusal to a success is caught. Removing the incoming-return advance is caught only by `tests/integration/test_retention.py`, not by the new files (Minor 1).
 
-DEC-0047 check: a repeated set or clear returns `INVALID_TRANSITION`, stored, with no write. `ACCOUNT_NOT_FOUND` is stored. A `record_type` or `record_id` mismatch returns `VALIDATION_ERROR` and is not stored.
+DEC-0047 check, code against the rule as stated in the approval request: a repeated set or clear returns `INVALID_TRANSITION`, stored, with no write. `ACCOUNT_NOT_FOUND` is stored. A `record_type` or `record_id` mismatch returns `VALIDATION_ERROR` and is not stored. The reviewer did not check this against the Specs text: its clone did not contain the Specs repository, so the Specs text of DEC-0047 (`f4f4f20`) was not compared by the reviewer.
 
 ## Scheduled Minors
 

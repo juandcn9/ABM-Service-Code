@@ -48,3 +48,8 @@
 
 - Minor: the docstring of `test_retention_late_events.py` overstates coverage; the incoming return is covered only by `test_retention.py`. Owner Builder. Trigger: TASK-23.
 - Minor: README on `main` states Specs `v1.9.0`, predating the current pins. Owner Builder. Trigger: a docs-only fix before the next release.
+
+## Process record
+
+- Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
+- TASK-22 pass 1 (`07d12eb`) is recorded in `docs/evidence/TASK-22-tester-report-1.md`. Its DEC-0047 check was not made against the Specs text by the reviewer; the pass-2 record states this.

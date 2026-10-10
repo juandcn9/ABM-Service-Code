@@ -48,3 +48,7 @@
 - Minor: the post-closure settlement readiness test does not isolate its clause (the balance check flags the same row). Owner Builder. Trigger: TASK-23.
 - Same-second post-closure effects are not flagged (documented shortcut in readiness). Owner Builder. Trigger: a later hardening task (ledger sequence at closure).
 - Retention dates after closure belong to TASK-22.
+
+## Process record
+
+- Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.

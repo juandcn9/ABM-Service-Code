@@ -36,3 +36,7 @@
 
 - No production readiness claim.
 - The `specs/09` row for TASK-17 still reads Draft. Its status change is normative and needs JDC approval; it is not made here.
+
+## Process record
+
+- Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
