@@ -12,13 +12,15 @@ import pytest
 
 import abm.application as application_pkg
 from abm.application.caller import CallerContext
-from abm.application.cards import clear_card, reverse_card
+from abm.application.cards import clear_card, expire_card, refund_card, reverse_card
 from abm.application.incoming_ach import (
     return_incoming_ach,
     settle_incoming_ach,
 )
 from abm.application.outgoing_ach import (
+    cancel_outgoing_ach,
     create_outgoing_ach,
+    reject_outgoing_ach,
     return_outgoing_ach,
     settle_outgoing_ach,
     submit_outgoing_ach,
@@ -103,6 +105,12 @@ def _attempts(uow, now, account: str, movement: str, tag: str):
         "settle_outgoing": settle_outgoing_ach(
             uow, now, PAYER, f"k-so-{tag}", account, movement, ev
         ),
+        "reject_outgoing": reject_outgoing_ach(
+            uow, now, PAYER, f"k-xo-{tag}", account, movement, ev
+        ),
+        "cancel_outgoing": cancel_outgoing_ach(
+            uow, now, PAYER, f"k-co-{tag}", account, movement, ev
+        ),
         "return_outgoing": return_outgoing_ach(
             uow, now, PAYER, f"k-ro-{tag}", account, movement, give_back
         ),
@@ -115,11 +123,23 @@ def _attempts(uow, now, account: str, movement: str, tag: str):
         "card_reverse": reverse_card(
             uow, now, CARD, f"k-cr-{tag}", account, movement, ev
         ),
+        "card_expire": expire_card(
+            uow, now, CARD, f"k-ce-{tag}", account, movement, ev
+        ),
         "card_clear": clear_card(
             uow,
             now,
             CARD,
             f"k-cc-{tag}",
+            account,
+            movement,
+            {**ev, "amount_cents": 400, "currency": "USD"},
+        ),
+        "card_refund": refund_card(
+            uow,
+            now,
+            CARD,
+            f"k-cf-{tag}",
             account,
             movement,
             {**ev, "amount_cents": 400, "currency": "USD"},

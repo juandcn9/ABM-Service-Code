@@ -10,8 +10,12 @@ from abm.application.caller import CallerContext
 from abm.application.cards import authorize_card, clear_card, refund_card, reverse_card
 from abm.application.closure import close_account
 from abm.application.corrections import create_correction
-from abm.application.incoming_ach import create_incoming_ach, return_incoming_ach
-from abm.application.outgoing_ach import create_outgoing_ach
+from abm.application.incoming_ach import (
+    create_incoming_ach,
+    return_incoming_ach,
+    settle_incoming_ach,
+)
+from abm.application.outgoing_ach import create_outgoing_ach, submit_outgoing_ach
 from abm.application.risk import set_risk_restriction
 from abm.application.transfers import internal_transfer
 from abm.domain.results import Failure, Success
@@ -229,6 +233,106 @@ def test_a_movement_awaiting_settlement_blocks_closure(tmp_path):
     assert status_of(conn)[0] == "open"
 
 
+def test_a_submitted_outgoing_movement_blocks_closure(tmp_path):
+    conn, uow = setup(tmp_path)
+    create_outgoing_ach(
+        uow,
+        clock(),
+        PAYER,
+        "k-out",
+        "acct-a",
+        {
+            "instruction_id": "ins-out",
+            "movement_id": "mv-out",
+            "amount_cents": 400,
+            "currency": "USD",
+            "external_reference": "ext-out",
+            "destination_reference": "dest-1",
+        },
+    )
+    submitted = submit_outgoing_ach(
+        uow,
+        clock(),
+        PAYER,
+        "k-submit",
+        "acct-a",
+        "mv-out",
+        {"instruction_id": "ins-submit", "evidence_reference": "ev-submit"},
+    )
+    assert isinstance(submitted, Success)
+    create_correction(
+        uow,
+        clock(),
+        CORRECTOR,
+        "k-corr",
+        "acct-a",
+        {
+            "instruction_id": "ins-corr",
+            "correction_id": "cor-zero",
+            "direction": "debit",
+            "amount_cents": 1000,
+            "currency": "USD",
+            "decision_reference": "dec-zero",
+        },
+    )
+
+    result = close(uow)
+    assert isinstance(result, Failure)
+    assert result.error.code == "CLOSURE_PRECONDITION_FAILED"
+    assert status_of(conn)[0] == "open"
+
+
+def test_incoming_settlement_refuses_a_closed_account_before_writes(tmp_path):
+    conn, uow = setup(tmp_path)
+    notice = create_incoming_ach(
+        uow,
+        clock(),
+        PAYER,
+        "k-notice",
+        "acct-a",
+        {
+            "instruction_id": "ins-notice",
+            "movement_id": "mv-pending",
+            "amount_cents": 200,
+            "currency": "USD",
+            "external_reference": "ext-pending",
+        },
+    )
+    assert isinstance(notice, Success)
+    conn.execute(
+        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-a'",
+        ("2026-10-10T12:00:00Z",),
+    )
+    before = (
+        balance(conn),
+        conn.execute(
+            "SELECT state FROM movements WHERE movement_id = 'mv-pending'"
+        ).fetchone(),
+        conn.execute("SELECT COUNT(*) FROM ledger_entries").fetchone(),
+        conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone(),
+    )
+
+    result = settle_incoming_ach(
+        uow,
+        clock(),
+        PAYER,
+        "k-settle",
+        "acct-a",
+        "mv-pending",
+        {"instruction_id": "ins-settle", "evidence_reference": "ev-settle"},
+    )
+
+    assert isinstance(result, Failure) and result.error.code == "ACCOUNT_CLOSED"
+    assert (
+        balance(conn),
+        conn.execute(
+            "SELECT state FROM movements WHERE movement_id = 'mv-pending'"
+        ).fetchone(),
+        conn.execute("SELECT COUNT(*) FROM ledger_entries").fetchone(),
+        conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone(),
+    ) == before
+
+
 def test_a_closed_account_refuses_new_customer_instructions(tmp_path):
     conn, uow = setup(tmp_path)
     drain_to_zero(uow)
@@ -434,6 +538,10 @@ def test_a_post_closure_settlement_is_reported_by_readiness(tmp_path):
         " direction, amount_cents, authorized_caller_id, authorized_role, created_at)"
         " VALUES ('forbidden-after-close', 'acct-a', 'mv-drain', 'outgoing_settlement',"
         " 'debit', 1, 'pay-1', 'payment_orchestrator', '2026-10-10T13:00:00Z')"
+    )
+    # Keep the account projection consistent so only the post-closure settlement clause fails.
+    conn.execute(
+        "UPDATE accounts SET current_balance_cents = -1 WHERE account_id = 'acct-a'"
     )
     assert "INTEGRITY_FAILED" in readiness_reasons(conn, MIGRATIONS)
 

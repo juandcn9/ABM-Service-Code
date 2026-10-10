@@ -5,8 +5,11 @@ from __future__ import annotations
 import pathlib
 import sqlite3
 
+import pytest
+
 from abm.application.caller import CallerContext
 from abm.application.corrections import create_correction
+from abm.domain.money import MAX_CENTS
 from abm.domain.results import Failure, Success
 from abm.persistence.sqlite_store import SqliteUnitOfWork
 from tests.integration.store_support import clock, fund, open_started, register
@@ -62,6 +65,12 @@ def settlement_entry(conn: sqlite3.Connection, account: str) -> str:
 def test_credit_correction_appends_one_linked_entry_and_keeps_history(tmp_path):
     conn, uow = setup(tmp_path)
     before = ledger_rows(conn)
+    movements_before = conn.execute(
+        "SELECT * FROM movements ORDER BY created_at, movement_id"
+    ).fetchall()
+    traces_before = conn.execute(
+        "SELECT * FROM audit_trace ORDER BY sequence"
+    ).fetchall()
     result = create_correction(uow, clock(), CORRECTOR, "key-c1", "acct-a", body())
 
     assert isinstance(result, Success)
@@ -74,6 +83,14 @@ def test_credit_correction_appends_one_linked_entry_and_keeps_history(tmp_path):
     assert after[: len(before)] == before  # original entries unchanged
     assert len(after) == len(before) + 1
     assert after[-1][1:6] == ("acct-a", "cor-1", "correction", "credit", 500)
+    movements_after = conn.execute(
+        "SELECT * FROM movements ORDER BY created_at, movement_id"
+    ).fetchall()
+    traces_after = conn.execute(
+        "SELECT * FROM audit_trace ORDER BY sequence"
+    ).fetchall()
+    assert all(row in movements_after for row in movements_before)
+    assert traces_after[: len(traces_before)] == traces_before
 
     trace = conn.execute(
         "SELECT operation, external_reference FROM audit_trace WHERE operation = 'correction'"
@@ -169,6 +186,49 @@ def test_reused_correction_id_is_refused_without_effect(tmp_path):
     assert result.error.code == "INVALID_TRANSITION"
     assert len(ledger_rows(conn)) == entries
     assert balance(conn, "acct-a") == 1500
+
+
+def test_a_stored_invalid_transition_replays_without_a_second_effect(tmp_path):
+    conn, uow = setup(tmp_path)
+    create_correction(uow, clock(), CORRECTOR, "key-c1", "acct-a", body())
+    rejected_body = body(instruction_id="ins-c2", decision_reference="dec-2")
+    first = create_correction(
+        uow, clock(), CORRECTOR, "key-c2", "acct-a", rejected_body
+    )
+    before = (
+        ledger_rows(conn),
+        conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone(),
+    )
+    replay = create_correction(
+        uow, clock(), CORRECTOR, "key-c2", "acct-a", rejected_body
+    )
+
+    assert isinstance(first, Failure) and first.error.code == "INVALID_TRANSITION"
+    assert isinstance(replay, Failure) and replay.replayed is True
+    assert replay.error == first.error
+    assert (
+        ledger_rows(conn),
+        conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone(),
+    ) == before
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"amount_cents": 0},
+        {"amount_cents": MAX_CENTS + 1},
+        {"currency": "EUR"},
+    ],
+)
+def test_invalid_correction_money_is_not_stored(tmp_path, overrides):
+    conn, uow = setup(tmp_path)
+    before = (ledger_rows(conn), balance(conn, "acct-a"))
+    result = create_correction(
+        uow, clock(), CORRECTOR, "key-invalid", "acct-a", body(**overrides)
+    )
+
+    assert isinstance(result, Failure) and result.error.code == "VALIDATION_ERROR"
+    assert (ledger_rows(conn), balance(conn, "acct-a")) == before
 
 
 def test_reused_decision_is_refused_without_effect(tmp_path):

@@ -16,7 +16,7 @@ from abm.domain.results import Failure, Result, Success
 from abm.persistence.database import open_database
 from abm.persistence.migrations import load_migrations
 from abm.persistence.readiness import start_database
-from abm.persistence.sqlite_store import SqliteUnitOfWork
+from abm.persistence.sqlite_store import SqliteReadTransaction, SqliteUnitOfWork
 from harness.clock import ControllableClock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -478,6 +478,39 @@ def test_reads_change_nothing_and_store_no_outcome(
     get_history(uow, READER, "acct-1")
     get_trace(uow, RECON)
     assert snapshot(conn) == before
+    assert not conn.in_transaction
+
+
+@pytest.mark.parametrize(
+    ("method", "command"),
+    [
+        ("get_account", lambda uow: get_account(uow, READER, "acct-1")),
+        ("history_page", lambda uow: get_history(uow, READER, "acct-1")),
+        ("trace_cutoff", lambda uow: get_trace(uow, RECON)),
+    ],
+)
+def test_unexpected_failure_in_each_read_is_safe_and_ends_the_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+    uow: SqliteUnitOfWork,
+    conn: sqlite3.Connection,
+    method: str,
+    command,
+) -> None:
+    """TEST-28: every public read maps an unexpected adapter fault to one safe result."""
+    register(uow)
+
+    def explode(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("private injected detail")
+
+    monkeypatch.setattr(SqliteReadTransaction, method, explode)
+    result = command(uow)
+
+    assert isinstance(result, Failure)
+    assert (result.error.code, result.error.safe_message) == (
+        "INTERNAL_ERROR",
+        "An unexpected error occurred.",
+    )
+    assert "private injected detail" not in result.error.safe_message
     assert not conn.in_transaction
 
 

@@ -400,5 +400,12 @@ class SqliteUnitOfWork:
         try:
             with read_transaction(self._conn):
                 yield SqliteReadTransaction(self._conn)
+        except StorageFailure:
+            raise
         except sqlite3.Error as exc:
             raise StorageFailure(to_failure(exc)) from exc
+        # A read adapter must not leak driver, query, path, or injected exception detail.
+        except Exception as exc:
+            raise StorageFailure(
+                failure("INTERNAL_ERROR", "An unexpected error occurred.")
+            ) from exc
