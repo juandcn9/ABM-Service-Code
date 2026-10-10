@@ -1,6 +1,6 @@
 # Work item: TASK-20 — outgoing risk restriction set/clear and enforcement
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -42,7 +42,7 @@
 
 - Code PR #65, merged to `main` as `02d122f`. JDC approved the exact head `32450b8` in the session, 2026-10-10.
 - The merged tree differs from `32450b8` only by the Specs pointer PR #66 (`5b120bf`, v1.9.1) that landed on `main` before this merge. The feature code is identical to the tested head.
-- Tester record (code PASS on `32450b8`; docs review FAIL on `2b00cc3`, corrected in this revision): to be committed in `docs/evidence/TASK-20-tester-report.md` with the lifecycle record.
+- Tester record: [`docs/evidence/TASK-20-tester-report.md`](../evidence/TASK-20-tester-report.md). Code PASS on `32450b8`; docs review FAIL on `2b00cc3`, corrected in `9db0ed8`.
 - Tests: `tests/integration/test_risk_restriction.py` (8 tests). Full suite 743 passing on the tested head.
 
 ## Scheduled items
