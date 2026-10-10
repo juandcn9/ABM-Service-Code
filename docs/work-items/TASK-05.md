@@ -1,6 +1,6 @@
 # Work item: TASK-05 — Ponytail configuration and review wiring
 
-**Status:** Implemented (pin verified, 2026-10-10)
+**Status:** Implemented
 
 Resolved: the Specs now pin Ponytail `v5.1.0` (DEC-0013, merged with Specs PR #3). The installed copy was verified against the pinned tree; see Verification below. Deviation DV-01 is closed.
 
