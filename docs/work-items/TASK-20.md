@@ -50,3 +50,7 @@
 - Closed-account restriction test pinning DEC-0042 (set and clear on a closed account). Owner Builder. Trigger: TASK-21 (closure).
 - Outgoing ACH settle and return while the block is set are not tested, though the Specs permit resolution of accepted movements. Owner Builder. Trigger: TASK-23 (negative and unsupported-operation tests).
 - The clear-path trace row is not asserted (operation and `external_reference`). Owner Builder. Trigger: TASK-23.
+
+## Process record
+
+- Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
