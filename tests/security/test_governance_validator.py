@@ -21,7 +21,7 @@ WF = ".github/workflows/governance-ci.yml"
 PR = ".github/pull_request_template.md"
 POL = "docs/governance/repository-policy.md"
 WI = ".github/ISSUE_TEMPLATE/work-item.md"
-SPEC_COMMIT = "5d1cd410399a6fb0154a0117728c409cc7f2ec91"
+SPEC_COMMIT = "32befdaa710404145fa2c13128a8015da761d1f5"
 Mutation = Callable[[pathlib.Path], None]
 
 
