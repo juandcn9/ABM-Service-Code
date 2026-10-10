@@ -14,7 +14,7 @@
 ## Acceptance (paraphrased from the Specs; sources are TEST-14, TEST-16, TEST-36, TEST-38 and section 7)
 
 - Two concurrent debits against the same available funds produce at most one success and never a negative available balance (TEST-14).
-- Concurrent settlements or returns of the same movement produce exactly one ledger effect and one evidence item per movement and effect kind (TEST-36).
+- Concurrent settlements or returns of the same movement produce at most one ledger effect and at most one evidence item per movement and effect kind, while allowing the defined offset pair (settlement and return, clearing and refund) (TEST-36).
 - Injected failure after every persistence step leaves each command with all of its effects or none (TEST-16).
 - A service-busy, disk-full or simulated fault returns a safe failure and leaves no partial or orphaned effect (TEST-38).
 - Injected exceptions before and after each insert or update and before commit leave the database equal to the pre-command snapshot after reopen (section 7 rollback).
