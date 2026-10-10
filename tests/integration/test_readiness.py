@@ -177,8 +177,11 @@ def tamper(
     ]
     drop_guards(conn)
     conn.execute("PRAGMA foreign_keys = OFF")
-    for sql, params in statements:
-        conn.execute(sql, params)
+    try:
+        for sql, params in statements:
+            conn.execute(sql, params)
+    finally:
+        conn.execute("PRAGMA ignore_check_constraints = OFF")
     for sql in saved:
         conn.execute(sql)
 
@@ -295,7 +298,6 @@ HOLD = (
                     ),
                     ("f" * 64, NOW),
                 ),
-                ("PRAGMA ignore_check_constraints = OFF", ()),
             ],
             [INTEGRITY_FAILED],
         ),
@@ -397,3 +399,16 @@ def test_a_temp_object_on_the_checked_connection_is_integrity_failed(
         "CREATE TEMP VIEW shadow_probe AS SELECT 1 AS x"
     )  # invisible to the main object set
     assert readiness_reasons(conn, MIGRATIONS) == [INTEGRITY_FAILED]
+
+
+def test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported(
+    path: pathlib.Path,
+) -> None:
+    conn = start_database(path, MIGRATIONS, NOW).connection
+    assert conn is not None
+    assert reasons(conn) == []
+    conn.execute(
+        f"INSERT INTO schema_version VALUES ({len(MIGRATIONS) + 1}, '{len(MIGRATIONS) + 1:04d}_future', ?, ?)",
+        ("a" * 64, NOW),
+    )
+    assert reasons(conn) == [SCHEMA_UNSUPPORTED]

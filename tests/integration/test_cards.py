@@ -22,6 +22,7 @@ from abm.domain.results import Failure, Result, Success
 from abm.persistence.migrations import load_migrations
 from abm.persistence.readiness import readiness_reasons, start_database
 from abm.persistence.sqlite_store import SqliteUnitOfWork
+from abm.ports.storage import StorageFailure
 from harness.clock import ControllableClock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -432,3 +433,84 @@ def test_clearing_and_late_clearing_are_not_blocked_by_outgoing_blocked(
     assert data_of(step(clear_card, uow, clock, cents=400))["state"] == "cleared"
     late = step(clear_card, uow, clock, movement="mv-late", cents=400, ref="ev-cl")
     assert data_of(late)["state"] == "late_cleared"
+
+
+def test_a_refund_that_differs_from_the_clearing_is_refused_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    assert isinstance(step(clear_card, uow, clock, ref="ev-clear"), Success)
+    before = (counts(conn), balances(conn))
+    short = step(refund_card, uow, clock, cents=300, ref="ev-short")
+    assert isinstance(short, Failure) and short.error.code == "AMOUNT_MISMATCH"
+    assert (counts(conn), balances(conn)) == before
+
+
+def test_a_second_refund_is_refused_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    assert isinstance(step(clear_card, uow, clock, ref="ev-clear"), Success)
+    assert isinstance(step(refund_card, uow, clock, ref="ev-refund"), Success)
+    before = (counts(conn), balances(conn))
+    again = step(refund_card, uow, clock, ref="ev-refund-2")
+    assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
+    assert (counts(conn), balances(conn)) == before
+
+
+def test_a_refund_that_reuses_a_clearing_evidence_reference_is_refused(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    assert isinstance(step(clear_card, uow, clock, ref="ev-clear"), Success)
+    before = (counts(conn), balances(conn))
+    reused = step(refund_card, uow, clock, ref="ev-clear")
+    assert isinstance(reused, Failure) and reused.error.code == "INVALID_TRANSITION"
+    assert (counts(conn), balances(conn)) == before
+
+
+def test_authorization_on_a_closed_account_is_refused_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    conn.execute(
+        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-1'",
+        (NOW,),
+    )
+    before = (counts(conn), balances(conn))
+    closed = authorize(uow, clock)
+    assert isinstance(closed, Failure) and closed.error.code == "ACCOUNT_CLOSED"
+    assert (counts(conn), balances(conn)) == before
+
+
+def test_authorization_on_an_unknown_account_is_not_found(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    body = {
+        "instruction_id": "ia-ghost",
+        "movement_id": "mv-ghost",
+        "amount_cents": 400,
+        "currency": "USD",
+        "external_reference": "ext-ghost",
+        "merchant_reference": "merchant-1",
+    }
+    before = counts(conn)
+    missing = authorize_card(uow, clock, CARD, "ka-ghost", "ghost", body)
+    assert isinstance(missing, Failure) and missing.error.code == "ACCOUNT_NOT_FOUND"
+    assert counts(conn) == before
+
+
+def test_finalizing_a_hold_that_is_not_active_fails_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock)
+    before = (counts(conn), balances(conn))
+    with pytest.raises(StorageFailure) as raised, uow.write() as tx:
+        tx.finalize_hold("mv-missing", "released", None, NOW)
+    assert raised.value.failure.error.code == "INTERNAL_ERROR"
+    assert (counts(conn), balances(conn)) == before
