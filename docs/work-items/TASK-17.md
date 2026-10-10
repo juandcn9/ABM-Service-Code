@@ -1,6 +1,6 @@
 # Work item: TASK-17 — cross-flow idempotency conformance, exact stored-data replay, and conflict tests for every command
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -17,26 +17,22 @@
 - 400, 401, 403, 500 and 503 are never stored; a later request with the same key is evaluated fresh (TEST-15, DEC-0011).
 - Every command is covered, not only the card and transfer commands (TEST-46).
 
-## Coverage inventory (measured on `d7b31fa`)
+## Implementation
 
-| Command group | Existing replay or conflict tests | Gap |
-|---|---|---|
-| Registration (`register_account`) | 7 references | Confirm 404 and 422 replays are exact |
-| Incoming ACH (notice, settle, return) | 2 | Replay of settle and return with the stored body; 404 and 422 replays |
-| Outgoing ACH (create, submit, settle, reject, cancel, return) | 1 | Replay and conflict for each of the six operations |
-| Internal transfer | 2 | 404 and 422 replays |
-| Card (authorize, clear, reverse, expire, refund) | 10 | Reverse and expire replay and conflict |
-| Reads | 1 (reads store nothing) | Confirm reads are never stored |
-| Non-stored statuses (400, 401, 403, 500, 503) | none | Test that each is not stored and a retry is evaluated fresh |
+- Code PR #53, merged to `main` as `00e45c6` (head `5bf80f8a84d9c05426d908eeb8dcfd343392c790`, identical tree `ff73429e2f0386e1186c75a13a955cdfa7f02443`).
+- Added `tests/integration/test_idempotency_conformance.py`: 98 tests over a 16-scenario table covering every command group above. No source change.
 
-## Plan
+## Evidence
 
-1. Build one conformance table: for each command, a successful call, a replay (same key and fingerprint), a conflict (same key, one field changed), a deterministic 404 and a 422, each checked for exact replay of status and body.
-2. Add the non-stored status checks as their own tests, one per status.
-3. Each new test must fail when its replay or conflict logic is removed (mutant check).
-4. Code PR with the Builder Auditor's gates, `ponytail-review`, fresh-context review, then a Tester pass of the exact head. JDC approves the exact head.
+- Tester record: [`docs/evidence/TASK-17-tester-report.md`](../evidence/TASK-17-tester-report.md). Gates green (709 tests passed); mutants of the replay branch and a fingerprint input are caught.
+
+## Scheduled items
+
+- 401 non-stored status has no test (edge-level). Owner Builder. Trigger: a follow-up on the edge work.
+- ACCOUNT_CLOSED cases in the conformance table wait for TASK-21 (closure).
+- Closed-account card cases that set closure by direct SQL stay with TASK-21.
 
 ## Non-claims
 
-- No behavior change is expected. If a test shows a mismatch with the Specs, the Builder records a GAP and stops for JDC; the conformance test is not weakened to pass.
-- Closed-account card cases that set closure by direct SQL stay with TASK-21.
+- No production readiness claim.
+- The `specs/09` row for TASK-17 still reads Draft. Its status change is normative and needs JDC approval; it is not made here.
