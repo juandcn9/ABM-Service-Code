@@ -7,7 +7,7 @@
 - Specs version and exact SHA: `v1.9.2` / `3866d63fc22079acc040be096a760d1660eec09a`
 - TASK and affected IDs: `TASK-21`; `FR-14`; `API-18`; `INV-15`, `INV-16`, `INV-18`; `DATA-01`, `DATA-02`; `TEST-13` (closure fails with nonzero balance, active hold, or unresolved movement; eligible closure succeeds regardless of restriction, stays terminal, and admits only permitted late evidence). Governing trace: `specs/08-verification.md` section 9.1 (TASK-21 row) and `specs/09-delivery-plan.md` TASK-21.
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required.
-- Dependencies: `TASK-13` through `TASK-20` merged and recorded Implemented (true on `main`; TASK-20 at `02d122f`).
+- Dependencies: `TASK-13` through `TASK-20` merged and recorded Implemented or Verified (true on `main`; TASK-20 at `02d122f`; TASK-15 and TASK-16 are Verified in specs/09 v1.9.2).
 - Decisions in force: DEC-0044 (an unresolved movement is one of `pending`, `accepted_with_hold`, `submitted`, `authorized_with_hold`), DEC-0042 (a risk restriction is accepted on a closed account), DEC-0030 (a card refund is permitted on a closed account), specs/02 section 2 (INV-15, INV-16) and section 8 (retention starts at closure).
 
 ## Acceptance (paraphrased from the Specs)
@@ -40,8 +40,10 @@
 
 ## Implementation and evidence
 
-- Pending: Code PR on `feat/task-21-closure`, Tester pass, and JDC approval of the exact code head before merge.
+- Code PR #70 on `feat/task-21-closure`. Tester pass on head `7729b9c` found one Major: readiness reported INTEGRITY_FAILED after a permitted late clearing followed by a refund (the movement becomes `refunded`). Fixed on the next head by accepting `refunded` in the post-closure clearing clause, and covered by a test that advances the clock through clearing and refund. The Tester pass on the fixed head and JDC approval of its exact SHA are pending.
 
 ## Scheduled items
 
-- None yet. Retention dates after closure belong to TASK-22.
+- Minor: the `submitted` blocking case and the settle-side ACCOUNT_CLOSED branch (`incoming_ach.py` settle) are not tested in `test_closure.py`. Owner Builder. Trigger: TASK-23 (negative and unsupported-operation tests).
+- Same-second post-closure effects are not flagged (documented shortcut in readiness). Owner Builder. Trigger: a later hardening task (ledger sequence at closure).
+- Retention dates after closure belong to TASK-22.
