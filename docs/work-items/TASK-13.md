@@ -47,3 +47,8 @@
   - Recorded, not fixed: a credit past the schema's cents bound becomes `INTERNAL_ERROR` (no defined rejection); `external_reference` is not unique (the Specs wording 'new movement/reference' is ambiguous).
 - Residual risks: the closed-account rule for incoming evidence is a Builder decision (see above); no outgoing debit yet, so the negative-balance return path is untested.
 - Next safe action: `TASK-14` (outgoing ACH) and `TASK-15` (transfer) after this PR merges, under the one-task rule.
+
+## Independent Tester evidence
+
+- Revision: merge `487be1f`. Report: [`docs/evidence/TASK-13-tester-report.md`](../evidence/TASK-13-tester-report.md).
+- Result: PASS with findings: 0 Blocker, 2 Major (pinned Specs lacks the rules implemented; no cross-account test), 5 Minor. Status stays Implemented until the Major findings are resolved.

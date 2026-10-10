@@ -44,3 +44,8 @@
 - Major 2: the old serialization test passed without `BEGIN IMMEDIATE`. A new test has the second writer read the state inside its transaction while the first writer holds the lock. It waits, then sees the first commit. Changing to a deferred `BEGIN` fails it.
 - Minor: the read snapshot docstring now says it starts at the first read; the readback queries run inside the error handler; every SQLite result code the module maps has its own test.
 - Not changed, recorded: nested write or read inside another transaction is refused by SQLite and mapped to INTERNAL_ERROR (misuse only, no test); a body that commits on its own leaves the context manager's commit to fail (misuse only).
+
+## Independent Tester evidence
+
+- Revision: merge `5eab23f`. Report: [`docs/evidence/TASK-07-tester-report.md`](../evidence/TASK-07-tester-report.md).
+- Result: PASS with findings: 0 Blocker, 0 Major, 2 Minor. Status stays Implemented until the Major findings are resolved.

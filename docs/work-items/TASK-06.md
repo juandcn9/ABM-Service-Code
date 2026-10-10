@@ -64,3 +64,8 @@ Implemented. Final head e461c90: fresh-context review of a244215 PASS with findi
 - Probes on populated copies (no repo files changed): UPDATE of `movements` refused with no change; quoted `'schema_version'` in a trigger refused; two statements on one line both apply; a caller temp view named `schema_version` cannot make a pending migration look applied; DELETE of `ledger_entries` and `accounts` refused; an additive `CREATE TABLE` still applies.
 - CI on PR #8: push-event run on head `e461c90` passed on CPython 3.12.15 (quality-gates and validate-governance). The PR-event run tested the merge ref, not the head, and also passed.
 - Not covered: multi-process migration race (not in scope, see Scope); mutation results were produced by a scratch script that is not committed.
+
+## Independent Tester evidence
+
+- Revision: merge `45f3880`. Report: [`docs/evidence/TASK-06-tester-report.md`](../evidence/TASK-06-tester-report.md).
+- Result: PASS with findings: 0 Blocker, 0 Major, 4 Minor listed (the report summary says 3). Status stays Implemented until the Major findings are resolved.

@@ -49,3 +49,8 @@
 - Carried to later tasks (not TASK-11 defects):
   - `TASK-25`/`TASK-27`: `specs/04-api.md` (API-02, API-03) and the OpenAPI API-19 text require safe access evidence for authorized reads. Reads emit none today; the owning task must add it.
   - `TASK-13` onward (write paths): `contracts/openapi.yaml` TraceRecord requires an evidence or external reference for settlement, return, clearing and refund effects. The schema has no CHECK for this, so each write path must guarantee it.
+
+## Independent Tester evidence
+
+- Revision: merge `f201f51`. Report: [`docs/evidence/TASK-11-tester-report.md`](../evidence/TASK-11-tester-report.md).
+- Result: PASS with findings: 0 Blocker, 0 Major, 4 Minor. Status stays Implemented until the Major findings are resolved.

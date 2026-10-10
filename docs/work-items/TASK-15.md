@@ -45,3 +45,8 @@
 - Destination credit: one trace row per ledger effect (the source debit and the destination credit), so reconciliation sees both ledger IDs. Test `test_both_ledger_effects_appear_in_the_trace`. Builder choice; reversible.
 - Insufficient funds: the test now asserts the stored outcome row.
 - Pin: the branch merges `main` after PR #23, so the work item's `v1.3.0` pin is the code's pin.
+
+## Independent Tester evidence
+
+- Revision: merge `436ee56`. Report: [`docs/evidence/TASK-15-tester-report.md`](../evidence/TASK-15-tester-report.md).
+- Result: PASS with findings: 0 Blocker, 1 Major (no test for a closed source account), 3 Minor. Status stays Implemented until the Major findings are resolved.
