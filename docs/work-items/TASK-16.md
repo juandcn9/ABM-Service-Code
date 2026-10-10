@@ -1,6 +1,6 @@
 # Work item: TASK-16 — card authorization, clearing, reversal, expiry, late clearing, and refund
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -38,3 +38,8 @@
 - Review findings/resolution: fresh-context review of the final head `8827002`: no Blocker or Major. Its one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest 590, ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. Minor findings are listed in the Specs status file. The committed report is [`docs/evidence/TASK-16-tester-report.md`](../evidence/TASK-16-tester-report.md).
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
 - Next safe action: JDC decides whether TASK-16 becomes Verified on the merged head (the Tester evidence covers `92dc02f`; see the report). Then continue with the next task JDC selects (see the Specs status file).
+
+## Verification (2026-10-10, JDC decision, recorded as DEC-0038 in Specs)
+
+- JDC decided TASK-16 is Verified on merged head `0ce8071` (PR #43), on the Tester pass in `docs/evidence/TASK-16-tester-report-2.md` (PR #44). The decision is recorded in the Specs repository as DEC-0038.
+- The Minors listed in PR #41 remain open and scheduled; they do not block this status.
