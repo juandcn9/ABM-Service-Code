@@ -248,7 +248,7 @@ def test_a_late_clearing_after_reversal_posts_one_debit_without_a_hold(
     assert data["state"] == "late_cleared"
     assert balances(conn) == (600, 0)
     # the response reports the same balances as the database: no hold is released or created
-    account = data["accounts"][0]
+    account = data["accounts"][0]  # type: ignore[index]
     assert account["current_balance_cents"] == 600
     assert account["held_balance_cents"] == 0
     assert account["available_balance_cents"] == 600
