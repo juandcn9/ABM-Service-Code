@@ -4,7 +4,7 @@ Provenance: fresh-context Tester run on 2026-10-10, read-only, did not build the
 
 Revision verified: merge commit `17ffbcfc1cfbd5d4ce4cbf3247cd5c7f9eeb5ea1` (PR #14, `task-10-registration`, merged to `main`). HEAD of the detached worktree confirmed equal to this SHA. Work item: `docs/work-items/TASK-10.md` at that commit. Specs pin: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91` (commit exists in the Specs repo; the Specs repo HEAD was a later commit, not used as the pin).
 
-Environment: Windows 11 Home 10.0.26300; Python 3.12.10 from the repo `.venv` (`C:\Users\juand\OneDrive\EFEX\ABM-Service-Code\.venv\Scripts\python.exe`); pytest run with `-p no:cacheprovider`; mutants run in a separate copy of `src`, `tests`, `harness`, `migrations`, `pyproject.toml`. Other agents' pytest processes were active on the machine during the run; they did not touch this worktree's results.
+Environment: Windows 11 Home 10.0.26300; Python 3.12.10 from the repo `.venv` (`.venv/Scripts/python.exe`); pytest run with `-p no:cacheprovider`; mutants run in a separate copy of `src`, `tests`, `harness`, `migrations`, `pyproject.toml`. Other agents' pytest processes were active on the machine during the run; they did not touch this worktree's results.
 
 ## Result
 
