@@ -301,3 +301,16 @@ def test_the_database_is_ready_after_transfers_and_a_restart(
     assert reopened.ready and reopened.connection is not None
     assert readiness_reasons(reopened.connection, MIGRATIONS) == []
     assert balances(reopened.connection) == {"acct-a": (500, 0), "acct-b": (500, 0)}
+
+
+def test_a_reused_movement_id_under_a_new_key_is_invalid_transition(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    ready_setup(uow, clock)
+    assert isinstance(transfer(uow, clock), Success)
+    before = counts(conn)
+    again = transfer(uow, clock, key="kt-new", instruction="ins-t-new")
+    assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
+    # the refusal is a deterministic rejection: only its stored outcome is added (DEC-0025)
+    assert counts(conn)[:3] == before[:3]
+    assert balances(conn) == {"acct-a": (700, 0), "acct-b": (300, 0)}

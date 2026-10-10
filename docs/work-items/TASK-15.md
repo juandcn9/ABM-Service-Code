@@ -6,7 +6,7 @@
 
 - Specs version and exact SHA: `v1.3.0` / `8250d21d5c800a31f5dab4bdd1a31bfeb396a056`
 - TASK and affected IDs: `TASK-15`; `FR-06`; `API-12`; `INV-07`, `INV-10`; `DATA-02`, `DATA-04`
-- Decision, gap, or risk records: none new; the duplicate-movement code is an open decision (see below)
+- Decision, gap, or risk records: DEC-0025 (a reused movement id is `INVALID_TRANSITION`, declared on API-12, JDC option A)
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required
 
 ## Scope
@@ -28,7 +28,7 @@
 - The source must be unrestricted and have available funds (current minus active holds); the destination only needs to be open.
 - Builder decisions for review:
   - Same source and destination is `VALIDATION_ERROR` (400), not stored, because the contract declares no code for it on this operation.
-  - A reused movement id is `INVALID_TRANSITION`. The contract declares only `IDEMPOTENCY_CONFLICT` for API-12, so this stored code is undeclared. This is the same gap DEC-0023 closed for outgoing; it needs the same JDC decision (open).
+  - A reused movement id is `INVALID_TRANSITION`, declared on API-12 by DEC-0025 (Specs v1.3.0 plus DEC-0025).
 - Installed Ponytail plugin 5.1.0 (`full`) and local Python 3.12.10 are recorded; CI runs the pinned 3.12.15.
 
 ## Completion
@@ -36,5 +36,5 @@
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: locally `pytest` 570 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py` pass.
 - Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
-- Residual risks: the undeclared duplicate-movement code (open decision); no concurrency test (TASK-18).
+- Residual risks: no concurrency test (TASK-18).
 - Next safe action: review and Tester of the final head; then `TASK-16` (card) after this PR merges.
