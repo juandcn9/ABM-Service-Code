@@ -16,7 +16,7 @@ from abm.application.idempotency import Response, run_idempotent, scope_key
 from abm.domain.errors import InvalidValue
 from abm.domain.fingerprint import fingerprint
 from abm.domain.identifiers import opaque_id
-from abm.domain.money import require_usd
+from abm.domain.money import MAX_CENTS, require_usd
 from abm.domain.results import Result, Success, failure
 from abm.ports.clock import Clock
 from abm.ports.storage import (
@@ -28,7 +28,6 @@ from abm.ports.storage import (
     WriteTransaction,
 )
 
-MAX_CENTS = 9_007_199_254_740_991
 NOTICE = "create_incoming_ach"
 SETTLE = "settle_incoming_ach"
 RETURN = "return_incoming_ach"

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pathlib
 import sqlite3
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -20,6 +21,7 @@ from abm.domain.results import Failure, Result, Success
 from abm.persistence.migrations import load_migrations
 from abm.persistence.readiness import readiness_reasons, start_database
 from abm.persistence.sqlite_store import SqliteUnitOfWork
+from abm.ports.storage import UnitOfWork
 from harness.clock import ControllableClock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -287,13 +289,21 @@ def test_a_closed_account_takes_no_new_incoming_movement(
     assert counts(conn)[0] == 0
 
 
-def test_a_caller_without_the_role_is_refused_before_any_write(
-    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+class _Untouchable:
+    """A unit of work that fails the test if authorization lets a request reach storage."""
+
+    def write(self) -> None:
+        raise AssertionError("storage was reached")
+
+    def read(self) -> None:
+        raise AssertionError("storage was reached")
+
+
+def test_a_caller_without_the_role_is_refused_before_any_storage_access(
+    clock: ControllableClock,
 ) -> None:
-    registered(uow, clock)
-    before = counts(conn)
     denied = create_incoming_ach(
-        uow,
+        cast(UnitOfWork, _Untouchable()),
         clock,
         REGISTRAR,
         "key-d",
@@ -307,7 +317,6 @@ def test_a_caller_without_the_role_is_refused_before_any_write(
         },
     )
     assert isinstance(denied, Failure) and denied.error.code == "FORBIDDEN_SCOPE"
-    assert counts(conn) == before
 
 
 @pytest.mark.parametrize(
@@ -370,3 +379,47 @@ def test_the_database_is_ready_after_a_full_lifecycle_and_a_restart(
         readiness_reasons(reopened.connection, load_migrations(ROOT / "migrations"))
         == []
     )
+    outcome = reopened.connection.execute(
+        "SELECT outcome FROM audit_trace WHERE operation = 'return_incoming_ach'"
+    ).fetchone()
+    assert outcome == ("accepted",)
+
+
+def test_settlement_records_its_trace_entry_with_the_credit_and_evidence(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    registered(uow, clock)
+    notice(uow, clock)
+    settle(uow, clock)
+    row = conn.execute(
+        "SELECT operation, movement_state, evidence_reference, ledger_entry_id, outcome"
+        " FROM audit_trace WHERE operation = 'settle_incoming_ach'"
+    ).fetchone()
+    assert row is not None
+    assert row[1:3] == ("settled", "ev-1") and row[4] == "accepted"
+    assert conn.execute("SELECT entry_id FROM ledger_entries").fetchone() == (row[3],)
+
+
+@pytest.mark.parametrize("operation", ["settle", "return"])
+def test_a_closed_account_takes_no_settlement_or_return(
+    uow: SqliteUnitOfWork,
+    conn: sqlite3.Connection,
+    clock: ControllableClock,
+    operation: str,
+) -> None:
+    registered(uow, clock)
+    notice(uow, clock)
+    if operation == "return":
+        settle(uow, clock)
+    conn.execute(
+        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-1'",
+        (NOW,),
+    )
+    before = counts(conn)
+    result = (
+        settle(uow, clock, evidence="ev-c", key="key-c")
+        if operation == "settle"
+        else give_back(uow, clock, evidence="ev-c", key="key-c")
+    )
+    assert isinstance(result, Failure) and result.error.code == "ACCOUNT_CLOSED"
+    assert counts(conn)[:4] == before[:4]
