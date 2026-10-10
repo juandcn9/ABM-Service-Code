@@ -91,6 +91,7 @@ class NewMovement:
     destination_reference: str | None = None
     counterparty_account_id: str | None = None
     merchant_reference: str | None = None
+    decision_reference: str | None = None
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,7 @@ class LedgerPost:
     caller_id: str
     caller_role: str
     external_reference: str | None
+    correction_of_entry_id: str | None = None
 
 
 class WriteTransaction(Protocol):
@@ -132,6 +134,14 @@ class WriteTransaction(Protocol):
     def get_movement(self, movement_id: str) -> MovementRecord | None: ...
 
     def create_movement(self, movement: NewMovement, created_at: str) -> None: ...
+
+    def decision_reference_taken(self, decision_reference: str) -> bool:
+        """True if a correction already uses this decision (one correction per decision)."""
+        ...
+
+    def ledger_entry_account(self, entry_id: str) -> str | None:
+        """The account of one ledger entry, or None if no such entry exists."""
+        ...
 
     def set_movement_state(
         self, movement_id: str, state: str, updated_at: str

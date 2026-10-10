@@ -129,8 +129,8 @@ class SqliteWriteTransaction:
         self._conn.execute(
             "INSERT INTO movements (movement_id, account_id, counterparty_account_id,"
             " movement_type, state, amount_cents, currency, external_reference,"
-            " destination_reference, merchant_reference, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?)",
+            " destination_reference, merchant_reference, decision_reference, created_at,"
+            " updated_at) VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?)",
             (
                 movement.movement_id,
                 movement.account_id,
@@ -141,10 +141,24 @@ class SqliteWriteTransaction:
                 movement.external_reference,
                 movement.destination_reference,
                 movement.merchant_reference,
+                movement.decision_reference,
                 created_at,
                 created_at,
             ),
         )
+
+    def decision_reference_taken(self, decision_reference: str) -> bool:
+        row = self._conn.execute(
+            "SELECT 1 FROM movements WHERE decision_reference = ? AND movement_type = 'correction'",
+            (decision_reference,),
+        ).fetchone()
+        return row is not None
+
+    def ledger_entry_account(self, entry_id: str) -> str | None:
+        row = self._conn.execute(
+            "SELECT account_id FROM ledger_entries WHERE entry_id = ?", (entry_id,)
+        ).fetchone()
+        return None if row is None else row[0]
 
     def set_movement_state(self, movement_id: str, state: str, updated_at: str) -> None:
         self._conn.execute(
@@ -172,7 +186,8 @@ class SqliteWriteTransaction:
         self._conn.execute(
             "INSERT INTO ledger_entries (entry_id, account_id, movement_id, effect_kind,"
             " direction, amount_cents, authorized_caller_id, authorized_role,"
-            " external_reference, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " external_reference, correction_of_entry_id, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 post.entry_id,
                 post.account_id,
@@ -183,6 +198,7 @@ class SqliteWriteTransaction:
                 post.caller_id,
                 post.caller_role,
                 post.external_reference,
+                post.correction_of_entry_id,
                 created_at,
             ),
         )
