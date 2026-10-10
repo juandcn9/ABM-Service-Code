@@ -1,6 +1,6 @@
 # TASK-22 Tester report, pass 1
 
-**Verdict: conditional PASS on head `07d12eb`** (Code PR #74). Two Majors, both resolved before merge: Major 1 by tests (in `caacace`), Major 2 by DEC-0047 (a Specs decision, not a code change). Stored as its own record because the merge rule requires review evidence before merge. This record was committed after the merge (see the process record in the TASK-22 work item).
+**Verdict: conditional PASS on head `07d12eb`** (Code PR #74). Two Majors, both resolved before the merge of PR #74: Major 1 by tests (in `caacace`), Major 2 by DEC-0047 (a Specs decision, not a code change). Stored as its own record because the merge rule requires review evidence before merge. This record was committed after the merge (see the process record in the TASK-22 work item).
 
 ## Subjects
 
@@ -10,10 +10,12 @@
 
 ## Gate results (`07d12eb`)
 
+The file count is ruff's own count of the files it checked; the tree holds 69 `.py` files, and that count (not ruff's) is the reproducible figure.
+
 | Gate | Command | Exit | Result |
 |---|---|---|---|
 | Lint | `python -m ruff check .` | 0 | All checks passed |
-| Format | `python -m ruff format --check .` | 0 | 118 files already formatted |
+| Format | `python -m ruff format --check .` | 0 | ruff reports all checked files as formatted (ruff's count: 118) |
 | Types | `python -m mypy src harness tests scripts` | 0 | 67 source files, no issues |
 | Tests | `python -m pytest -q` | 0 | 765 passed |
 | Governance | `python scripts/validate_governance.py` | 0 | Passed (Specs pointer v1.9.3) |

@@ -20,7 +20,7 @@
 | Command | Exit | Result |
 |---|---|---|
 | `ruff check .` | 0 | All checks passed |
-| `ruff format --check .` | 0 | 120 files already formatted |
+| `ruff format --check .` | 0 | ruff reports all checked files as formatted (ruff's count: 120) |
 | `mypy src harness tests scripts` | 0 | No issues in 69 source files |
 | `pytest -q` | 0 | 770 passed |
 | `scripts/validate_governance.py` | 0 | Passed |
@@ -44,12 +44,14 @@ DEC-0047 check, code against the rule as stated in the approval request: a repea
 
 ## Merged tree (`origin/main` at `b275ee9`)
 
+The file count is ruff's own count of the files it checked; the tree holds 69 `.py` files, and that count (not ruff's) is the reproducible figure.
+
 Run after the merge, on a detached worktree of `origin/main`. The tree contains the merged Code (`9811a61`, PR #74) plus later pointer and docs commits (PRs #75, #76). Python: the main checkout's `.venv`.
 
 | Command | Exit | Result |
 |---|---|---|
 | `ruff check .` | 0 | All checks passed |
-| `ruff format --check .` | 0 | 122 files already formatted |
+| `ruff format --check .` | 0 | ruff reports all checked files as formatted (ruff's count: 122) |
 | `mypy src harness tests scripts` | 0 | No issues in 69 source files |
 | `scripts/validate_governance.py` | 0 | Passed |
 | `pytest -q` | 0 | 770 passed |
