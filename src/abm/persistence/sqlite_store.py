@@ -10,9 +10,13 @@ from contextlib import contextmanager
 from abm.persistence.database import read_transaction, to_failure, write_transaction
 from abm.ports.storage import (
     AccountRecord,
+    AccountSnapshot,
     HoldRecord,
+    LedgerPost,
     LedgerRow,
+    MovementRecord,
     NewAccount,
+    NewMovement,
     StorageFailure,
     StoredOutcome,
     TraceEntry,
@@ -97,6 +101,93 @@ class SqliteWriteTransaction:
                 entry.external_reference,
                 entry.occurred_at,
             ),
+        )
+
+    def account_snapshot(self, account_id: str) -> AccountSnapshot | None:
+        row = self._conn.execute(
+            "SELECT status, current_balance_cents FROM accounts WHERE account_id = ?",
+            (account_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        held = self._conn.execute(
+            "SELECT COALESCE(SUM(amount_cents), 0) FROM holds"
+            " WHERE account_id = ? AND state = 'active'",
+            (account_id,),
+        ).fetchone()[0]
+        return AccountSnapshot(row[0], row[1], held)
+
+    def get_movement(self, movement_id: str) -> MovementRecord | None:
+        row = self._conn.execute(
+            "SELECT movement_id, account_id, movement_type, state, amount_cents,"
+            " external_reference FROM movements WHERE movement_id = ?",
+            (movement_id,),
+        ).fetchone()
+        return None if row is None else MovementRecord(*row)
+
+    def create_movement(self, movement: NewMovement, created_at: str) -> None:
+        self._conn.execute(
+            "INSERT INTO movements (movement_id, account_id, movement_type, state,"
+            " amount_cents, currency, external_reference, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, 'USD', ?, ?, ?)",
+            (
+                movement.movement_id,
+                movement.account_id,
+                movement.movement_type,
+                movement.state,
+                movement.amount_cents,
+                movement.external_reference,
+                created_at,
+                created_at,
+            ),
+        )
+
+    def set_movement_state(self, movement_id: str, state: str, updated_at: str) -> None:
+        self._conn.execute(
+            "UPDATE movements SET state = ?, updated_at = ? WHERE movement_id = ?",
+            (state, updated_at, movement_id),
+        )
+
+    def evidence_reference_taken(self, evidence_reference: str) -> bool:
+        row = self._conn.execute(
+            "SELECT 1 FROM movement_evidence WHERE evidence_reference = ?",
+            (evidence_reference,),
+        ).fetchone()
+        return row is not None
+
+    def add_evidence(
+        self, evidence_reference: str, movement_id: str, kind: str, occurred_at: str
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO movement_evidence (evidence_reference, movement_id, evidence_kind,"
+            " occurred_at) VALUES (?, ?, ?, ?)",
+            (evidence_reference, movement_id, kind, occurred_at),
+        )
+
+    def post_ledger(self, post: LedgerPost, created_at: str) -> None:
+        self._conn.execute(
+            "INSERT INTO ledger_entries (entry_id, account_id, movement_id, effect_kind,"
+            " direction, amount_cents, authorized_caller_id, authorized_role,"
+            " external_reference, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                post.entry_id,
+                post.account_id,
+                post.movement_id,
+                post.effect_kind,
+                post.direction,
+                post.amount_cents,
+                post.caller_id,
+                post.caller_role,
+                post.external_reference,
+                created_at,
+            ),
+        )
+
+    def apply_balance(self, account_id: str, delta_cents: int) -> None:
+        self._conn.execute(
+            "UPDATE accounts SET current_balance_cents = current_balance_cents + ?"
+            " WHERE account_id = ?",
+            (delta_cents, account_id),
         )
 
 
