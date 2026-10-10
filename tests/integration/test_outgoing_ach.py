@@ -156,6 +156,28 @@ def test_insufficient_funds_is_refused_and_only_the_outcome_is_stored(
     assert counts(conn)[:4] == before[:4] and counts(conn)[4] == before[4]
 
 
+def test_an_existing_hold_reduces_the_funds_available_to_a_new_acceptance(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    assert (
+        data_of(
+            create(uow, clock, movement="mv-1", cents=600, key="k1", instruction="i1")
+        )["state"]
+        == "accepted_with_hold"
+    )
+    before = counts(conn)
+    refused = create(uow, clock, movement="mv-2", cents=500, key="k2", instruction="i2")
+    assert isinstance(refused, Failure) and refused.error.code == "INSUFFICIENT_FUNDS"
+    assert counts(conn) == before
+    assert (
+        data_of(
+            create(uow, clock, movement="mv-3", cents=400, key="k3", instruction="i3")
+        )["state"]
+        == "accepted_with_hold"
+    )
+
+
 def test_a_restricted_or_closed_account_takes_no_new_outgoing_movement(
     uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
 ) -> None:

@@ -171,8 +171,6 @@ _DENIED_ACTIONS = frozenset(
         sqlite3.SQLITE_CREATE_TEMP_INDEX,
         sqlite3.SQLITE_CREATE_VTABLE,
         # destructive work on any table: the Specs permit no destructive migration (specs/05 s.8).
-        # shortcut: ALTER TABLE is refused for all tables because SQLite reports ADD COLUMN and
-        # DROP COLUMN alike, upgrade to allow ADD COLUMN once told apart
         sqlite3.SQLITE_DROP_TABLE,
         sqlite3.SQLITE_DROP_INDEX,
         sqlite3.SQLITE_DROP_VIEW,
