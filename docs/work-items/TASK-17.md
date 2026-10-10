@@ -19,7 +19,7 @@
 
 ## Implementation
 
-- Code PR #53, merged to `main` as `00e45c6` (head `5bf80f8a84d9c05426d908eeb8dcfd343392c790`, identical tree `ff73429e2f0386e1186c75a13a955cdfa7f02443`).
+- JDC approved Code PR #53 at its exact head `5bf80f8a84d9c05426d908eeb8dcfd343392c790` (2026-10-10). Code PR #53, merged to `main` as `00e45c6` (head `5bf80f8a84d9c05426d908eeb8dcfd343392c790`, identical tree `ff73429e2f0386e1186c75a13a955cdfa7f02443`).
 - Added `tests/integration/test_idempotency_conformance.py`: 98 tests over a 16-scenario table covering every command group above. No source change.
 
 ## Evidence
