@@ -65,3 +65,8 @@
 
 - Revision: merge `e996304`. Report: [`docs/evidence/TASK-12-tester-report.md`](../evidence/TASK-12-tester-report.md).
 - Result: PASS with findings: 0 Blocker, 1 Major (stored-idempotency JSON check not implemented, Specs 05 s7), 4 Minor. Status stays Implemented until the Major findings are resolved.
+
+## Remediation of the Tester Major (2026-10-10)
+
+- Gap closed: readiness now checks that stored idempotency responses are valid JSON (specs/05 s7) before `integrity_check`, and reports `INTEGRITY_FAILED`, not `DATABASE_UNAVAILABLE`. Regression test: `tests/integration/test_readiness.py` (malformed-row case); the test fails without the check. Code commit `43ffbfb` on branch `fix/majors-task-12-13-15`.
+- Scheduled Minor (owner Builder, trigger TASK-25): the unsupported-schema branch of `readiness_reasons` has no direct test (mutant M1 in the Tester report); add it when readiness is computed on demand.

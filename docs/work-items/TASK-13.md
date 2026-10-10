@@ -52,3 +52,8 @@
 
 - Revision: merge `487be1f`. Report: [`docs/evidence/TASK-13-tester-report.md`](../evidence/TASK-13-tester-report.md).
 - Result: PASS with findings: 0 Blocker, 2 Major (pinned Specs lacks the rules implemented; no cross-account test), 5 Minor. Status stays Implemented until the Major findings are resolved.
+
+## Remediation of the Tester Majors (2026-10-10)
+
+- F2 closed: tests `test_another_accounts_movement_is_not_found_for_settlement_or_return` in `tests/integration/test_incoming_ach.py` cover settlement and return through another account's id (MOVEMENT_NOT_FOUND, no write). Each owner-check mutant fails the test. Code commit `43ffbfb`.
+- F1 (traceability) resolved by reference: the rules the Tester found missing from the pinned v1.0.1 (closed-account late return, duplicate movement) are in later Specs releases: DEC-0014 and DEC-0015 (v1.6.0 and later). The Code pin is `v1.7.0` (eb345c8 on main). This work item still cites v1.0.1 for its original scope; the rules it implements are cited at the later pin.
