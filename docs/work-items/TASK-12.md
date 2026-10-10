@@ -36,14 +36,14 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR is opened after the `TASK-06` through `TASK-10` PRs merge.
-- Commands/checks and results: locally `pytest` 457 passed in this branch (includes the merged earlier tasks), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
-- Review findings/resolution: pending (`ponytail-review`, fresh-context review, Tester verification of the final head).
+- Commands/checks and results: locally `pytest` 460 passed in this branch (CI 460 passed on the head) (includes the merged earlier tasks), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
+- Review findings/resolution: fresh-context review of ce8b25d (FAIL: three Majors, all fixed in eb1a4e8); focused re-review of eb1a4e8 PASS with findings (no Blocker or Major); independent Tester pass of eb1a4e8 PASS (CI green on CPython 3.12.15). Not run: `ponytail-review` for this branch (DV-01 applies).
 - Residual risks: a very large database makes `PRAGMA integrity_check` slow at startup (acceptable for the single-writer demonstration, `RISK-0001`); the inconsistency queries encode the Builder's reading of `specs/05` section 7 and need a Tester pass against the Specs; readiness is computed on demand, so caching or rate limiting for the health route is a `TASK-25`/`TASK-26` decision.
 - Next safe action: `TASK-11` (account reads and trace sequencing), after this PR merges.
 
 ## Wiring added before merge
 
-- `readiness_reasons` now calls `retained_history_protected()` (deferred from TASK-06). A guard trigger removed or a retained table altered outside the runner reports `INTEGRITY_FAILED`; the Specs' six reason codes are unchanged. Covered by `test_a_guard_trigger_removed_outside_the_runner_is_not_ready`.
+- `readiness_reasons` now calls `retained_history_protected()` (deferred from TASK-06). A guard trigger removed or a retained table altered outside the runner reports `INTEGRITY_FAILED`; the Specs' six reason codes are unchanged. The object-set check catches a dropped trigger first, so `test_a_guard_trigger_removed_outside_the_runner_is_not_ready` does not exercise this call; `test_a_temp_object_on_the_checked_connection_is_integrity_failed` does.
 - The direct-corruption test helper drops guard triggers to insert bad rows; that now counts as tampering, so the missing-account case expects `INTEGRITY_FAILED` as well as `FOREIGN_KEY_FAILED`.
 
 
