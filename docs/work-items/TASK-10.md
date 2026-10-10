@@ -46,3 +46,8 @@
 
 - `TASK-25` (API edge): `run_idempotent` lets unexpected exceptions from the instruction propagate after rollback. The edge must map them to the safe `INTERNAL_ERROR` response that `specs/04` requires.
 - Scope key label: the stored scope hashes `register_account` as the operation name, while the Specs pair is `customer_id` + `registration`. Internal and deterministic; recorded here so the Updater can confirm the label.
+
+## Independent Tester evidence
+
+- Revision: merge `17ffbcf`. Report: [`docs/evidence/TASK-10-tester-report.md`](../evidence/TASK-10-tester-report.md).
+- Result: PASS with findings: 0 Blocker, 0 Major, 3 Minor. Status stays Implemented until the Major findings are resolved.

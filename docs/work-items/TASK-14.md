@@ -53,3 +53,8 @@
 - Mutation checks (Tester, PR #22 head ddd3002): settlement not finalizing the hold: 4 failed; submission finalizing the hold: 3 failed; return skipping the amount check: 1 failed; outgoing create without the funds check: 1 failed; the column-layout check (migration step 7) removed: 0 failed on that head, now killed by 3 tests (the column-change attacks in the permissive matrix and the synthetic layout cases).
 - Residual risks: no concurrency test (TASK-18); outgoing restriction is exercised only through the stored value; the migration probe covers a populated database that already holds a movement.
 - Next safe action: a fresh review and Tester pass on the merged head `c8a41d9`, recorded before this task is Verified.
+
+## Independent Tester evidence
+
+- Revision: merge `a893cc3`. Report: [`docs/evidence/TASK-14-tester-report.md`](../evidence/TASK-14-tester-report.md).
+- Result: PASS with findings: 0 Blocker, 1 Major (pin v1.2.0 lacks DEC-0023 and DEC-0024), 4 Minor. Status stays Implemented until the Major findings are resolved.

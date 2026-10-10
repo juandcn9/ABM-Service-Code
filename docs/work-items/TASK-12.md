@@ -60,3 +60,8 @@
 - Minor: the controlled-codes test no longer asserts a string check that could never fail.
 - Recorded, not changed: a non-migration exception from `apply_migrations` (or a rollback error) escapes `start_database` without a result; no connection is returned, so it is not fail-open. The static-scan waiver for `readiness.py` is file-wide (the fixed-statement rule); formatted-SQL detection still applies to the file.
 - The temp-object check on the readiness connection is covered by `test_a_temp_object_on_the_checked_connection_is_integrity_failed`.
+
+## Independent Tester evidence
+
+- Revision: merge `e996304`. Report: [`docs/evidence/TASK-12-tester-report.md`](../evidence/TASK-12-tester-report.md).
+- Result: PASS with findings: 0 Blocker, 1 Major (stored-idempotency JSON check not implemented, Specs 05 s7), 4 Minor. Status stays Implemented until the Major findings are resolved.
