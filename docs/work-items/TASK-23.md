@@ -41,7 +41,7 @@ Structured safe security evidence for rejected commands is an observability arti
 - Focused tests: safe write/read fault injection; unsupported-operation and full substitution matrix; governance-validator mutations; TASK-19 through TASK-22 scheduled negative cases.
 - Reused tests: `tests/security/test_caller_and_authorization.py`, `tests/security/test_sql_static_scan.py`, `tests/unit/test_identifiers.py`, `tests/integration/test_migrations.py`, `tests/integration/test_migration_protections.py`, `tests/integration/test_migration_runner_edges.py`, and `tests/integration/test_readiness.py`.
 - Required broader gates: governance validator, Ruff check/format, mypy, complete pytest suite, CI checks, independent exact-head review, and no open Blocker or Major.
-- Code PR and implementation evidence: PR #79; implementation commit `3072eecf4ca319160d8a0893ca0d632e8f90d8c4`, based on the Specs-pointer merge `010b40fbdae97befcd8e87090fe4c4ce94eb1e7d`.
+- Code PR and implementation evidence: PR #79; implementation commits `3072eecf4ca319160d8a0893ca0d632e8f90d8c4` and `115301df2f057c4dc756af08cc8400ca523ab8ef`, based on the Specs-pointer merge `010b40fbdae97befcd8e87090fe4c4ce94eb1e7d`.
 - Local result before the documentation commit: governance PASS; Ruff and mypy PASS; 789 tests PASS on Python 3.12.14. Exact-head CI and independent review remain required before JDC approval.
 
 ## Non-claims
@@ -52,6 +52,6 @@ Structured safe security evidence for rejected commands is an observability arti
 
 ## Completion
 
-- Review findings: the first fresh-context review found three Majors—unsafe unexpected read exceptions, incomplete movement-substitution coverage, and incomplete scheduled/evidence closure. All are addressed in implementation commit `3072eecf4ca319160d8a0893ca0d632e8f90d8c4`; exact-head re-review is pending.
+- Review findings: the first fresh-context review found three Majors—unsafe unexpected read exceptions, incomplete movement-substitution coverage, and incomplete scheduled/evidence closure. They are addressed in `3072eecf4ca319160d8a0893ca0d632e8f90d8c4`; `115301df2f057c4dc756af08cc8400ca523ab8ef` additionally proves every command with a correctly typed, relevant-state foreign movement. Exact-head re-review is pending.
 - Residual risks: only the explicitly assigned TASK-25, TASK-26, TASK-31, and TASK-34 facets above remain. Any missing finalizer or incomplete release rerun fails the gate.
 - Next safe action: run exact-head gates and independent review, present the exact SHA to JDC, and merge only after JDC approval without changes.
