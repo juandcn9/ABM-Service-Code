@@ -210,6 +210,9 @@ def _evidence_transition(
                 return failure(
                     "INVALID_TRANSITION", "The movement is not in the required state."
                 )
+            if closes_hold and tx.hold_state(movement) != "active":
+                # checked before any write: a refused call must move no money
+                return failure("INVALID_TRANSITION", "The movement has no active hold.")
             if tx.evidence_reference_taken(evidence):
                 return failure(
                     "INVALID_TRANSITION", "The evidence reference was already used."

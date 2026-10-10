@@ -402,3 +402,16 @@ def test_settling_a_reserved_movement_may_leave_the_balance_negative_and_stays_r
     conn.close()
     reopened = start_database(tmp_path / "abm.sqlite3", MIGRATIONS, NOW)
     assert reopened.ready and reopened.connection is not None
+
+
+def test_a_closing_transition_without_an_active_hold_moves_no_money(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    create(uow, clock)
+    evidence(submit_outgoing_ach, uow, clock)
+    conn.execute("UPDATE holds SET state = 'released', finalized_at = ?", (NOW,))
+    before = balances(conn)
+    refused = evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
+    assert isinstance(refused, Failure) and refused.error.code == "INVALID_TRANSITION"
+    assert balances(conn) == before

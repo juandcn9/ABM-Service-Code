@@ -275,6 +275,7 @@ def test_the_post_migration_verification_catches_what_the_authorizer_would_miss(
         # accepted only if the statement changed nothing retained; then 0002 is simply appended
         after = migrations_module._snapshot(conn)
         assert retained_history_protected(conn)
+        assert after.columns == before_snapshot.columns
         assert (after.rows, after.sequences, after.schema, after.temp, after.state) == (
             before_snapshot.rows,
             before_snapshot.sequences,

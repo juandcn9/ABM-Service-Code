@@ -21,7 +21,7 @@
 - Focused tests (`pytest tests/integration/test_outgoing_ach.py`, real SQLite): acceptance creates one active hold and keeps the balance, with the destination stored; insufficient funds is refused with the outcome stored and nothing else; a restricted or closed account takes no new movement; a duplicate movement id is `INVALID_TRANSITION`; submission keeps the hold active; settlement debits once and posts the hold together; settlement before submission is refused; rejection releases the hold without a debit; cancellation is allowed before submission only; a return posts one full credit after settlement; a return must equal the settled amount and follow settlement; replay of the same key creates no second hold; an injected storage fault during settlement rolls everything back; the database reopens ready after settlement and return.
 - Migration: `0002` applies to a database with an existing movement (the column is NULL); the column rejects a malformed value (`test_destination_reference_is_an_additive_nullable_column_of_the_shipped_migrations`).
 - Runner: additive `ALTER` passes and `DROP COLUMN`, a table rename, and `ALTER` on a retained table are refused (protection tests).
-- Required broader gates: local pytest (544 passed), ruff check and format, mypy `src harness tests scripts`, `validate_governance.py`; `quality-gates` and `validate-governance` on the PR head.
+- Required broader gates: local pytest (561 passed), ruff check and format, mypy `src harness tests scripts`, `validate_governance.py`; `quality-gates` and `validate-governance` on the PR head.
 - Failure and concurrency: a storage fault rolls back (tested); concurrent writers on one movement are not tested here (`TASK-18`).
 
 ## Implementation notes
@@ -40,7 +40,7 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
-- Commands/checks and results: locally `pytest` 544 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; CI results are on the PR.
+- Commands/checks and results: locally `pytest` 561 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; CI results are on the PR.
 - Review findings/resolution:
   - Fresh-context review of `ddd3002`: FAIL on four Majors. Resolved:
     - Major 1 (duplicate outgoing movement code not declared): JDC option A, DEC-0023 (Specs PR #11, merged); contract API-07 declares `INVALID_TRANSITION`.
