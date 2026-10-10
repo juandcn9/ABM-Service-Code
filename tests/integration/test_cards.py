@@ -514,3 +514,27 @@ def test_finalizing_a_hold_that_is_not_active_fails_and_writes_nothing(
         tx.finalize_hold("mv-missing", "released", None, NOW)
     assert raised.value.failure.error.code == "INTERNAL_ERROR"
     assert (counts(conn), balances(conn)) == before
+
+
+def test_a_clearing_that_reuses_an_evidence_reference_is_refused_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    authorize(uow, clock, movement="mv-a")
+    authorize(uow, clock, movement="mv-b", key="kb", instruction="ib")
+    assert isinstance(
+        step(clear_card, uow, clock, movement="mv-a", ref="ev-shared"), Success
+    )
+    before = (counts(conn), balances(conn))
+    reused = step(
+        clear_card,
+        uow,
+        clock,
+        movement="mv-b",
+        ref="ev-shared",
+        key="kb-clear",
+        instruction="ib-clear",
+    )
+    assert isinstance(reused, Failure) and reused.error.code == "INVALID_TRANSITION"
+    assert state_of(conn, "mv-b") == "authorized_with_hold"
+    assert (counts(conn), balances(conn)) == before
