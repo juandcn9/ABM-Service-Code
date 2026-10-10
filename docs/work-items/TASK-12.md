@@ -51,3 +51,12 @@
 
 - Matches `specs/05-data-model.md` section 7: projection equals signed ledger sum; holds only for outgoing ACH in `accepted_with_hold|submitted` and card in `authorized_with_hold`, and every such movement has its hold; a hold reserves its own movement's account; no active hold on a closed account; transfer source debits equal destination credits; registration trace and retention row per account; every accepted trace has a committed successful outcome.
 - Not yet checked, recorded as open: the explicit available-balance identity (posted minus active held must equal the projection; no separate column exists, so it is implied by the projection check), and the closure and finalized-effects rules, which need data from TASK-13 to TASK-21.
+
+## Review fixes (PR #15, fresh-context review of ce8b25d)
+
+- Major 1 (vacuous corruption evidence): the test helper dropped the guard triggers for every case, so the nine data checks were never the reason. `tamper()` now restores the guard triggers after the bad rows are written. Removing the inconsistency loop now fails 11 readiness tests.
+- Major 2 (wrong code for a missing object): readiness now compares the set of tables, indexes, views and triggers with the set the reviewed migrations create. A mismatch is `INTEGRITY_FAILED` and stops before the data queries, so a missing table no longer surfaces as `DATABASE_UNAVAILABLE`. Covered by `test_a_missing_table_is_integrity_failed_not_database_unavailable`.
+- Major 3 (index checks): the same object comparison covers indexes, so a dropped required index is `INTEGRITY_FAILED` (`test_a_dropped_index_is_integrity_failed`; specs/07 section 3 step 6).
+- Minor: the controlled-codes test no longer asserts a string check that could never fail.
+- Recorded, not changed: a non-migration exception from `apply_migrations` (or a rollback error) escapes `start_database` without a result; no connection is returned, so it is not fail-open. The static-scan waiver for `readiness.py` is file-wide (the fixed-statement rule); formatted-SQL detection still applies to the file.
+- The temp-object check on the readiness connection is covered by `test_a_temp_object_on_the_checked_connection_is_integrity_failed`.
