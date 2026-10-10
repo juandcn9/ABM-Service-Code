@@ -14,7 +14,7 @@
 
 - Complete the application/persistence security-negative suite for artifacts available through TASK-22: unsupported operations, authorization and scope enforcement, cross-account substitution, strict identifiers and command validation, parameterized SQL, current-artifact prohibited-data scanning, safe application errors, immutable-record protection, readiness corruption detection, and exact no-effect behavior.
 - Map unexpected write and read adapter failures to safe `INTERNAL_ERROR`; every read snapshot ends without leaking exception, SQL, or path detail.
-- Exercise every movement-bearing command against foreign and missing movements with indistinguishable failures and no state change.
+- Exercise every movement-bearing command against foreign and missing movements with indistinguishable failures and no business-state change; the required deterministic 404 outcomes remain stored.
 - Close scheduled TASK-19 through TASK-22 test gaps: stored-409 replay, correction immutability and money validation, restriction-resolution cases and clear trace, submitted-closure blocker, closed-account incoming settlement, isolated post-closure readiness, and the retention-test description.
 - Expand the repository validator from secret/card detection to high-confidence email, phone, government-identifier, and prohibited personal/bank-field patterns, with mutation tests.
 
@@ -25,7 +25,7 @@
 | TEST-20 | Application exports contain no delete/update/reopen/balance-setter operation; unsupported attempts have no mutation. | TASK-25: HTTP route absence or `UNSUPPORTED_OPERATION`. |
 | TEST-21 | Reuses TASK-09 caller-context tests: invalid context is denied before storage; application safe-error paths remain no-write. | TASK-25: trusted-header parsing and HTTP envelopes. |
 | TEST-22 | Reuses TASK-09's complete role/operation/account-scope matrix at the application boundary. | TASK-25: complete public-route matrix. |
-| TEST-23 | Every movement-bearing command refuses a foreign movement exactly like a missing movement, with no write; TASK-09 supplies path/body validation helpers. | TASK-25: path/body and cross-account cases through HTTP. |
+| TEST-23 | Every movement-bearing command refuses a foreign movement exactly like a missing movement, with no business mutation; required deterministic 404 outcomes are stored. TASK-09 supplies path/body validation helpers. | TASK-25: path/body and cross-account cases through HTTP. |
 | TEST-24 | Reuses identifier, fingerprint, money, timestamp, and command-validation tests; no invalid input has an effect. | TASK-25: transport/schema edge cases; TASK-26: safe log omission/tokenization and injection resistance. |
 | TEST-25 | Reruns TASK-04's value-formatted-SQL static mutation suite and the existing runtime injection cases. | TASK-31: release-candidate rerun. |
 | TEST-26 | The validator scans the repository, fixtures, source, expected application responses, and TASK-23 evidence for secret/card and prohibited-data patterns. | TASK-25: HTTP responses; TASK-26: runtime logs; TASK-34: final evidence bundle. |

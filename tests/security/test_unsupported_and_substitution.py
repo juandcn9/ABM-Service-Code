@@ -210,6 +210,7 @@ def setup_two(tmp_path: pathlib.Path):
         Success,
     )
     movements = {
+        "submit_outgoing": "mv-out-accepted",
         "settle_outgoing": "mv-out-submitted",
         "reject_outgoing": "mv-out-submitted",
         "cancel_outgoing": "mv-out-accepted",
@@ -234,6 +235,9 @@ def _attempts(uow, now, account: str, movements: dict[str, str], tag: str):
         "currency": "USD",
     }
     return {
+        "submit_outgoing": submit_outgoing_ach(
+            uow, now, PAYER, f"k-su-{tag}", account, movements["submit_outgoing"], ev
+        ),
         "settle_outgoing": settle_outgoing_ach(
             uow, now, PAYER, f"k-so-{tag}", account, movements["settle_outgoing"], ev
         ),
@@ -292,13 +296,21 @@ def _attempts(uow, now, account: str, movements: dict[str, str], tag: str):
 
 
 def test_a_movement_of_another_account_is_refused_exactly_like_a_missing_one(setup_two):
-    """TEST-23: no existence leak and no write when a path account names someone else's movement."""
+    """TEST-23: no existence leak or business mutation; required 404 outcomes are stored."""
     conn, uow, now, movements = setup_two
     before = (
         conn.execute("SELECT COUNT(*) FROM ledger_entries").fetchone(),
         conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone(),
         conn.execute("SELECT COUNT(*) FROM movements").fetchone(),
+        conn.execute("SELECT COUNT(*) FROM holds").fetchone(),
+        conn.execute("SELECT COUNT(*) FROM movement_evidence").fetchone(),
+        conn.execute(
+            "SELECT account_id, current_balance_cents, restriction FROM accounts ORDER BY account_id"
+        ).fetchall(),
     )
+    outcomes_before = conn.execute(
+        "SELECT COUNT(*) FROM idempotency_outcomes"
+    ).fetchone()[0]
     foreign = _attempts(uow, now, "acct-a", movements, "x")
     missing = _attempts(
         uow,
@@ -319,5 +331,14 @@ def test_a_movement_of_another_account_is_refused_exactly_like_a_missing_one(set
         conn.execute("SELECT COUNT(*) FROM ledger_entries").fetchone(),
         conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone(),
         conn.execute("SELECT COUNT(*) FROM movements").fetchone(),
+        conn.execute("SELECT COUNT(*) FROM holds").fetchone(),
+        conn.execute("SELECT COUNT(*) FROM movement_evidence").fetchone(),
+        conn.execute(
+            "SELECT account_id, current_balance_cents, restriction FROM accounts ORDER BY account_id"
+        ).fetchall(),
     )
     assert after == before
+    outcomes_after = conn.execute(
+        "SELECT COUNT(*) FROM idempotency_outcomes"
+    ).fetchone()[0]
+    assert outcomes_after == outcomes_before + 2 * len(foreign)
