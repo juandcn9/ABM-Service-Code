@@ -1,6 +1,6 @@
 # Work item: TASK-19 — append-only approved corrections and permitted negative behavior
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -40,8 +40,15 @@
 
 ## Implementation and evidence
 
-- Pending: Code PR on `feat/task-19-corrections`, Tester pass, and JDC approval of the exact head SHA before merge.
+- Code PR #62, merged to `main` as `5d2cc58` (feature head `0feb40a`, tree `9b59fa9`). JDC approved the exact head `0feb40a` in the session.
+- Work item PR #61, merged as `64b112a` (reviewed head `f8b44e9`).
+- Tester record: [`docs/evidence/TASK-19-tester-report.md`](../evidence/TASK-19-tester-report.md). Verdict PASS on `0feb40a`; gates green; three mutants caught; no Blocker or Major.
+- Tests: `tests/integration/test_corrections.py` (11 tests). Full suite 735 passing.
 
 ## Scheduled items
 
-- None yet. Closed-account correction tests (INV-16) are owned by TASK-21 (closure).
+- M-1: explicit null `corrected_entry_reference` is accepted, but the contract types it as a string. Owner Builder. Trigger: TASK-25 (HTTP binding and exact envelopes).
+- M-2: no committed test for replay of a stored 409 (`INVALID_TRANSITION`). Owner Builder. Trigger: TASK-23 (negative and unsupported-operation tests).
+- M-3: the original movement and trace rows are not asserted unchanged; no correction-level tests for zero, over-maximum or non-USD amounts. Owner Builder. Trigger: TASK-23.
+- Closed-account correction cases (INV-16) are owned by TASK-21 (closure).
+- The `specs/09` row for TASK-19 still reads Draft; its status change is normative and needs JDC approval.
