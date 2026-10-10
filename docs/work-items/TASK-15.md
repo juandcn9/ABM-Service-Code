@@ -50,3 +50,7 @@
 
 - Revision: merge `436ee56`. Report: [`docs/evidence/TASK-15-tester-report.md`](../evidence/TASK-15-tester-report.md).
 - Result: PASS with findings: 0 Blocker, 1 Major (no test for a closed source account), 3 Minor. Status stays Implemented until the Major findings are resolved.
+
+## Remediation of the Tester Major (2026-10-10)
+
+- Closed: `test_a_closed_source_account_takes_no_transfer_and_nothing_is_written` in `tests/integration/test_transfers.py` closes the source account and asserts ACCOUNT_CLOSED with no write. The mutant that drops the source status check fails it. Code commit `43ffbfb`.
