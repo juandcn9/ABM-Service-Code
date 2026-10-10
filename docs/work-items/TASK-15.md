@@ -35,9 +35,9 @@
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: locally `pytest` 572 passed on this branch; `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, `validate_governance.py` pass.
-- Review findings/resolution: pending (fresh-context review and Tester verification of the final head).
+- Review findings/resolution: the remediation (`43ffbfb`, merged in PR #37 as `b6d9fc0`) passed a fresh-context Tester pass with no Blocker or Major, and ponytail-review (Gate 8) returned Ship. The report is `docs/evidence/TASK-12-13-15-remediation-tester-report.md`.
 - Residual risks: no concurrency test (TASK-18).
-- Next safe action: TASK-15 is merged (PR #24). Record its fresh review and Tester pass before it is Verified. No such record exists yet.
+- Next safe action: none for TASK-15 (Verified). The Minors of the original review stay scheduled in the Specs status file.
 
 ## Review fixes (PR #24)
 

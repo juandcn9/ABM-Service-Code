@@ -2,7 +2,7 @@
 
 **Provenance:** a fresh-context Tester agent, read-only, run on 2026-10-10 against the merged Code head `b6d9fc0` (merge of PR #37, code commit `43ffbfb`). The agent did not write or fix the code.
 
-**Pinned Specs:** `v1.7.1` / `8c47d24c34e922154a9f5b481c32d46375b32721` (validator reported `v1.7.0` at that revision, the pin before PR #39).
+**Pinned Specs at the tested revision:** `v1.7.0` / `e6cc2c721ea5207f6488ed1dd645ac770e909f8f` (the pin on `main` at `b6d9fc0`). The v1.7.1 pointer came later in PR #39.
 
 ## Gates (venv python, `-I`)
 
@@ -35,6 +35,14 @@
 - Blocker: none. Major: none open on `b6d9fc0`.
 - Minors scheduled, not resolved here (see the work items): the PRAGMA cleanup in the new readiness case (test hygiene only); the unsupported-schema readiness test (TASK-12, trigger TASK-25); the TASK-16 Minors (TASK-17) and `finalize_hold` rowcount check (TASK-18).
 - TASK-13 F1 (traceability) is not re-verified by this pass. It is resolved only by reference in the work item, so TASK-13 stays Implemented.
+
+## Gate 8: ponytail-review of the remediation diff (`43ffbfb`)
+
+Result: Ship. No Must-fix or Should-fix finding.
+
+- The readiness JSON check is a SELECT only. It writes and repairs nothing. The `elif` skips `integrity_check` only when a malformed row exists, and that path only ever adds `INTEGRITY_FAILED`, so no other reason is lost.
+- Scale: readiness now also scans `idempotency_outcomes` once per call. `integrity_check` already scans it, so the cost is the same order.
+- Nice to have: the PRAGMA case in `tests/integration/test_readiness.py` has no `try/finally` (test hygiene, scheduled); `_INVALID_JSON` could be inlined.
 
 ## Not verified
 

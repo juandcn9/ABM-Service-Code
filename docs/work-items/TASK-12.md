@@ -37,7 +37,7 @@
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR is opened after the `TASK-06` through `TASK-10` PRs merge.
 - Commands/checks and results: locally `pytest` 460 passed in this branch (CI 460 passed on the head) (includes the merged earlier tasks), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
-- Review findings/resolution: fresh-context review of ce8b25d (FAIL: three Majors, all fixed in eb1a4e8); focused re-review of eb1a4e8 PASS with findings (no Blocker or Major); independent Tester pass of eb1a4e8 PASS (CI green on CPython 3.12.15). Not run: `ponytail-review` for this branch (DV-01 applies).
+- Review findings/resolution: fresh-context review of ce8b25d (FAIL: three Majors, all fixed in eb1a4e8); focused re-review of eb1a4e8 PASS with findings (no Blocker or Major); independent Tester pass of eb1a4e8 PASS (CI green on CPython 3.12.15). ponytail-review (Gate 8) of the remediation diff returned Ship, with no Must-fix or Should-fix finding (see the evidence report): `ponytail-review` for this branch (DV-01 applies).
 - Residual risks: a very large database makes `PRAGMA integrity_check` slow at startup (acceptable for the single-writer demonstration, `RISK-0001`); the inconsistency queries encode the Builder's reading of `specs/05` section 7 and need a Tester pass against the Specs; readiness is computed on demand, so caching or rate limiting for the health route is a `TASK-25`/`TASK-26` decision.
 - Next safe action: `TASK-11` (account reads and trace sequencing), after this PR merges.
 
