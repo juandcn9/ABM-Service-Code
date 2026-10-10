@@ -403,3 +403,32 @@ def test_a_card_operation_on_another_accounts_movement_is_not_found(
         ), fn.__name__
     assert (balances(conn), counts(conn)) == before
     assert state_of(conn) == "authorized_with_hold"
+
+
+def test_a_card_refund_is_accepted_on_a_closed_account(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    # DEC-0030: a card refund is a return under INV-16 and is permitted after closure
+    funded(uow, clock)
+    authorize(uow, clock)
+    assert data_of(step(clear_card, uow, clock, cents=400))["state"] == "cleared"
+    conn.execute("UPDATE accounts SET status = 'closed', closed_at = ?", (NOW,))
+    refunded = data_of(step(refund_card, uow, clock, ref="ev-f", cents=400))
+    assert refunded["state"] == "refunded"
+    assert balances(conn) == (1000, 0)
+
+
+def test_clearing_and_late_clearing_are_not_blocked_by_outgoing_blocked(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    # DEC-0031: resolution of an accepted card movement is not blocked by outgoing_blocked
+    funded(uow, clock)
+    authorize(uow, clock)
+    authorize(uow, clock, movement="mv-late", key="ka-late", instruction="ia-late")
+    simple(reverse_card, uow, clock, movement="mv-late", ref="ev-rl", key="kr-late")
+    conn.execute(
+        "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1'"
+    )
+    assert data_of(step(clear_card, uow, clock, cents=400))["state"] == "cleared"
+    late = step(clear_card, uow, clock, movement="mv-late", cents=400, ref="ev-cl")
+    assert data_of(late)["state"] == "late_cleared"
