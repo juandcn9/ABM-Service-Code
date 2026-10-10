@@ -11,8 +11,8 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EXPECTED_SPEC = {
     "spec_repository": "https://github.com/juandcn9/ABM-Service-Specs",
-    "spec_version": "v1.0.1",
-    "spec_commit": "5d1cd410399a6fb0154a0117728c409cc7f2ec91",
+    "spec_version": "v1.2.0",
+    "spec_commit": "32befdaa710404145fa2c13128a8015da761d1f5",
 }
 REVIEWED_GITHUB_FILES = {
     ".github/workflows/governance-ci.yml",
@@ -553,7 +553,7 @@ def main() -> int:
         return 1
     print("TASK-01 VALIDATION PASSED")
     print(f"- required files: {len(REQUIRED_FILES)}")
-    print("- Specs pointer: v1.0.1 / 5d1cd410399a6fb0154a0117728c409cc7f2ec91")
+    print("- Specs pointer: v1.2.0 / 32befdaa710404145fa2c13128a8015da761d1f5")
     print(
         "- governance headings, workflow pin, placeholders, and secret patterns: passed"
     )
