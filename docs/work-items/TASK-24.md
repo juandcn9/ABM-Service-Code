@@ -1,6 +1,6 @@
 # Work item: TASK-24 — deterministic reconciliation and read pagination; model-based lifecycle coverage
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Authority
 
@@ -17,15 +17,11 @@
 
 ## Implementation and evidence
 
-- Code PR #83, merged to `main` as `6a6b9f2` at approved head `e3c616f` (JDC approved the exact head in the session, 2026-10-10). The merged tree differs from `e3c616f` only by the Specs pointer PR #84 (v1.9.8) that landed on `main` before the merge.
-- Tests: `tests/integration/test_pagination_between_pages.py` (2 tests, `TEST-47`); `tests/integration/test_lifecycle_model.py` (3 seeded runs, 80 steps each, `TEST-12`, `NFR-06`).
-- Independent review: fresh-context Tester PASS on `e3c616f`, recorded in the PR #83 description before merge. Earlier passes found a Major (the history test did not compare the full history) and a Minor (the activity check counted rows, not commands); both are fixed. Mutants caught: skipped history row, ignored trace cutoff, and no accepted commands.
-- Gates on `e3c616f`: ruff check and format clean; mypy clean (74 files); governance passed; full pytest 794 passed.
-
-## Remaining work before TASK-24 can be Implemented
-
-- Add outgoing ACH (create, submit, settle, reject, cancel, return) to the random command sequence of `tests/integration/test_lifecycle_model.py`, so that the model covers every lifecycle the Specs define for reads. This needs a new reviewed head.
-- Re-run the gates and an independent review on that head, then request JDC approval of the exact head.
+- Code PR #83, merged as `6a6b9f2` at approved head `e3c616f`: between-pages pagination (`TEST-47`) and the seeded lifecycle model (`TEST-12`, `NFR-06`). Review: fresh-context Tester PASS on `e3c616f`, recorded in the PR before merge.
+- Code PR #86, merged as `668f1b4` at approved head `025037b` (JDC approved the exact head in the session, 2026-10-10): outgoing ACH (create, submit, settle, reject, cancel, return) added to the model. Review: fresh-context Tester PASS on `025037b`, recorded in the PR before merge. Mutants on the settle and return paths caught.
+- The lifecycle model runs 400 steps over five fixed seeds, checks every invariant after every step, and requires each command family to be accepted at least once per seed (rejection across the seeds together).
+- Gates on `025037b`: ruff check and format clean; mypy clean (74 files); governance passed; full pytest 797 passed.
+- Evidence record: `docs/evidence/TASK-24-tester-report.md` (covers PR #83; PR #86 is recorded in the PR description and in this work item).
 
 ## Non-claims
 
@@ -33,6 +29,10 @@
 - No HTTP route, envelope, or status mapping for the read operations (`TASK-25`).
 
 ## Scheduled items
+
+- Minor (PR 86): the cross-seed test name is narrower than what it checks. Owner Builder. Trigger: next TASK-24 change.
+- Minor (PR 86): a broken ledger write in settle or return fails with a generic error, not a clear invariant message. Owner Builder. Trigger: a later hardening task.
+- Runtime: the lifecycle file takes about 70 to 85 seconds. Owner Builder. Trigger: when the suite becomes a CI bottleneck.
 
 - Outgoing ACH in the model sequence: Owner Builder. Trigger: this task, before Implemented.
 - `TEST-39` and `TEST-41` facets: Owner Builder. Trigger: `TASK-26` (DEC-0053).
