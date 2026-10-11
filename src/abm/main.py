@@ -449,9 +449,10 @@ def app_from_environment() -> FastAPI:
         settings = load_settings(os.environ)
     except ConfigError as exc:
         raise SystemExit(f"CONFIG_INVALID: {', '.join(exc.names)}") from None
+    migrations = load_migrations(MIGRATIONS_DIR)
     started = start_database(
         settings.db_path,
-        load_migrations(MIGRATIONS_DIR),
+        migrations,
         format_instant(datetime.now(UTC)),
         busy_timeout_ms=settings.busy_timeout_ms,
         check_same_thread=False,
@@ -462,7 +463,6 @@ def app_from_environment() -> FastAPI:
             UnavailableUnitOfWork(), clock, lambda: ["DATABASE_UNAVAILABLE"]
         )
     conn = started.connection
-    migrations = load_migrations(MIGRATIONS_DIR)
     return create_app(
         SqliteUnitOfWork(conn),
         clock,

@@ -71,8 +71,9 @@ jobs:
           python -m pip install --require-hashes --only-binary=:all: -r requirements-dev.lock
       - name: Focused tests and their summary (recorded in the manifest)
         run: |
-          pytest -q -p no:cacheprovider tests/unit/test_config.py tests/integration/test_container_entry.py tests/integration/test_observability.py | tail -1 > test-summary.txt
-          cat test-summary.txt
+          pytest -q -p no:cacheprovider tests/unit/test_config.py tests/integration/test_container_entry.py tests/integration/test_observability.py > test-run.txt 2>&1
+          tail -1 test-run.txt > test-summary.txt
+          cat test-run.txt
       - name: HTTP conformance on the same revision (TEST-46, DEC-0056)
         run: python scripts/check_http_conformance.py specs/contracts/openapi.yaml
       - name: Container check (TEST-33, TEST-31 readiness, manifest)

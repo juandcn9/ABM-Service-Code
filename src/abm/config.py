@@ -14,7 +14,6 @@ from dataclasses import dataclass
 MODES = frozenset({"development", "verification", "demonstration", "aws-reference"})
 CLOCK_MODES = frozenset({"system", "controlled"})
 LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR"})
-TRUE_VALUES = {"true": True, "false": False}
 # same bounds as persistence.database (checked by a unit test; config may not import abm layers)
 MIN_BUSY_TIMEOUT_MS = 1
 MAX_BUSY_TIMEOUT_MS = 60_000
@@ -34,7 +33,6 @@ class Settings:
     db_path: str
     log_level: str
     busy_timeout_ms: int
-    trusted_ingress: bool
     clock_mode: str
 
 
@@ -55,12 +53,13 @@ def load_settings(env: Mapping[str, str]) -> Settings:
         bad.append("ABM_LOG_LEVEL")
 
     busy = env.get("ABM_BUSY_TIMEOUT_MS", "5000")
-    busy_timeout_ms = int(busy) if busy.isdecimal() else -1
+    busy_timeout_ms = int(busy) if busy.isascii() and busy.isdecimal() else -1
     if not MIN_BUSY_TIMEOUT_MS <= busy_timeout_ms <= MAX_BUSY_TIMEOUT_MS:
         bad.append("ABM_BUSY_TIMEOUT_MS")
 
-    ingress = TRUE_VALUES.get(env.get("ABM_TRUSTED_INGRESS", ""))
-    if ingress is None:
+    # the service always reads caller context from headers; the setting may only say so (SEC-01)
+    ingress = env.get("ABM_TRUSTED_INGRESS", "")
+    if ingress != "true" and not (ingress == "false" and mode != "demonstration"):
         bad.append("ABM_TRUSTED_INGRESS")
 
     clock_mode = env.get("ABM_CLOCK_MODE", "system")
@@ -76,6 +75,5 @@ def load_settings(env: Mapping[str, str]) -> Settings:
         db_path=db_path,
         log_level=log_level,
         busy_timeout_ms=busy_timeout_ms,
-        trusted_ingress=bool(ingress),
         clock_mode=clock_mode,
     )

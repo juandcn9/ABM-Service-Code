@@ -41,6 +41,22 @@ class CheckFailed(Exception):
     pass
 
 
+def container_failures(uid: str, app_write_rc: int, data_write_rc: int) -> list[str]:
+    """The security decision of the container check, kept pure so it can be tested (TEST-33).
+
+    uid is the process UID reported by the engine; app_write_rc and data_write_rc are the exit codes
+    of a write to the application layer and to the data volume (0 means the write succeeded).
+    """
+    problems = []
+    if uid != str(EXPECTED_UID):
+        problems.append(f"process UID is {uid}, expected {EXPECTED_UID} (not root)")
+    if app_write_rc == 0:
+        problems.append("application layer is writable")
+    if data_write_rc != 0:
+        problems.append("data volume is not writable")
+    return problems
+
+
 def run(
     engine: str, *args: str, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
@@ -111,17 +127,13 @@ def main(argv: list[str]) -> int:
         wait_for(f"{base_url}/health/ready", 200)
 
         uid = run(engine, "exec", name, "id", "-u").stdout.strip()
-        expect(
-            uid == str(EXPECTED_UID), f"process UID is {uid}, expected {EXPECTED_UID}"
-        )
-        expect(uid != "0", "process runs as root")
-
         write_app = run(engine, "exec", name, "sh", "-c", "touch /app/x", check=False)
-        expect(write_app.returncode != 0, "application layer is writable")
         write_data = run(
             engine, "exec", name, "sh", "-c", "touch /data/probe", check=False
         )
-        expect(write_data.returncode == 0, "data volume is not writable")
+        problems = container_failures(uid, write_app.returncode, write_data.returncode)
+        if problems:
+            raise CheckFailed("; ".join(problems))
 
         urllib.request.urlopen(f"{base_url}/health/live", timeout=3).read()
         logs = run(engine, "logs", name).stdout

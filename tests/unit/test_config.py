@@ -39,7 +39,6 @@ def test_a_complete_demonstration_environment_loads_with_defaults():
     assert settings.db_path == DB
     assert settings.log_level == "INFO"
     assert settings.busy_timeout_ms == 5000
-    assert settings.trusted_ingress is True
     assert settings.clock_mode == "system"
 
 
@@ -91,3 +90,22 @@ def test_a_controlled_clock_is_refused_in_the_demonstration_container():
 def test_a_controlled_clock_is_allowed_in_verification():
     env = {**GOOD, "ABM_MODE": "verification", "ABM_CLOCK_MODE": "controlled"}
     assert load_settings(env).clock_mode == "controlled"
+
+
+def test_trusted_ingress_false_is_refused_in_the_demonstration_container():
+    assert names_of({**GOOD, "ABM_TRUSTED_INGRESS": "false"}) == (
+        "ABM_TRUSTED_INGRESS",
+    )
+
+
+def test_trusted_ingress_false_is_allowed_outside_the_demonstration():
+    assert (
+        load_settings(
+            {**GOOD, "ABM_MODE": "development", "ABM_TRUSTED_INGRESS": "false"}
+        ).mode
+        == "development"
+    )
+
+
+def test_a_non_ascii_digit_busy_timeout_is_refused():
+    assert names_of({**GOOD, "ABM_BUSY_TIMEOUT_MS": "٥٠٠٠"}) == ("ABM_BUSY_TIMEOUT_MS",)
