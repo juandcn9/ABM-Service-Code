@@ -49,7 +49,7 @@ docker run -d --name abm --read-only   -v abm-data:/data   -e ABM_MODE=demonstra
 curl -s http://127.0.0.1:8000/health/ready
 ```
 
-`ABM_TRUSTED_INGRESS=true` is set only where the caller-context boundary is controlled (SEC-01). The container refuses `ABM_CLOCK_MODE=controlled`. Run `python scripts/check_container.py` to repeat the checks (build, non-root, read-only, restart, manifest).
+`ABM_TRUSTED_INGRESS=true` is set only where the caller-context boundary is controlled (SEC-01). The container refuses `ABM_CLOCK_MODE=controlled`. Run `python scripts/check_container.py` to repeat the checks (build, non-root, read-only, restart, manifest). Run `python scripts/smoke_container.py` for the black-box HTTP smoke check of the running image (liveness, readiness, registration, an authorized read, one incoming ACH credit visible in history and balance, and denied requests with no state change; TASK-36, DEC-0067).
 
 ## Working rule
 
