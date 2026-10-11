@@ -1,8 +1,8 @@
 # Work item: TASK-27 — non-root read-only container with one writable data mount
 
-**Status:** Implemented
+**Status:** Verified
 
-Tester PASS on the merged revision `772ee1f` (PR #104; PR head `0ed7c79`): `docs/evidence/TASK-27-tester-report.md`. Verified awaits JDC's decision on scope item 7 and on Specs read access for `http-conformance`.
+JDC decided Verified on 2026-10-11. Basis: Tester PASS on the merged revision `772ee1f` (PR #104; `docs/evidence/TASK-27-tester-report.md`); CI on PR head `04dfd53` (run 38161886783): `container-check` and `http-conformance` passed (`http-conformance` probed 92 responses across 24 paths); decisions DEC-0066 to DEC-0068 recorded in Specs `main` by PR #55 (`5daaa81`). Follow-up for the container HTTP smoke check is separately owned (DEC-0067, item 11).
 
 ## Authority
 
