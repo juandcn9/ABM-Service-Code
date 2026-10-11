@@ -31,14 +31,15 @@ def create_app(uow: UnitOfWork, clock: Clock) -> FastAPI:
 
     @app.post("/v1/accounts/registrations")
     async def register(request: Request) -> JSONResponse:
-        caller = parse_caller_context(dict(request.headers))
-        if isinstance(caller, Failure):
-            return unauthorized(request)
-        key = request.headers.get("idempotency-key", "")
+        # the contract order is schema, then trusted context (specs/04 section 3.1)
         try:
             body = strict_json(await request.body())
         except InvalidValue:
             return invalid_body(request)
+        caller = parse_caller_context(dict(request.headers))
+        if isinstance(caller, Failure):
+            return unauthorized(request)
+        key = request.headers.get("idempotency-key", "")
         with guard:
             result = register_account(uow, clock, caller.value, key, body)
         return envelope(result, caller.value.correlation_id)

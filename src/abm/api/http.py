@@ -7,6 +7,7 @@ failures are values; this module maps their stable codes to HTTP statuses and ne
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from fastapi import Request
@@ -36,9 +37,14 @@ STATUS_BY_CODE: dict[str, int] = {
 NO_CORRELATION = "not-provided"
 
 
+_CORRELATION = re.compile(
+    r"[A-Za-z0-9._~-]{1,128}"
+)  # ResponseMeta.correlation_id pattern
+
+
 def correlation_of(request: Request) -> str:
-    value = request.headers.get("x-correlation-id")
-    return value if value and len(value) <= 128 else NO_CORRELATION
+    value = request.headers.get("x-correlation-id", "")
+    return value if _CORRELATION.fullmatch(value) else NO_CORRELATION
 
 
 def _error_body(result: Failure, correlation: str) -> dict[str, Any]:

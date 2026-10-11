@@ -50,7 +50,7 @@ def strict_json(raw: bytes | bytearray | str) -> object:
 
     Rejected: non-text input, invalid UTF-8, duplicate keys, NaN and Infinity (including
     overflowing literals such as 1e999), lone surrogates, over-long integers, excessive
-    nesting, and trailing text. Body size is limited at the transport layer.
+    nesting, and trailing text. Body size is not limited yet (shortcut: add a transport body limit before any use beyond the demonstration).
     """
     if not isinstance(raw, bytes | bytearray | str):
         raise InvalidValue("body must be text or bytes")

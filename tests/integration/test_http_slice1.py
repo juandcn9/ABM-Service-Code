@@ -155,3 +155,25 @@ def test_an_unexpected_exception_is_a_safe_internal_error_envelope(client, monke
         "meta": {"correlation_id": "corr-boom"},
     }
     assert "secret" not in response.text and "SELECT" not in response.text
+
+
+def test_an_invalid_correlation_id_is_replaced_by_the_fixed_value(client):
+    test_client, _conn = client
+    unauthorized = test_client.post(
+        "/v1/accounts/registrations", json=BODY, headers={"X-Correlation-Id": "bad id"}
+    )
+    assert unauthorized.status_code == 401
+    assert unauthorized.json()["meta"] == {"correlation_id": "not-provided"}
+
+
+def test_a_malformed_body_is_refused_before_the_caller_check(client):
+    test_client, _conn = client
+    response = test_client.post(
+        "/v1/accounts/registrations",
+        content=b"{not json",
+        headers={"Content-Type": "application/json"},  # no caller headers as well
+    )
+    assert (
+        response.status_code == 400
+        and response.json()["error"]["code"] == "VALIDATION_ERROR"
+    )
