@@ -16,6 +16,7 @@ import argparse
 import json
 import math
 import pathlib
+import re
 import sqlite3
 import sys
 import tomllib
@@ -93,6 +94,16 @@ def _hours(text: str) -> float:
     return value
 
 
+_SHA = re.compile(r"[0-9a-f]{40}")
+
+
+def _sha(text: str) -> str:
+    """A full lowercase Git SHA-1 (TASK-27, Tester F10): a manifest must name exact revisions."""
+    if not _SHA.fullmatch(text):
+        raise argparse.ArgumentTypeError("must be 40 lowercase hexadecimal characters")
+    return text
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -101,8 +112,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--older-than-hours", type=_hours, required=True)
     parser.add_argument("--manifest", type=pathlib.Path)
     parser.add_argument("--spec-version", default="")
-    parser.add_argument("--spec-commit", default="")
-    parser.add_argument("--code-commit", default="")
+    parser.add_argument("--spec-commit", type=_sha, default="")
+    parser.add_argument("--code-commit", type=_sha, default="")
     parser.add_argument("--test-summary", default="")
     args = parser.parse_args(argv)
     if args.manifest is not None and not (

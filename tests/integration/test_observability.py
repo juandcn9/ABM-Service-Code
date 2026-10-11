@@ -286,14 +286,17 @@ def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp
             "--spec-commit",
             "d2211b53a0570437b7fa9ddb1a1ba46969d6ac40",
             "--code-commit",
-            "abc1234",
+            "abc1234000000000000000000000000000000000",
             "--test-summary",
             "945 passed, 1 warning",
         ]
     )
     assert code == 0
     data = json.loads(manifest.read_text(encoding="utf-8"))
-    assert data["spec_version"] == "v1.9.11" and data["code_commit"] == "abc1234"
+    assert (
+        data["spec_version"] == "v1.9.11"
+        and data["code_commit"] == "abc1234000000000000000000000000000000000"
+    )
     assert data["aged_scan"] == {"threshold_hours": 24.0, "count": 0}
     assert data["migrations"] and all(
         len(m["checksum"]) == 64 for m in data["migrations"]
@@ -469,5 +472,42 @@ def test_a_manifest_without_a_test_summary_is_refused(tmp_path):
                 "d2211b53a0570437b7fa9ddb1a1ba46969d6ac40",
                 "--code-commit",
                 "abc1234",
+            ]
+        )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "abc1234",
+        "D2211B53A0570437B7FA9DDB1A1BA46969D6AC40",
+        "z" * 40,
+        "d2211b53" * 6 + "d2",
+    ],
+)
+def test_the_manifest_refuses_a_revision_that_is_not_a_full_lowercase_sha(
+    tmp_path, value
+):
+    from scan_aged_items import main  # type: ignore[import-not-found]
+
+    db = tmp_path / "sha.sqlite3"
+    started = start_database(db, MIGRATIONS, NOW, check_same_thread=False)
+    started.connection.close()
+    with pytest.raises(SystemExit):
+        main(
+            [
+                str(db),
+                "--older-than-hours",
+                "24",
+                "--manifest",
+                str(tmp_path / "sha.json"),
+                "--spec-version",
+                "v1.9.12",
+                "--spec-commit",
+                value,
+                "--code-commit",
+                "abc1234" + "0" * 33,
+                "--test-summary",
+                "951 passed",
             ]
         )

@@ -21,8 +21,8 @@
   4. `scripts/check_container.py`: builds the image, starts it with a fresh named volume and with `--read-only`, waits for `/health/ready`, asserts the process UID is non-zero, that a write outside `/data` fails, that a write inside `/data` succeeds, and that a stop and restart on the same volume reaches ready again. Standard library only.
   5. CI: a job in `.github/workflows/` that runs `scripts/check_container.py` on the runner, which has a container engine.
   6. Tests: unit tests for the configuration parser (every required setting, each rejected value, names-only error text, `controlled` refused in the demonstration mode).
-  7. CI runs `scripts/check_http_conformance.py` (TASK-25, DEC-0056) against the container, so the conformance evidence runs in CI rather than only as a local script run.
-  8. CI runs `scripts/scan_aged_items.py` (TASK-26, DEC-0063) against the check-container database with an explicit threshold, and checks that the manifest it writes carries `image_digest` and `test_summary` and the exact commits. Scheduling beyond this CI run is out of scope.
+  7. CI runs `scripts/check_http_conformance.py` (TASK-25, DEC-0056) on the same revision, against the contract at the pinned Specs commit (checked out in CI). The script drives the app in-process (`TestClient`), so this run checks the HTTP binding in CI; it does not probe the running container. The container's own behaviour is checked by items 4 and 9. (Changed from the first draft, which said "against the container": the script cannot probe a container as written.)
+  8. `scripts/check_container.py` copies the container's data directory out with `docker cp`, runs `scripts/scan_aged_items.py` (TASK-26, DEC-0063) on it with an explicit threshold, and checks that the manifest carries the exact commit and an image digest. The CI job passes the focused test summary. Scheduling beyond this CI run is out of scope.
   9. Container log check: `scripts/check_container.py` reads the container's stdout and asserts that structured events (TASK-26 sink, DEC-0062) appear with `ts` and `severity` (closes T2-7 in the container context).
   10. Manifest revision format (Tester F10, T2-5): `scripts/scan_aged_items.py` refuses `--spec-commit` and `--code-commit` values that are not 40-character lowercase hexadecimal SHAs, with a focused test for a short value, an uppercase value, and a non-hex value.
 - Explicit exclusions:
@@ -56,6 +56,10 @@
 - Single worker: one shared SQLite connection behind one process-local lock (DEC-0055). `--workers 1` is required; a higher count would break the serialization claim.
 - The image runs with `--read-only` root filesystem; `/tmp` is not required by uvicorn in this configuration, so no tmpfs is mounted. If the check finds a required writable path, it is recorded here, not silently mounted.
 - The data directory and the database path are the same mounted directory; `ABM_DB_PATH` is set to a file inside `/data`.
+- Readiness runs the real check (`readiness_reasons`) on every probe, not once at startup. A database that cannot open starts the service unready behind `UnavailableUnitOfWork`, which answers `SERVICE_UNREADY` to every read and write (NFR-02, no partial effect).
+- Structured events go to stdout at every `ABM_LOG_LEVEL`. The level is validated but does not filter events yet (limit).
+- `scripts/validate_governance.py` pins the CI workflow digest (`EXPECTED_WORKFLOW_SHA256`); the workflow change updates it in the same commit, as the validator requires.
+- The Specs contract is read from the pinned Specs commit in CI. This repository has no `contracts/` directory.
 
 ## Non-claims (until implemented and tested)
 
@@ -65,8 +69,8 @@
 
 ## Completion
 
-- Code commit/PR: pending.
-- Commands/checks and results: pending.
-- Review findings/resolution: pending.
-- Residual risks: TEST-33 is unverified until the CI container job passes on the head. The container engine on CI is a runner property, not verified by this workstation.
-- Next safe action: implement the configuration parser and the entry point with tests, then the Dockerfile and the check script, on a Code PR.
+- Code commit/PR: implementation PR #104 (branch `feat/task-27-container`), head `b5d240b`; not yet merged.
+- Commands/checks and results: full pytest on `b5d240b`: 987 passed. Focused tests (config, check decision, container entry, observability): pass. `scripts/check_container.py` reports "not run" on this workstation (no container engine). CI on `b5d240b`: `container-check` passed (TEST-33 evidence: non-root, read-only root filesystem, writable data volume, ready, restart, manifest); `quality-gates` and `validate-governance` passed; `http-conformance` fails only because the CI token cannot read the private Specs repository.
+- Review findings/resolution: fresh-context review of `748449c` raised three Majors and several Minors. Fixed in `b5d240b`: access log off (`--no-access-log`); read-only root filesystem asserted from the engine; scope item 7 kept as in-process conformance, a reduction needing JDC confirmation (open). Minors fixed: clock refused other than system; busy-timeout length bounded; startup failure keeps real reason codes; Dockerfile header; CI checks out the PR head. Re-review of `b5d240b`: CLEAN, no open Blocker or Major. Minor gap open: no integration test for the real startup reason codes (only the DATABASE_UNAVAILABLE path is covered).
+- Residual risks: TEST-33 depends on the CI runner's container engine; `http-conformance` needs Specs read access; the image digest in the manifest is the base-image pin; `ABM_LOG_LEVEL` does not filter events; no backup or recovery claim (NFR-08).
+- Next safe action: JDC approves the exact head of PR #104 (after deciding scope item 7 and the Specs access for `http-conformance`), then merge, then the Tester pass on the merged head.

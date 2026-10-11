@@ -8,10 +8,15 @@ map to the contract envelope in abm.api.http.
 from __future__ import annotations
 
 import json
+import os
+import pathlib
 import re
+import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -55,13 +60,21 @@ from abm.application.reads import (
 from abm.application.registration import register_account
 from abm.application.risk import set_risk_restriction
 from abm.application.transfers import internal_transfer
+from abm.config import ConfigError, load_settings
 from abm.domain.errors import InvalidValue
+from abm.domain.identifiers import format_instant
 from abm.domain.results import Failure, Result, failure
 from abm.observability.events import BOUNDED_LABELS, EventSink, token
+from abm.persistence.migrations import load_migrations
+from abm.persistence.readiness import readiness_reasons, start_database
+from abm.persistence.sqlite_store import SqliteUnitOfWork
 from abm.ports.clock import Clock
-from abm.ports.storage import UnitOfWork
+from abm.ports.storage import StorageFailure, UnitOfWork
 
 Command = Callable[..., Result[Response]]
+
+# the migrations are read from the source tree next to src/, in the image as well (TASK-27)
+MIGRATIONS_DIR = pathlib.Path(__file__).resolve().parents[2] / "migrations"
 
 # HealthResponse.reason_codes enum (contracts/openapi.yaml)
 READY_REASONS = frozenset(
@@ -400,3 +413,58 @@ def create_app(
             )
 
     return app
+
+
+class SystemClock:
+    """The wall clock as a UTC instant. Used only when ABM_CLOCK_MODE is system (TASK-27)."""
+
+    def now(self) -> datetime:
+        return datetime.now(UTC)
+
+
+class UnavailableUnitOfWork:
+    """Stands in when the database cannot open: every read and write answers SERVICE_UNREADY.
+
+    Keeps the service up to report unready on /health/ready (NFR-02) instead of exiting.
+    """
+
+    @contextmanager
+    def write(self) -> Iterator[Any]:
+        raise StorageFailure(failure("SERVICE_UNREADY", "The service is not ready."))
+        yield  # pragma: no cover
+
+    @contextmanager
+    def read(self) -> Iterator[Any]:
+        raise StorageFailure(failure("SERVICE_UNREADY", "The service is not ready."))
+        yield  # pragma: no cover
+
+
+def app_from_environment() -> FastAPI:
+    """ASGI factory for the container (TASK-27): settings only from ABM_*, the real readiness check.
+
+    Refuses to start on a bad setting (CONFIG_INVALID, names only). A database that cannot open
+    still starts, reporting unready, so the operator can see why (NFR-02).
+    """
+    try:
+        settings = load_settings(os.environ)
+    except ConfigError as exc:
+        raise SystemExit(f"CONFIG_INVALID: {', '.join(exc.names)}") from None
+    migrations = load_migrations(MIGRATIONS_DIR)
+    started = start_database(
+        settings.db_path,
+        migrations,
+        format_instant(datetime.now(UTC)),
+        busy_timeout_ms=settings.busy_timeout_ms,
+        check_same_thread=False,
+    )
+    clock: Clock = SystemClock()
+    if started.connection is None:
+        reasons = list(started.reasons) or ["DATABASE_UNAVAILABLE"]
+        return create_app(UnavailableUnitOfWork(), clock, lambda: reasons)
+    conn = started.connection
+    return create_app(
+        SqliteUnitOfWork(conn),
+        clock,
+        lambda: readiness_reasons(conn, migrations),
+        events=EventSink(sys.stdout),
+    )
