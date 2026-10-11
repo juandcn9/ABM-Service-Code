@@ -242,6 +242,14 @@ def main(contract_path: pathlib.Path) -> int:
             method.upper(), _concrete(path), json=body, headers=headers
         )
         checked += 1
+        if response.status_code >= 300:
+            failures.append(
+                method.upper()
+                + " "
+                + path
+                + " [success probe] refused with "
+                + str(response.status_code)
+            )
         _check_response(
             contract,
             path,
