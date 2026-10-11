@@ -293,7 +293,10 @@ def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp
     )
     assert code == 0
     data = json.loads(manifest.read_text(encoding="utf-8"))
-    assert data["spec_version"] == "v1.9.11" and data["code_commit"] == "abc1234000000000000000000000000000000000"
+    assert (
+        data["spec_version"] == "v1.9.11"
+        and data["code_commit"] == "abc1234000000000000000000000000000000000"
+    )
     assert data["aged_scan"] == {"threshold_hours": 24.0, "count": 0}
     assert data["migrations"] and all(
         len(m["checksum"]) == 64 for m in data["migrations"]

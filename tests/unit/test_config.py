@@ -76,9 +76,7 @@ def test_the_error_text_never_contains_a_value():
     canary = "canary-value-123-do-not-print"
     with pytest.raises(ConfigError) as info:
         load_settings({**GOOD, "ABM_LOG_LEVEL": canary})
-    assert canary not in str(info.value) and canary not in repr(
-        info.value.names
-    )
+    assert canary not in str(info.value) and canary not in repr(info.value.names)
 
 
 def test_all_bad_names_are_collected_before_refusing():
