@@ -18,6 +18,7 @@ import math
 import pathlib
 import sqlite3
 import sys
+import tomllib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -29,6 +30,11 @@ from abm.persistence.aged import aged_pending
 from abm.persistence.migrations import load_migrations
 
 _FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def open_read_only(database: pathlib.Path) -> sqlite3.Connection:
+    """The only connection the scan uses: SQLite refuses any write through it (BT-07, INV-12)."""
+    return sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
 
 
 def run_scan(
@@ -59,6 +65,8 @@ def build_manifest(
     generated_at: str,
     count: int,
     threshold_hours: float,
+    image_digest: str,
+    test_summary: str,
 ) -> dict[str, Any]:
     return {
         "generated_at": generated_at,
@@ -66,8 +74,16 @@ def build_manifest(
         "spec_commit": spec_commit,
         "code_commit": code_commit,
         "migrations": migrations,
+        "image_digest": image_digest,
+        "test_summary": test_summary,
         "aged_scan": {"threshold_hours": threshold_hours, "count": count},
     }
+
+
+def container_digest() -> str:
+    """The digest the toolchain pins (TEST-35): the part of the image reference after '@'."""
+    pinned = tomllib.loads((ROOT / "toolchain.toml").read_text(encoding="utf-8"))
+    return pinned["container_image"].partition("@")[2]
 
 
 def _hours(text: str) -> float:
@@ -87,14 +103,20 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--spec-version", default="")
     parser.add_argument("--spec-commit", default="")
     parser.add_argument("--code-commit", default="")
+    parser.add_argument("--test-summary", default="")
     args = parser.parse_args(argv)
     if args.manifest is not None and not (
-        args.spec_version and args.spec_commit and args.code_commit
+        args.spec_version
+        and args.spec_commit
+        and args.code_commit
+        and args.test_summary
     ):
-        parser.error("--manifest needs --spec-version, --spec-commit and --code-commit")
+        parser.error(
+            "--manifest needs --spec-version, --spec-commit, --code-commit and --test-summary"
+        )
 
     now = datetime.now(UTC)
-    conn = sqlite3.connect(f"file:{args.database.as_posix()}?mode=ro", uri=True)
+    conn = open_read_only(args.database)
     try:
         count = run_scan(conn, EventSink(sys.stdout), now, args.older_than_hours)
     finally:
@@ -113,6 +135,8 @@ def main(argv: list[str]) -> int:
             now.strftime(_FORMAT),
             count,
             args.older_than_hours,
+            container_digest(),
+            args.test_summary,
         )
         args.manifest.write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"

@@ -1,10 +1,12 @@
 # Work item: TASK-26 — structured logs, bounded metrics, safe health, and the TEST-39 / TEST-41 facets
 
-**Status:** Ready for JDC review
+**Status:** Implemented
+
+Tester PASS on `de2ca70` (`docs/evidence/TASK-26-tester-report-2.md`). Verified awaits JDC's decision.
 
 ## Authority
 
-- Specs version and exact SHA: `v1.9.11` / `d2211b53a0570437b7fa9ddb1a1ba46969d6ac40` (DEC-0056). The Specs plan (`specs/09-delivery-plan.md`, TASK-26) is the record that makes this item ready once D1 to D4 are decided.
+- Specs version and exact SHA: `v1.9.12` / `1f6a26d379f82ce0cb227b02d7e197fb4bb99b2f` (tag `v1.9.12`, Code PR #101). It carries DEC-0061 to DEC-0064, which the Tester's first pass found missing from the earlier pin `v1.9.11` / `d2211b53` (DEC-0056).
 - TASK and affected IDs: `TASK-26`; `DEC-0051` (structured-log, metric, correlation and runtime-redaction facets); `DEC-0053` (TEST-39 and TEST-41 facets); `SEC-09`; `NFR-07`; `INV-12`; `INV-14`; `BT-07`; `TEST-26` (log facet); `TEST-29`; `TEST-39`; `TEST-41`.
 - Specs main: `a30f8fd` (includes DEC-0061 to DEC-0064).
 - Dependencies: `TASK-12` (Verified) and `TASK-25` (Verified; Code PR #95, merged `2c439fd`; record PR #96, merged `328f98b`).
@@ -57,3 +59,6 @@
 
 - Container, scheduler, and any CI execution of the aged scan: TASK-27.
 - Evidence bundle assembly and scan: TASK-34.
+- Manifest revision check (`--spec-commit`, `--code-commit` format and HEAD match; Tester F10 and T2-5): owner Builder; trigger TASK-27 (container and CI run of the scan).
+- Silent `container_digest()` when the pin has no `@` (T2-6): covered by `scripts/validate_toolchain.py` for the pinned file; no code change.
+- No log line without a sink (T2-7): intended under F2; operators need the sink configured. Owner Builder; trigger TASK-27 (container logging wiring).

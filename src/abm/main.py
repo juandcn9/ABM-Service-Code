@@ -176,15 +176,16 @@ def create_app(
     # one connection serves every request thread; the lock keeps each command's transaction whole
     guard = threading.Lock()
 
-    @app.exception_handler(Exception)
-    async def unexpected(request: Request, exc: Exception) -> JSONResponse:
-        # TEST-28: no stack, path, SQL or financial detail leaves the process
-        internal = failure("INTERNAL_ERROR", "An unexpected error occurred.")
-        response = envelope(internal, correlation_of(request))
-        if events is not None:  # this handler runs outside the observation middleware
-            started = getattr(request.state, "started", time.perf_counter())
-            _observe(app, events, request, 500, bytes(response.body), started)
-        return response
+    @app.middleware("http")
+    async def unexpected(request: Request, call_next: Callable[[Request], Any]) -> Any:
+        # TEST-28: no stack, path, SQL or financial detail leaves the process. Caught here rather
+        # than in an exception handler: Starlette's error middleware re-raises after a handler,
+        # which would send the traceback to the server log (F2).
+        try:
+            return await call_next(request)
+        except Exception:  # noqa: BLE001
+            internal = failure("INTERNAL_ERROR", "An unexpected error occurred.")
+            return envelope(internal, correlation_of(request))
 
     def command(path: str, fn: Command, *, with_movement: bool) -> None:
         async def endpoint(request: Request) -> JSONResponse:
