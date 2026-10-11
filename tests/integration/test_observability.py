@@ -260,6 +260,13 @@ def test_the_scan_emits_safe_item_events_and_a_summary(stack):
     assert "mv-aged-1" not in out.getvalue() and "acct-a" not in out.getvalue()
 
 
+def pinned_digest() -> str:
+    import tomllib
+
+    pinned = tomllib.loads((ROOT / "toolchain.toml").read_text(encoding="utf-8"))
+    return pinned["container_image"].partition("@")[2]
+
+
 def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp_path):
     from scan_aged_items import main  # type: ignore[import-not-found]
 
@@ -292,9 +299,7 @@ def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp
         len(m["checksum"]) == 64 for m in data["migrations"]
     )
     # TEST-35: the image digest is the toolchain pin; the test summary is the one supplied
-    assert (
-        data["image_digest"].startswith("sha256:") and len(data["image_digest"]) == 71
-    )
+    assert data["image_digest"] == pinned_digest()
     assert data["test_summary"] == "945 passed, 1 warning"
 
 
@@ -411,18 +416,28 @@ def test_an_unhandled_error_is_not_re_raised_to_the_server(stack, monkeypatch):
         raise RuntimeError("SELECT secret FROM ledger")
 
     monkeypatch.setattr(main_module, "get_account", boom)
+    stream = io.StringIO()
     strict = TestClient(
         create_app(
             SqliteUnitOfWork(stack["conn"]),
             stack["clock"],
-            events=EventSink(io.StringIO()),
+            events=EventSink(stream),
         ),
         raise_server_exceptions=True,
     )
-    response = strict.get("/v1/accounts/acct-a", headers=READER)
+    response = strict.get(
+        "/v1/accounts/acct-a", headers={**READER, "X-Correlation-Id": "corr-err"}
+    )
     assert response.status_code == 500
-    assert response.json()["error"]["message"] == "An unexpected error occurred."
+    body = response.json()
+    assert body["error"]["code"] == "INTERNAL_ERROR"
+    assert body["error"]["message"] == "An unexpected error occurred."
+    assert body["meta"]["correlation_id"] == "corr-err"
     assert "SELECT" not in response.text
+    # the 500 is observed as an ERROR-severity request line with no exception text (TEST-28)
+    request_line = [e for e in lines(stream) if e["event"] == "request"][-1]
+    assert request_line["status"] == 500 and request_line["severity"] == "ERROR"
+    assert "SELECT" not in stream.getvalue()
 
 
 def test_a_rejected_trace_read_is_attributable_without_an_account_token(stack):
