@@ -59,3 +59,13 @@ No Blocker or Major. Open decisions remain with JDC.
 ## Not verified
 
 The container image was built and run only in CI (run 38158933406), not on this host. TEST-33 evidence is CI-only.
+
+## Decisions recorded (JDC, 2026-10-11)
+
+- **DEC-0066:** CI conformance stays in-process on the exact Code revision, against the pinned contract. Settles scope item 7.
+- **DEC-0067:** a black-box HTTP smoke check against the running container is a separately owned follow-up with its own acceptance criteria (liveness and readiness; registration; authorized read; one money-changing instruction visible in history; one denied request with no state change).
+- **DEC-0068:** CI reads the private Specs repository with a read-only deploy key (`SPECS_DEPLOY_KEY`), and verifies the fetched commit equals the pin.
+
+These decisions are recorded in the Specs register by Specs PR #55 (`specs/task-27-decisions`, head `543e5d8`). That PR is normative and awaits JDC's exact-SHA approval (DEC-0036). Until it merges, the register does not yet contain them.
+
+Conformance evidence for the decision: the `http-conformance` job on PR #106 head `04dfd53` (run 38161886783) passed, probing 92 responses across 24 paths.
