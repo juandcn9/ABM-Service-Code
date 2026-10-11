@@ -26,6 +26,7 @@
 - `TEST-29` (structured logs, bounded metrics, redaction) belongs to `TASK-26` under DEC-0051.
 - The evidence bundle facet of `TEST-26` belongs to `TASK-34`.
 - The lock serializes requests in one process. No concurrency or throughput claim (DEC-0055).
+- Unknown-account 404 is probed only for `GET /v1/accounts/{account_id}`. The other operations that declare 404 have no such probe; each would need a valid body per operation (Tester M2 on head 6018166, recorded as a limit).
 
 ## Scheduled items
 
