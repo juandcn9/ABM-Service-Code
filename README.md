@@ -4,8 +4,8 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 ## Authority
 
-- Approved Specs release: `v1.9.11`
-- Exact Specs commit: `d2211b53a0570437b7fa9ddb1a1ba46969d6ac40`
+- Approved Specs release: `v1.9.12`
+- Exact Specs commit: `1f6a26d379f82ce0cb227b02d7e197fb4bb99b2f`
 - Specs repository: <https://github.com/juandcn9/ABM-Service-Specs>
 - Delivery target: verified local demonstration with synthetic data; not real-money production readiness.
 
