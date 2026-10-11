@@ -13,7 +13,7 @@ from abm.persistence.readiness import start_database
 from abm.persistence.sqlite_store import SqliteUnitOfWork
 from harness.clock import ControllableClock
 from tests.integration.store_support import MIGRATIONS, NOW, fund, register
-from tests.integration.test_http_slice2 import CONTRACT_PATHS
+from tests.integration.test_http_slice2 import CONTRACT_PATHS, RECON
 
 PAYER = {
     "X-Caller-Id": "pay-1",
@@ -64,6 +64,32 @@ def test_every_operation_refuses_missing_caller_context_with_401(client, method,
     )
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [b'{"amount_cents": 1, "amount_cents": 99}', b"{not json"],
+    ids=["duplicate-key", "malformed"],
+)
+def test_transfer_body_is_parsed_strictly_before_any_money_moves(client, raw):
+    before = client.get("/v1/accounts/acct-a/transactions", headers=READER).json()[
+        "data"
+    ]["items"]
+    response = client.post(
+        "/v1/transfers/internal",
+        content=raw,
+        headers={
+            **PAYER,
+            "Content-Type": "application/json",
+            "Idempotency-Key": "k-strict",
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    after = client.get("/v1/accounts/acct-a/transactions", headers=READER).json()[
+        "data"
+    ]["items"]
+    assert after == before
+
+
 def test_history_defaults_to_fifty_rows_per_page(client):
     for n in range(60):  # 60 one-cent transfers give 60 debit rows on acct-a
         response = client.post(
@@ -106,6 +132,16 @@ def test_trace_defaults_to_one_hundred_rows_per_page(client):
     page = client.get("/v1/reconciliation/trace", headers=recon).json()
     assert len(page["data"]["items"]) == 100
     assert page["data"]["next_after_sequence"] is not None
+
+
+@pytest.mark.parametrize(
+    "path", ["/v1/accounts/acct-a/transactions", "/v1/reconciliation/trace"]
+)
+def test_an_integer_beyond_python_limits_is_a_validation_error(client, path):
+    headers = READER if path.startswith("/v1/accounts") else RECON
+    response = client.get(path + "?limit=" + "9" * 5000, headers=headers)
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 @pytest.mark.parametrize("value", ["1_0", "+1", "%201", "0x10", "1.0", " 1"])
