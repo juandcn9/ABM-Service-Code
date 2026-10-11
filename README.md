@@ -38,6 +38,19 @@ TASK-01 through TASK-22 establish the governed toolchain, modular-monolith bound
 - [`scripts/validate_governance.py`](scripts/validate_governance.py): dependency-free governance and repository-safety validation.
 - [`scripts/validate_toolchain.py`](scripts/validate_toolchain.py): dependency-free verification of pins, locks, container digest, and safe example configuration.
 
+## Container demonstration (TASK-27)
+
+The service image is non-root, has a read-only application layer, and writes only to one data volume. The container check runs in CI, on a runner with a container engine (the development workstation has none, so it is not verified locally).
+
+```sh
+docker build -t abm:local .
+docker volume create abm-data
+docker run -d --name abm --read-only   -v abm-data:/data   -e ABM_MODE=demonstration -e ABM_TRUSTED_INGRESS=true -e ABM_CLOCK_MODE=system   -p 127.0.0.1:8000:8000 abm:local
+curl -s http://127.0.0.1:8000/health/ready
+```
+
+`ABM_TRUSTED_INGRESS=true` is set only where the caller-context boundary is controlled (SEC-01). The container refuses `ABM_CLOCK_MODE=controlled`. Run `python scripts/check_container.py` to repeat the checks (build, non-root, read-only, restart, manifest).
+
 ## Working rule
 
 Implement only one dependency-ready Specs TASK at a time. A normative ambiguity or proposed change to money, customer rights, public behavior, ownership, retention, security, architecture, or governance stops affected work and returns to the Specs change process.

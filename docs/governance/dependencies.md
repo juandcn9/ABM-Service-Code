@@ -40,3 +40,7 @@ Automated update proposals receive the same tests and independent review as auth
 ## Continuous-integration enforcement
 
 The `quality-gates` CI job installs `requirements-dev.lock` with `--require-hashes --only-binary=:all:` on the exact Python patch in `.python-version`, verifies the interpreter version, and runs `scripts/validate_toolchain.py`, `ruff check`, `ruff format --check`, `mypy` (over `src`, `harness`, `tests`, and `scripts`), and `pytest`. `.gitattributes` forces LF so lock digests do not depend on a contributor's `core.autocrlf`.
+
+## Container image (TASK-27)
+
+The image build is the only installation step: `Dockerfile` installs `requirements.lock` with `--require-hashes` into the digest-pinned base image from `toolchain.toml`. Service startup never invokes a package manager. Nothing else is installed into the image.
