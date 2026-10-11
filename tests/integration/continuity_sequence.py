@@ -207,6 +207,12 @@ def run_steps(client: Any, steps: list[Any], on_done: Any = None) -> None:
             on_done(index)
 
 
+def wait_for_go(index: int) -> None:
+    """Report a committed step, then wait for the parent: the kill point is then exact, not a race."""
+    print(f"DONE {index}", flush=True)
+    sys.stdin.readline()
+
+
 def worker_main(db: str) -> None:
     """Child process: run the sequence on the entry point, printing one line per committed step."""
     from starlette.testclient import TestClient
@@ -220,7 +226,7 @@ def worker_main(db: str) -> None:
         ABM_CLOCK_MODE="system",
     )
     client = TestClient(app_from_environment())
-    run_steps(client, STEPS, on_done=lambda i: print(f"DONE {i}", flush=True))
+    run_steps(client, STEPS, on_done=wait_for_go)
 
 
 if __name__ == "__main__":

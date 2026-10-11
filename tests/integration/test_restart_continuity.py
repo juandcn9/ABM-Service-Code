@@ -62,6 +62,16 @@ def fresh_prefix(
     return snapshot(db)
 
 
+EXPECTED_ACCOUNTS = [("acct-a", "none", 460), ("acct-b", "outgoing_blocked", 50)]
+EXPECTED_MOVEMENTS = [
+    ("cor-1", "completed", 10),
+    ("mv-c1", "cleared", 300),
+    ("mv-n1", "settled", 1000),
+    ("mv-o1", "settled", 200),
+    ("mv-t1", "completed", 50),
+]
+
+
 def test_a_graceful_restart_on_the_same_file_preserves_state_and_replays_exactly(
     tmp_path, monkeypatch
 ):
@@ -69,11 +79,15 @@ def test_a_graceful_restart_on_the_same_file_preserves_state_and_replays_exactly
     set_env(monkeypatch, db)
     first = TestClient(app_from_environment())
     run_steps(first, STEPS)
-    before = snapshot(db)
     original = first.request(
         "POST", "/v1/accounts/registrations", json=STEPS[0][3], headers=STEPS[0][4]
     )
     first.close()
+
+    before = snapshot(db)
+    # the expected end state is fixed by the business rules, not only by comparing the file to itself
+    assert [(a, r, b) for a, _status, r, b in before["accounts"]] == EXPECTED_ACCOUNTS
+    assert before["movements"] == EXPECTED_MOVEMENTS
 
     second = TestClient(app_from_environment())
     assert second.get("/health/ready").status_code == 200
@@ -89,7 +103,7 @@ def test_a_graceful_restart_on_the_same_file_preserves_state_and_replays_exactly
 
 
 @pytest.mark.parametrize("killed_after", [3, 7, 11])
-def test_an_abrupt_kill_mid_sequence_recovers_to_a_clean_prefix(
+def test_an_abrupt_kill_mid_sequence_recovers_to_the_exact_prefix(
     tmp_path, monkeypatch, killed_after
 ):
     db = tmp_path / f"killed-{killed_after}.sqlite3"
@@ -100,6 +114,7 @@ def test_an_abrupt_kill_mid_sequence_recovers_to_a_clean_prefix(
             str(ROOT / "tests" / "integration" / "continuity_sequence.py"),
             str(db),
         ],
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         text=True,
         cwd=ROOT,
@@ -108,26 +123,27 @@ def test_an_abrupt_kill_mid_sequence_recovers_to_a_clean_prefix(
     done = 0
     try:
         for line in child.stdout:
-            if line.startswith("DONE "):
-                done = int(line.split()[1]) + 1
-                if done == killed_after:
-                    break
+            if not line.startswith("DONE "):
+                continue
+            done = int(line.split()[1]) + 1
+            if done == killed_after:
+                break
+            child.stdin.write(
+                "go\n"
+            )  # the child is paused after each committed step; let it run on
+            child.stdin.flush()
     finally:
         child.kill()
         child.wait(timeout=30)
         child.stdout.close()
+        child.stdin.close()
 
-    # the step after the last printed line may have committed before the kill, or not at all
+    # the child was paused after step killed_after - 1, so no step is in flight: the file must be exact
+    assert done == killed_after, (
+        f"the child reported {done} committed steps, expected {killed_after}"
+    )
     set_env(monkeypatch, db)
     recovered_client = TestClient(app_from_environment())
     assert recovered_client.get("/health/ready").status_code == 200
     recovered_client.close()
-    recovered = snapshot(db)
-
-    candidates = [
-        fresh_prefix(tmp_path, monkeypatch, done),
-        fresh_prefix(tmp_path, monkeypatch, done + 1),
-    ]
-    assert recovered in candidates, (
-        "the recovered file is neither the printed prefix nor one more committed step"
-    )
+    assert snapshot(db) == fresh_prefix(tmp_path, monkeypatch, done)
