@@ -1,6 +1,6 @@
 # Work item: TASK-23 — application and persistence security-negative evidence
 
-**Status:** Ready for JDC review
+**Status:** Implemented
 
 ## Authority
 
@@ -55,3 +55,14 @@ Structured safe security evidence for rejected commands is an observability arti
 - Review findings: the first fresh-context review found three Majors—unsafe unexpected read exceptions, incomplete movement-substitution coverage, and incomplete scheduled/evidence closure. They are addressed in `3072eecf4ca319160d8a0893ca0d632e8f90d8c4`; `115301df2f057c4dc756af08cc8400ca523ab8ef` adds correctly typed, relevant-state foreign movements, and `f5a0226a244bed4422825e4784d4f71f284efef0` completes submit coverage and distinguishes no business mutation from required stored 404 outcomes. Exact-head re-review is pending.
 - Residual risks: only the explicitly assigned TASK-25, TASK-26, TASK-31, and TASK-34 facets above remain. Any missing finalizer or incomplete release rerun fails the gate.
 - Next safe action: run exact-head gates and independent review, present the exact SHA to JDC, and merge only after JDC approval without changes.
+
+## Merge and closure record
+
+- Approved and merged by JDC at exact head `114599ec826dd9f6017e9752afc69ae2920b8ecb` as `c04a8cc` (PR #79). The merged tree equals the tested tree.
+- Independent exact-head review: fresh-context Tester PASS, recorded in `docs/evidence/TASK-23-tester-report.md` and in the PR #79 body before merge. Ponytail review run on the same head: Ship.
+- Verified status: not yet set. It needs a JDC decision, recorded in `specs/09` through a Specs PR.
+- Scheduled items, each with an owner and a trigger:
+  - Unexpected errors are not logged (the broad mapping in `sqlite_store.py`). Owner Builder. Trigger TASK-26 (structured logs).
+  - TEST-27 baseline cites TASK-02 evidence rather than re-proving it. Owner Builder. Trigger: the first task that introduces a required secret must add the missing-secret branch (DEC-0051).
+  - TEST-20 no-verb scan is module-local and covers only listed verbs. Owner Builder. Trigger TASK-25 (HTTP route check).
+  - TEST-29, the HTTP parts of TEST-20 and TEST-28, and the evidence-bundle facet of TEST-26 are owned by TASK-26, TASK-25 and TASK-34 under DEC-0051.
