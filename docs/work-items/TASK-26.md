@@ -1,6 +1,6 @@
 # Work item: TASK-26 — structured logs, bounded metrics, safe health, and the TEST-39 / TEST-41 facets
 
-**Status:** Ready for implementation
+**Status:** Draft
 
 ## Authority
 
