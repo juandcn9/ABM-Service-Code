@@ -141,7 +141,7 @@ def _observe(
     decision = "permitted" if status < 300 else "rejected"
     events.emit(
         event="request",
-        correlation_id=correlation_of(request),
+        correlation_id=token(correlation_of(request)),
         operation=operation,
         status=status,
         result_code=_result_code(body, status),
@@ -178,7 +178,11 @@ def create_app(
     async def unexpected(request: Request, exc: Exception) -> JSONResponse:
         # TEST-28: no stack, path, SQL or financial detail leaves the process
         internal = failure("INTERNAL_ERROR", "An unexpected error occurred.")
-        return envelope(internal, correlation_of(request))
+        response = envelope(internal, correlation_of(request))
+        if events is not None:  # this handler runs outside the observation middleware
+            started = getattr(request.state, "started", time.perf_counter())
+            _observe(app, events, request, 500, bytes(response.body), started)
+        return response
 
     def command(path: str, fn: Command, *, with_movement: bool) -> None:
         async def endpoint(request: Request) -> JSONResponse:
@@ -381,6 +385,7 @@ def create_app(
             request: Request, call_next: Callable[[Request], Any]
         ) -> RawResponse:
             started = time.perf_counter()
+            request.state.started = started
             response = await call_next(request)
             body = b"".join([chunk async for chunk in response.body_iterator])
             _observe(app, events, request, response.status_code, body, started)

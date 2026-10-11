@@ -52,8 +52,8 @@ _TOKEN_SALT = b"abm-token-v1"
 def token(value: str) -> str:
     """A one-way token for an identifier. Stable across runs so that events can be attributed.
 
-    shortcut: unsalted per-deployment key, so a small identifier space can be brute-forced by
-    someone holding the logs; upgrade to a deployment secret when a secret store exists (TASK-27).
+    shortcut: fixed salt shared by every deployment, so a small identifier space can be brute-forced
+    by someone holding the logs; upgrade to a deployment secret when a secret store exists (TASK-27).
     """
     return hashlib.sha256(_TOKEN_SALT + value.encode("utf-8")).hexdigest()[:16]
 

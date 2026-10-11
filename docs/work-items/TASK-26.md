@@ -18,7 +18,7 @@
 ## Scope (proposed; each item depends on a decision below where marked)
 
 1. **Structured logs (SEC-09, TEST-29).** One JSON line per request and per command outcome, with an allowlisted field set: correlation id, operation, safe result code, duration, caller role. Request bodies and opaque evidence are never logged. Identifiers are omitted or one-way tokenized (per DEC-0051, TEST-24).
-2. **Bounded metrics (TEST-29).** In-process counters keyed by bounded labels only (operation, result code). No account, movement, or caller identifier as a label. Metrics are emitted as structured events (see D2).
+2. **Bounded metrics (TEST-29).** No counters are kept. Metrics are the bounded label fields (operation, result code, decision, caller role) on the structured events (see D2); no account, movement, or caller identifier is a label.
 3. **Safe health (NFR-07, TEST-26).** Health output carries only reason codes already in the contract. Nothing else changes in `/health/*`.
 4. **TEST-41 facet.** Each permitted and rejected account or trace read emits one attributable security event (caller id, role, scope, operation, result code) with no returned financial data. No schema change.
 5. **TEST-39 facet (BT-07, INV-12).** A time-driven scan finds pending ACH or card items older than a threshold and emits a safe escalation event per item (item reference, state, age). The scan posts no money, releases no hold, and changes no state (proven by the existing invariant checks after the scan).
@@ -33,17 +33,17 @@
 
 ## Implemented
 
-- `src/abm/observability/events.py`: one JSON line per event on the given stream; an allowlist of fields (refused otherwise); bounded label sets for `event`, `decision`, and `caller_role`; one-way tokens for identifiers.
-- `src/abm/main.py`: an opt-in observation middleware (`create_app(..., events=...)`). Every request emits one `request` event (correlation id, route template, status, safe result code, duration, validated caller role and token). Permitted and rejected account and trace reads also emit a `read` event (TEST-41). Unknown roles are logged as `none`.
+- `src/abm/observability/events.py`: one JSON line per event on the given stream; an allowlist of fields (refused otherwise); bounded label sets for `event`, `decision`, and `caller_role`; one-way tokens for identifiers and for the correlation id (a caller-supplied value can carry an identifier, so it is tokenized too).
+- `src/abm/main.py`: an opt-in observation middleware (`create_app(..., events=...)`). Every request emits one `request` event (tokenized correlation id, route template, status, safe result code, duration, validated caller role and token). An unhandled error emits the same event with result `INTERNAL_ERROR`, from the app-level exception handler, because that handler runs outside the middleware. Permitted and rejected account and trace reads also emit a `read` event with decision, caller role, caller token and account token (TEST-41); its operation and result code are on the paired `request` event. Unknown roles are logged as `none`.
 - `src/abm/persistence/aged.py`: a read-only query for pending ACH and card movements older than a cutoff.
-- `scripts/scan_aged_items.py`: the TEST-39 scan (threshold required, database opened read-only) and the manifest (revisions, migration checksums, scan count). Events go to stdout.
+- `scripts/scan_aged_items.py`: the TEST-39 scan (threshold required, finite and positive; database opened read-only) and the manifest (revisions, migration checksums, scan count; the revision flags are required with `--manifest`). Events go to stdout.
 - Tests: `tests/integration/test_observability.py` (17 tests: allowlist, bounded labels, no raw identifiers or body values in output, permitted and rejected reads, unknown role, scan threshold and no state change, read-only connection refuses writes, manifest content, threshold validation). Mutant check: with the allowlist check disabled, the allowlist test fails.
 
 ## Limits (recorded)
 
 - `token` is a salted SHA-256 with a fixed salt. A small identifier space can be brute-forced by someone holding the logs. Upgrade to a deployment secret with TASK-27 (shortcut in the code).
 - The middleware buffers each response body to observe it. Acceptable for the demonstration sizes (history and trace pages are bounded by TASK-24).
-- Metrics are bounded events, not an aggregated metrics endpoint (DEC-0062). Aggregation is the log consumer's job.
+- Metrics are bounded event fields, not counters and not an aggregated metrics endpoint (DEC-0062). Aggregation is the log consumer's job.
 - The scan runs only when an operator or test runs the script (DEC-0063). No scheduler; scheduled runs are TASK-27.
 - The manifest format is TASK-26's; the bundle and its scan are TASK-34 (DEC-0064).
 
@@ -51,7 +51,7 @@
 
 - No production log shipping, log retention, or alerting. Those belong to TASK-27 and the reference architecture.
 - No readiness wiring of a real database check (already recorded as a scheduled item for TASK-26 or TASK-27 in TASK-25).
-- No concurrency or throughput claim for the metric counters (single process, DEC-0055).
+- No concurrency or throughput claim for the event stream (single process, DEC-0055).
 
 ## Scheduled items
 

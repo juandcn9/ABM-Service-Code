@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import pathlib
 import sqlite3
 import sys
@@ -69,19 +70,28 @@ def build_manifest(
     }
 
 
+def _hours(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value) or value <= 0:
+        raise argparse.ArgumentTypeError("must be a positive, finite number of hours")
+    return value
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("database", type=pathlib.Path)
-    parser.add_argument("--older-than-hours", type=float, required=True)
+    parser.add_argument("--older-than-hours", type=_hours, required=True)
     parser.add_argument("--manifest", type=pathlib.Path)
     parser.add_argument("--spec-version", default="")
     parser.add_argument("--spec-commit", default="")
     parser.add_argument("--code-commit", default="")
     args = parser.parse_args(argv)
-    if args.older_than_hours <= 0:
-        parser.error("--older-than-hours must be positive")
+    if args.manifest is not None and not (
+        args.spec_version and args.spec_commit and args.code_commit
+    ):
+        parser.error("--manifest needs --spec-version, --spec-commit and --code-commit")
 
     now = datetime.now(UTC)
     conn = sqlite3.connect(f"file:{args.database.as_posix()}?mode=ro", uri=True)

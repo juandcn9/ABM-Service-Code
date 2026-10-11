@@ -285,3 +285,60 @@ def test_the_scan_refuses_a_missing_or_non_positive_threshold(tmp_path, argv):
 
     with pytest.raises(SystemExit):
         main([str(tmp_path / "none.sqlite3"), *argv])
+
+
+def test_an_unhandled_error_emits_a_request_event_with_internal_error(
+    stack, monkeypatch
+):
+    import abm.main as main_module
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("sensitive detail that must not leave the process")
+
+    monkeypatch.setattr(main_module, "get_account", boom)
+    response = stack["client"].get("/v1/accounts/acct-a", headers=READER)
+    assert response.status_code == 500
+    request_line = [
+        entry for entry in lines(stack["stream"]) if entry["event"] == "request"
+    ][-1]
+    assert (
+        request_line["status"] == 500
+        and request_line["result_code"] == "INTERNAL_ERROR"
+    )
+    assert "sensitive detail" not in stack["stream"].getvalue()
+
+
+def test_a_caller_supplied_correlation_id_is_tokenized_not_logged(stack):
+    stack["client"].get(
+        "/v1/accounts/acct-a",
+        headers={**READER, "X-Correlation-Id": "ACCT-SECRET-42"},
+    )
+    output = stack["stream"].getvalue()
+    assert "ACCT-SECRET-42" not in output
+    assert token("ACCT-SECRET-42") in output
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf", "0", "-1", "1e400"])
+def test_the_scan_refuses_non_finite_or_non_positive_thresholds(tmp_path, value):
+    from scan_aged_items import main  # type: ignore[import-not-found]
+
+    with pytest.raises(SystemExit):
+        main([str(tmp_path / "none.sqlite3"), "--older-than-hours", value])
+
+
+def test_a_manifest_without_revisions_is_refused(tmp_path):
+    from scan_aged_items import main  # type: ignore[import-not-found]
+
+    db = tmp_path / "m.sqlite3"
+    started = start_database(db, MIGRATIONS, NOW, check_same_thread=False)
+    started.connection.close()
+    with pytest.raises(SystemExit):
+        main(
+            [
+                str(db),
+                "--older-than-hours",
+                "24",
+                "--manifest",
+                str(tmp_path / "m.json"),
+            ]
+        )
