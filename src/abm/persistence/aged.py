@@ -9,6 +9,14 @@ PENDING_STATES = ("pending", "accepted_with_hold", "submitted", "authorized_with
 PENDING_TYPES = ("incoming_ach", "outgoing_ach", "card")
 
 
+# Literal statement: the placeholder count matches PENDING_STATES and PENDING_TYPES (4 and 3).
+_AGED_SQL = (
+    "SELECT movement_id, account_id, state, created_at FROM movements "
+    "WHERE state IN (?, ?, ?, ?) AND movement_type IN (?, ?, ?) AND created_at <= ? "
+    "ORDER BY created_at, movement_id"
+)
+
+
 def aged_pending(
     conn: sqlite3.Connection, cutoff: str
 ) -> list[tuple[str, str, str, str]]:
@@ -16,11 +24,4 @@ def aged_pending(
 
     cutoff is an ISO UTC instant (YYYY-MM-DDTHH:MM:SSZ), the same format as created_at.
     """
-    states = ",".join("?" * len(PENDING_STATES))
-    types = ",".join("?" * len(PENDING_TYPES))
-    return conn.execute(
-        f"SELECT movement_id, account_id, state, created_at FROM movements "
-        f"WHERE state IN ({states}) AND movement_type IN ({types}) AND created_at <= ? "
-        f"ORDER BY created_at, movement_id",
-        (*PENDING_STATES, *PENDING_TYPES, cutoff),
-    ).fetchall()
+    return conn.execute(_AGED_SQL, (*PENDING_STATES, *PENDING_TYPES, cutoff)).fetchall()
