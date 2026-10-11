@@ -7,6 +7,7 @@ map to the contract envelope in abm.api.http.
 
 from __future__ import annotations
 
+import re
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -58,14 +59,15 @@ from abm.ports.storage import UnitOfWork
 Command = Callable[..., Result[Response]]
 
 
+_DIGITS = re.compile(r"[0-9]+")
+
+
 def _int_query(value: str | None, default: int | None) -> object:
-    """A query integer. Anything that is not an integer is passed through so the application refuses it."""
+    """A canonical query integer (ASCII digits only). Anything else is passed through as text, so the
+    application refuses it with VALIDATION_ERROR, as the contract's integer type requires."""
     if value is None:
         return default
-    try:
-        return int(value)
-    except ValueError:
-        return value
+    return int(value) if _DIGITS.fullmatch(value) else value
 
 
 def create_app(uow: UnitOfWork, clock: Clock) -> FastAPI:
