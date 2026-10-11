@@ -52,7 +52,7 @@ PLACEHOLDER_PATTERN = (
 # step, permission, trigger, or condition, must update this value in the same reviewed commit, so
 # "no required check is advisory" cannot be weakened silently.
 EXPECTED_WORKFLOW_SHA256 = (
-    "d7cc9d139e29f6e17fd78e9d113404831382dcd05ca9cfa1eb57ebaaa1316dcb"
+    "37682cc073d27b5c0fb1c3190a19ba490f0648a05422213d4e30d8f359ceaaa3"
 )
 # paths that must be ignored by git, and one that must stay trackable
 IGNORED_SAMPLES = (

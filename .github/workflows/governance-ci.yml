@@ -102,3 +102,5 @@ jobs:
           cat test-run.txt
       - name: Container check (TEST-33, TEST-31 readiness, manifest)
         run: python scripts/check_container.py --test-summary "$(cat test-summary.txt)"
+      - name: Black-box HTTP smoke check of the running image (TASK-36, DEC-0067)
+        run: python scripts/smoke_container.py
