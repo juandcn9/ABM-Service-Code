@@ -70,7 +70,16 @@ def _int_query(value: str | None, default: int | None) -> object:
     return int(value) if _DIGITS.fullmatch(value) else value
 
 
-def create_app(uow: UnitOfWork, clock: Clock) -> FastAPI:
+def create_app(
+    uow: UnitOfWork,
+    clock: Clock,
+    readiness: Callable[[], list[str]] | None = None,
+) -> FastAPI:
+    # the readiness check returns safe reason codes, empty when ready; with none supplied the
+    # service reports unready (fails closed)
+    ready_check: Callable[[], list[str]] = (
+        readiness if readiness is not None else (lambda: ["DATABASE_UNAVAILABLE"])
+    )
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     # one connection serves every request thread; the lock keeps each command's transaction whole
     guard = threading.Lock()
@@ -253,5 +262,23 @@ def create_app(uow: UnitOfWork, clock: Clock) -> FastAPI:
         with guard:
             result = internal_transfer(uow, clock, caller.value, key, body)
         return envelope(result, caller.value.correlation_id)
+
+    @app.get("/health/live")
+    async def live() -> JSONResponse:
+        # API-20: process diagnostic only; no authorization, no data
+        return JSONResponse({"status": "live"}, status_code=200)
+
+    @app.get("/health/ready")
+    async def ready() -> JSONResponse:
+        # API-21: safe readiness result; a failing or raising check reports unready
+        try:
+            reasons = sorted(ready_check())
+        except Exception:  # noqa: BLE001
+            reasons = ["DATABASE_UNAVAILABLE"]
+        if reasons:
+            return JSONResponse(
+                {"status": "unready", "reason_codes": reasons}, status_code=503
+            )
+        return JSONResponse({"status": "ready"}, status_code=200)
 
     return app
