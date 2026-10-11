@@ -272,3 +272,13 @@ def test_the_application_exposes_only_the_contract_methods(tmp_path):
         "/v1/accounts/acct-a/adjust",
     ):
         assert test_client.post(path, json={}).status_code == 404
+
+
+def test_a_check_returning_only_unknown_codes_still_fails_closed(tmp_path):
+    test_client, _conn = make_client(tmp_path, lambda: ["BOGUS"])
+    response = test_client.get("/health/ready")
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "unready",
+        "reason_codes": ["INTEGRITY_FAILED"],
+    }
