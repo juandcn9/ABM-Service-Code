@@ -1,6 +1,6 @@
 # TASK-24 Tester report (partial)
 
-**Verdict: PASS on `e3c616f`** for the scope in this record (Code PR #83, merged as `6a6b9f2`). The TASK itself stays Draft until outgoing ACH is in the model-based sequence.
+**Verdict: PASS on `e3c616f`** for PR #83 (merged as `6a6b9f2`). A second pass on `025037b` (PR #86, merged as `668f1b4`) also passed, adding outgoing ACH to the model; its review is recorded in the PR description. The TASK is Implemented.
 
 ## Subject
 
