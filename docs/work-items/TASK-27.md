@@ -24,6 +24,7 @@
   7. CI runs `scripts/check_http_conformance.py` (TASK-25, DEC-0056) against the container, so the conformance evidence runs in CI rather than only as a local script run.
   8. CI runs `scripts/scan_aged_items.py` (TASK-26, DEC-0063) against the check-container database with an explicit threshold, and checks that the manifest it writes carries `image_digest` and `test_summary` and the exact commits. Scheduling beyond this CI run is out of scope.
   9. Container log check: `scripts/check_container.py` reads the container's stdout and asserts that structured events (TASK-26 sink, DEC-0062) appear with `ts` and `severity` (closes T2-7 in the container context).
+  10. Manifest revision format (Tester F10, T2-5): `scripts/scan_aged_items.py` refuses `--spec-commit` and `--code-commit` values that are not 40-character lowercase hexadecimal SHAs, with a focused test for a short value, an uppercase value, and a non-hex value.
 - Explicit exclusions:
   - Backup, restore, disaster recovery, RPO and RTO (NFR-08; TASK-29 verifies the absence of claims).
   - The demonstration run script and the full scenario (TASK-31), the restart continuity suite (TASK-28), and the AWS reference (TASK-30).
@@ -38,7 +39,7 @@
 
 ## Acceptance evidence
 
-- Focused tests: configuration parser unit tests; `app_from_environment()` builds an app whose readiness reports `DATABASE_UNAVAILABLE` when the path is unusable and ready when the database starts.
+- Focused tests: configuration parser unit tests; `app_from_environment()` builds an app whose readiness reports `DATABASE_UNAVAILABLE` when the path is unusable and ready when the database starts; the manifest SHA format test (item 10).
 - Required broader gates: pytest, ruff check and format, mypy, both validators, and the container check job in CI on the exact head.
 - Failure, concurrency, authorization, and recovery cases: missing setting, malformed setting, `controlled` clock in demonstration mode, unwritable data directory, non-root and read-only assertions, and restart on the same volume (TEST-33 restart clause).
 - Documentation and trace updates: this work item; `README.md` demonstration command set; `docs/governance/dependencies.md` note that the image build is the only installation step.
