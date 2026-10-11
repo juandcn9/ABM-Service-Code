@@ -280,6 +280,8 @@ def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp
             "d2211b53a0570437b7fa9ddb1a1ba46969d6ac40",
             "--code-commit",
             "abc1234",
+            "--test-summary",
+            "945 passed, 1 warning",
         ]
     )
     assert code == 0
@@ -289,6 +291,11 @@ def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp
     assert data["migrations"] and all(
         len(m["checksum"]) == 64 for m in data["migrations"]
     )
+    # TEST-35: the image digest is the toolchain pin; the test summary is the one supplied
+    assert (
+        data["image_digest"].startswith("sha256:") and len(data["image_digest"]) == 71
+    )
+    assert data["test_summary"] == "945 passed, 1 warning"
 
 
 @pytest.mark.parametrize(
@@ -425,3 +432,27 @@ def test_a_rejected_trace_read_is_attributable_without_an_account_token(stack):
     assert read_line["decision"] == "rejected"
     assert read_line["caller_role"] == "payment_orchestrator"
     assert "account_token" not in read_line
+
+
+def test_a_manifest_without_a_test_summary_is_refused(tmp_path):
+    from scan_aged_items import main  # type: ignore[import-not-found]
+
+    db = tmp_path / "t.sqlite3"
+    started = start_database(db, MIGRATIONS, NOW, check_same_thread=False)
+    started.connection.close()
+    with pytest.raises(SystemExit):
+        main(
+            [
+                str(db),
+                "--older-than-hours",
+                "24",
+                "--manifest",
+                str(tmp_path / "t.json"),
+                "--spec-version",
+                "v1.9.11",
+                "--spec-commit",
+                "d2211b53a0570437b7fa9ddb1a1ba46969d6ac40",
+                "--code-commit",
+                "abc1234",
+            ]
+        )
