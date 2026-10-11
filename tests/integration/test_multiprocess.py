@@ -11,6 +11,7 @@ import pathlib
 import sqlite3
 import subprocess
 import sys
+import time
 
 import pytest
 from starlette.testclient import TestClient
@@ -68,10 +69,14 @@ def await_line(child: subprocess.Popen, prefix: str) -> str:
     raise AssertionError(f"the worker ended without printing {prefix}")
 
 
-def finish(child: subprocess.Popen) -> str:
+def send_go(child: subprocess.Popen) -> None:
     assert child.stdin is not None
     child.stdin.write("go\n")
     child.stdin.flush()
+
+
+def finish(child: subprocess.Popen) -> str:
+    send_go(child)
     line = await_line(child, "RESULT")
     child.wait(timeout=60)
     return line
@@ -94,7 +99,13 @@ def test_two_processes_spending_the_same_funds_leave_at_most_one_success(
     funded_file(db, monkeypatch)
     first = start(db, "transfer", 1000)
     second = start(db, "transfer", 1000)
-    results = sorted([finish(first), finish(second)])
+    send_go(
+        first
+    )  # both go signals before either result is read: the two requests overlap
+    send_go(second)
+    results = sorted([await_line(first, "RESULT"), await_line(second, "RESULT")])
+    first.wait(timeout=60)
+    second.wait(timeout=60)
     statuses = sorted(int(r.split()[1]) for r in results)
     assert statuses == [201, 422], results
     assert any(r.endswith("INSUFFICIENT_FUNDS") for r in results)
@@ -111,12 +122,17 @@ def test_a_process_held_out_by_another_writer_gets_a_safe_busy_refusal_with_no_e
     )  # started first: its own startup must see a free file
     holder = sqlite3.connect(db, isolation_level=None)
     holder.execute("BEGIN IMMEDIATE")  # another process now holds the write lock
+    started_at = time.monotonic()
     try:
         result = finish(worker)
+        waited = time.monotonic() - started_at
     finally:
         holder.execute("ROLLBACK")
         holder.close()
     assert result.split()[1:3] == ["503", "SERVICE_BUSY"], result
+    assert waited < 5, (
+        f"a busy file was waited on for {waited:.1f}s; the bound is 200 ms"
+    )
     assert balance(db) == 1000  # the refused command left no partial effect
 
 
