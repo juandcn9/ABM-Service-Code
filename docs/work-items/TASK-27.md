@@ -6,9 +6,9 @@
 
 - Specs version and exact SHA: `v1.9.12` / `1f6a26d379f82ce0cb227b02d7e197fb4bb99b2f` (Code pin, PR #101). Specs `main` is at `d09bae1` (status file, PR #54); the requirements below are unchanged in it.
 - TASK and affected IDs: `TASK-27`; `NFR-01`; `NFR-10`; `TEST-31`; `TEST-33`; `SEC-11` (pinned base image and dependencies); `NFR-08` (no backup or recovery claim, guarded by TEST-32 in TASK-29).
-- Specs references: `specs/07-operations-and-recovery.md` sections 5 (demonstration container mounts one named volume and sets `ABM_DB_PATH` inside it) and 10 (single documented command set); configuration table in section 3 (`ABM_MODE`, `ABM_DB_PATH`, `ABM_LOG_LEVEL`, `ABM_BUSY_TIMEOUT_MS`, `ABM_TRUSTED_INGRESS`, `ABM_CLOCK_MODE`).
+- Specs references: `specs/07-operations-and-recovery.md` sections 5 (demonstration container mounts one named volume and sets `ABM_DB_PATH` inside it) and 10 (single documented command set); configuration table in section 2 (`ABM_MODE`, `ABM_DB_PATH`, `ABM_LOG_LEVEL`, `ABM_BUSY_TIMEOUT_MS`, `ABM_TRUSTED_INGRESS`, `ABM_CLOCK_MODE`).
 - Decision, gap, or risk records: DEC-0055 (one shared SQLite connection; single process; no throughput claim); DEC-0056 (conformance evidence is script-run; CI execution of it belongs to TASK-27); TASK-25 and TASK-26 scheduled items listed below.
-- Dependencies: `TASK-25` (Verified) and `TASK-26` (Verified; Code PR #102, record `0d02ad5`; Tester PASS on `d45e766`).
+- Dependencies: `TASK-25` (Verified) and `TASK-26` (Verified: implementation PR #98, fixes PR #100 merged `d45e766`, Tester PASS on `d45e766`, Verified record PR #102 merged `0d02ad5`).
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required.
 
 ## Scope
@@ -21,6 +21,9 @@
   4. `scripts/check_container.py`: builds the image, starts it with a fresh named volume and with `--read-only`, waits for `/health/ready`, asserts the process UID is non-zero, that a write outside `/data` fails, that a write inside `/data` succeeds, and that a stop and restart on the same volume reaches ready again. Standard library only.
   5. CI: a job in `.github/workflows/` that runs `scripts/check_container.py` on the runner, which has a container engine.
   6. Tests: unit tests for the configuration parser (every required setting, each rejected value, names-only error text, `controlled` refused in the demonstration mode).
+  7. CI runs `scripts/check_http_conformance.py` (TASK-25, DEC-0056) against the container, so the conformance evidence runs in CI rather than only as a local script run.
+  8. CI runs `scripts/scan_aged_items.py` (TASK-26, DEC-0063) against the check-container database with an explicit threshold, and checks that the manifest it writes carries `image_digest` and `test_summary` and the exact commits. Scheduling beyond this CI run is out of scope.
+  9. Container log check: `scripts/check_container.py` reads the container's stdout and asserts that structured events (TASK-26 sink, DEC-0062) appear with `ts` and `severity` (closes T2-7 in the container context).
 - Explicit exclusions:
   - Backup, restore, disaster recovery, RPO and RTO (NFR-08; TASK-29 verifies the absence of claims).
   - The demonstration run script and the full scenario (TASK-31), the restart continuity suite (TASK-28), and the AWS reference (TASK-30).
@@ -31,6 +34,7 @@
 
 - The development workstation has no container engine (`docker` is not installed), so TEST-33 cannot run locally. The container gate runs in CI, on a runner with a container engine. Until that job passes on the PR head, TEST-33 is **not verified**, and the work item will say so. Choice recorded here so JDC can redirect it.
 - The base image digest is the one already pinned in `toolchain.toml`. No new base image is introduced.
+- Clock: the Specs table allows `controlled` in the demonstration mode. This container refuses it, because a container serving real time has no test harness to control the clock. This is stricter than the table, recorded here so JDC can redirect it.
 
 ## Acceptance evidence
 
@@ -42,9 +46,9 @@
 ## Scheduled items carried into TASK-27
 
 - Wire a real readiness check to the entry point (TASK-25 and TASK-26 scheduled item): covered by item 2 above.
-- Manifest revision check (`--spec-commit`, `--code-commit` format and HEAD match; Tester F10 and T2-5): owner Builder; trigger TASK-27 (container and CI run of the scan). Include in this PR if it stays small, otherwise record a new scheduled item.
-- Structured events without a sink (T2-7): operators must configure the sink in the container; the container logs to stdout via `ABM_LOG_LEVEL` and the events sink on stdout (DEC-0062). Verified by `scripts/check_container.py` reading the container log.
-- CI execution of the TASK-25 conformance script (`scripts/check_http_conformance.py`, DEC-0056): run it against the container in the same CI job.
+- Manifest revision check (Tester F10 and T2-5): decided here. `scripts/scan_aged_items.py` refuses `--spec-commit` and `--code-commit` values that are not 40-character lowercase hexadecimal SHAs. The CI job (item 8) passes the exact `GITHUB_SHA` and the Specs SHA from `SPEC_VERSION`. Owner Builder.
+- Structured events without a sink (T2-7): covered by item 9. The container writes events to stdout; the check reads them back.
+- CI execution of the TASK-25 conformance script (`scripts/check_http_conformance.py`, DEC-0056): covered by item 7.
 
 ## Implementation notes
 
