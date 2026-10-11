@@ -1,6 +1,6 @@
 # Work item: TASK-25 — HTTP binding with exact envelopes
 
-**Status:** Ready for JDC review
+**Status:** Verified
 
 ## Authority
 
@@ -14,6 +14,10 @@
 - Slice 2, PR #91, merged as `ddfcbe5` at approved head `2375802`: the remaining 20 operations bound to their routes.
 - Slice 3, PR #92, merged as `1ae2a15` at approved head `4d29109`: health routes `API-20` and `API-21`, and the HTTP forms of `TEST-20`, `TEST-22`, `TEST-23`, `TEST-24`, `TEST-26`, `TEST-30`.
 - Slice 4, this PR: conformance tooling for `TEST-46` (standard library only; script-run evidence, DEC-0056): `scripts/schema_lite.py` (a JSON Schema checker for the keywords the contract uses; refuses any keyword it does not support), `scripts/check_http_conformance.py` (probes all 24 paths and the success flows of all 22 v1 operations, and checks each response against the contract's declared statuses and schemas; 92 responses conform), and `tests/unit/test_schema_lite.py`.
+
+## Verification
+
+- Verified by the independent Tester pass on the fix head `e5b550f` (PR #95, merged as `2c439fd`, tree identical), accepted for the merged content by DEC-0059. Report: `docs/evidence/TASK-25-tester-report.md`.
 
 ## Tester FAIL on `a81b3c6` and fix
 
