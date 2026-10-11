@@ -1,6 +1,8 @@
 # Work item: TASK-28 — automated restart continuity and abrupt-termination recovery
 
-**Status:** Draft
+**Status:** Verified
+
+Tester PASS on the merged revision `48d7c13` (PR #112; implementation PR #111 merged `4acd135`; fixes after the first pass): `docs/evidence/TASK-28-tester-report.md`. The first pass (FAIL on `4acd135`) findings F-01, F-02 and N-01 are fixed and verified. JDC decided Verified on the criteria: Tester PASS on the merged revision, acceptance met.
 
 ## Authority
 
@@ -40,10 +42,15 @@
 - No backup, restore, disaster-recovery, RPO or RTO claim.
 - No claim about concurrent restarts or about a second process on the same volume.
 
+## Scheduled items
+
+- Tester F-03 (Minor): the graceful test reopens the file while the first app connection is still open; a stricter test would close that connection first. Owner Builder; trigger: the next change to `tests/integration/test_restart_continuity.py`.
+- Tester N-02 (Note): the graceful expected-account check omits the account status column. Owner Builder; trigger: the same change.
+
 ## Completion
 
 - Code commit/PR: implementation on branch `feat/task-28-continuity`; PR not yet opened.
 - Commands/checks and results: `tests/integration/test_restart_continuity.py`: 4 passed (graceful restart with exact replay; three abrupt kills, each recovering to a clean prefix).
-- Review findings/resolution: pending.
+- Review findings/resolution: first Tester pass FAIL (F-01, F-02, N-01 Major or Note) on `4acd135`; fixed in PR #112; re-pass PASS on `48d7c13`; F-03 and N-02 scheduled.
 - Residual risks: the abrupt kill is an OS-level kill of a Python process; it does not simulate power loss or disk failure.
 - Next safe action: implement the graceful and abrupt continuity tests, then open the Code PR.
