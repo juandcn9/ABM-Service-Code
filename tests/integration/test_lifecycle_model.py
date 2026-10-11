@@ -104,7 +104,7 @@ def act(
     uow: SqliteUnitOfWork,
     now: ControllableClock,
     n: int,
-) -> None:
+) -> str:
     a = rng.choice(ACCOUNTS)
     b = "acct-b" if a == "acct-a" else "acct-a"
     # closure is rare so that most steps exercise open accounts; the others are weighted
