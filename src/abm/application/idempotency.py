@@ -16,6 +16,7 @@ from abm.domain.identifiers import format_instant
 from abm.domain.results import Error, Failure, Result, Success, failure
 from abm.ports.clock import Clock
 from abm.ports.storage import (
+    Rollback,
     StorageFailure,
     StoredOutcome,
     UnitOfWork,
@@ -43,14 +44,6 @@ class Response:
 
     status: int
     data: Mapping[str, object]
-
-
-class _Abort(Exception):
-    """Roll the transaction back and return this result unchanged."""
-
-    def __init__(self, result: Failure) -> None:
-        super().__init__(result.error.code)
-        self.result = result
 
 
 def scope_key(subject_id: str, operation: str) -> str:
@@ -138,10 +131,10 @@ def run_idempotent(
             outcome = _to_outcome(result, fingerprint, instruction_id)
             if outcome is None:
                 assert isinstance(result, Failure)  # a Success always has an outcome
-                raise _Abort(result)
+                raise Rollback(result)
             tx.save_outcome(scope, key, outcome, now)
             return result
-    except _Abort as aborted:
+    except Rollback as aborted:
         return aborted.result
     except StorageFailure as exc:
         return exc.failure

@@ -101,6 +101,20 @@ MUTATIONS: dict[str, Mutation] = {
     "valid-looking card number in markdown": lambda root: write(
         root, "docs/leak.md", "card " + "4111" + "1111" + "1111" + "1111" + " here\n"
     ),
+    "real-shaped email address": lambda root: write(
+        root, "docs/email.md", "customer" + "@private-domain.com\n"
+    ),
+    "real-shaped international phone": lambda root: write(
+        root, "docs/phone.md", "+" + "598 99 123 456\n"
+    ),
+    "real-shaped government identifier": lambda root: write(
+        root, "docs/id.md", "123" + "-45-" + "6789\n"
+    ),
+    "prohibited personal field in a fixture": lambda root: write(
+        root,
+        "tests/fixtures/customer.json",
+        '{"date_' + 'of_birth": "2000-01-01"}\n',
+    ),
     "NUL byte in text file": lambda root: write(root, "docs/nul.txt", b"abc\x00def\n"),
     "invalid work-item status": lambda root: edit(
         root,

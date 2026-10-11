@@ -112,6 +112,10 @@ class _Generic(sqlite3.OperationalError):
     """No sqlite_errorcode: maps to INTERNAL_ERROR."""
 
 
+class _Plain(RuntimeError):
+    """Not a sqlite error at all: must roll back and map to INTERNAL_ERROR."""
+
+
 class _Busy(sqlite3.OperationalError):
     sqlite_errorcode = 5  # SQLITE_BUSY: maps to SERVICE_BUSY, retryable
 
@@ -124,6 +128,8 @@ ERRORS: dict[str, tuple[type[Exception], str]] = {
     "generic": (_Generic, "INTERNAL_ERROR"),
     "busy": (_Busy, "SERVICE_BUSY"),
     "full": (_Full, "SERVICE_UNREADY"),
+    # not a sqlite error: exercises the write() branch for unexpected exceptions (TEST-28)
+    "plain": (_Plain, "INTERNAL_ERROR"),
 }
 
 

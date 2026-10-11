@@ -1,4 +1,7 @@
-"""Each permitted late event after closure advances the retention dates (DEC-0046, TEST-19)."""
+"""Outgoing return, correction, late card clearing, and refund advance retention (DEC-0046, TEST-19).
+
+The incoming-return case is exercised in test_retention.py.
+"""
 
 from __future__ import annotations
 

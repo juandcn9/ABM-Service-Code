@@ -100,6 +100,14 @@ def test_clear_removes_the_block_and_its_decision(tmp_path):
     assert isinstance(result, Success)
     assert result.value.data == {"account_id": "acct-a", "restriction": "none"}
     assert restriction_of(conn, "acct-a") == ("none", None)
+    traces = conn.execute(
+        "SELECT instruction_id, operation, external_reference FROM audit_trace"
+        " WHERE operation = 'risk_restriction' ORDER BY sequence"
+    ).fetchall()
+    assert traces == [
+        ("ins-r1", "risk_restriction", "dec-r1"),
+        ("ins-r2", "risk_restriction", "dec-r2"),
+    ]
 
 
 def test_a_state_that_does_not_change_is_refused_without_effect(tmp_path):

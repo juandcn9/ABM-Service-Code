@@ -13,7 +13,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 ## Current scope
 
-`TASK-01` established repository governance and the approved Specs pointer. `TASK-02` pins the reproducible Python, dependency, lock-generation, safe example-configuration, and future container-base inputs. `TASK-03` adds the empty modular-monolith package layout and import-boundary tests. `TASK-04` makes governance, toolchain, lint, format, type, and test checks required CI gates. `TASK-06` adds the immutable SQLite migrations and runner. `TASK-05` records the Ponytail configuration work item (Blocked on the pin decision). `TASK-08` adds the pure domain value objects, typed results, idempotency fingerprint, and clock port. `TASK-09` adds trusted caller-context parsing, the role and account-scope authorization matrix, and strict transport validation. `TASK-02`, `TASK-03`, `TASK-04`, `TASK-08`, and `TASK-09` have independent Tester records under `docs/evidence/`. The repository intentionally contains no service implementation, API route, built container, cloud resource, credential, or real customer data.
+TASK-01 through TASK-22 establish the governed toolchain, modular-monolith boundaries, SQLite schema and transaction model, monetary domain, application commands and reads, readiness, lifecycle rules, corrections, restrictions, closure, and retention controls. TASK-23 supplies the application/persistence security-negative evidence defined by DEC-0051. HTTP, observability, container, infrastructure, and release evidence remain later tasks. Work-item and independent Tester records are under `docs/work-items/` and `docs/evidence/`. The repository uses only synthetic demonstration data and contains no API route, built container, cloud resource, credential, or real customer data.
 
 ## Repository map
 
@@ -30,6 +30,7 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 - [`docs/work-items/TASK-05.md`](docs/work-items/TASK-05.md): Ponytail configuration work item (Blocked on the pin decision).
 - [`docs/work-items/TASK-10.md`](docs/work-items/TASK-10.md): idempotency foundation and registration work item.
 - [`docs/work-items/TASK-12.md`](docs/work-items/TASK-12.md): startup and readiness work item.
+- [`docs/work-items/TASK-23.md`](docs/work-items/TASK-23.md): application/persistence security-negative evidence and exact later-facet ownership.
 - [`src/abm/`](src/abm), [`harness/`](harness), [`tests/`](tests): target layout; [`tests/unit/test_import_boundaries.py`](tests/unit/test_import_boundaries.py) enforces dependency rules.
 - [`toolchain.toml`](toolchain.toml): exact Python, lock generator, container digest, and install commands.
 - [`.github/pull_request_template.md`](.github/pull_request_template.md): required Code PR evidence.
@@ -45,4 +46,4 @@ Ponytail was not applicable to the original Codex-authored tasks. Claude Code ta
 
 ## Non-claims
 
-This repository does not yet contain a runnable service or built image. It makes no claim of production readiness, regulatory approval, live partner integration, capacity, availability, backup restoration, disaster recovery, or permission to process real money or real customer data.
+This repository does not yet contain a runnable HTTP service or built image. It makes no claim of production readiness, regulatory approval, live partner integration, capacity, availability, backup restoration, disaster recovery, or permission to process real money or real customer data.

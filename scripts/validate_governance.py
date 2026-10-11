@@ -398,6 +398,18 @@ def validate_safety(texts: dict[str, str]) -> None:
     for label, pattern in patterns.items():
         if re.search(pattern, combined):
             fail(f"probable secret detected: {label}")
+    prohibited_patterns = {
+        "email address": r"(?i)\b[A-Z0-9._%+-]+@(?![A-Z0-9.-]*example\.invalid\b)[A-Z0-9.-]+\.[A-Z]{2,}\b",
+        "international phone number": r"(?<!\w)\+[1-9][0-9](?:[ .()-]?[0-9]){7,14}(?!\w)",
+        "US government identifier": r"(?<!\d)[0-9]{3}-[0-9]{2}-[0-9]{4}(?!\d)",
+        "prohibited personal or bank field": (
+            r"(?i)['\"](?:email|phone|street_address|date_of_birth|government_id|"
+            r"routing_number|bank_account_number|card_pan|card_cvv)['\"]\s*:"
+        ),
+    }
+    for label, pattern in prohibited_patterns.items():
+        if re.search(pattern, combined):
+            fail(f"probable prohibited data detected: {label}")
     for line_no, number in _card_like_numbers(combined):
         fail(f"probable payment card number (Luhn-valid {len(number)} digits)")
     for name, body in texts.items():

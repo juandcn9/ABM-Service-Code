@@ -14,6 +14,14 @@ from typing import Protocol
 from abm.domain.results import Failure
 
 
+class Rollback(Exception):
+    """Roll the write transaction back and return this result, storing nothing."""
+
+    def __init__(self, result: Failure) -> None:
+        super().__init__(result.error.code)
+        self.result = result
+
+
 class StorageFailure(Exception):
     """A storage operation failed; carries the safe, already-mapped result."""
 

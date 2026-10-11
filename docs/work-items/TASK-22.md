@@ -46,7 +46,7 @@
 
 ## Scheduled items
 
-- Minor: the docstring of `test_retention_late_events.py` overstates coverage; the incoming return is covered only by `test_retention.py`. Owner Builder. Trigger: TASK-23.
+- Resolved by TASK-23 PR #79: the late-event docstring names the cases in that module and points to `test_retention.py` for incoming return.
 - Minor: README on `main` states Specs `v1.9.0`, predating the current pins. Owner Builder. Trigger: a docs-only fix before the next release.
 
 ## Process record

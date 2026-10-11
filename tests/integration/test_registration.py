@@ -320,8 +320,11 @@ def test_failure_after_every_persistence_step_leaves_all_effects_or_none(
     for fail_after in range(steps):
         conn = open_database(db_path)
         wrapped = FailingAfter(SqliteUnitOfWork(conn), fail_after)
-        with pytest.raises(RuntimeError, match="injected"):
-            register_account(wrapped, clock, REGISTRAR, "key-1", BODY)  # type: ignore[arg-type]
+        # an unexpected error is a safe INTERNAL_ERROR, never a raw exception (TEST-28)
+        result = register_account(wrapped, clock, REGISTRAR, "key-1", BODY)  # type: ignore[arg-type]
+        assert isinstance(result, Failure) and result.error.code == "INTERNAL_ERROR", (
+            fail_after
+        )
         assert all(c == 0 for c in counts(conn).values()), fail_after
         conn.close()
     # with no injected failure the same request then succeeds, so nothing was half-claimed

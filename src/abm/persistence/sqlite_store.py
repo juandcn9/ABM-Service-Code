@@ -7,6 +7,7 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+from abm.domain.results import failure
 from abm.persistence.database import read_transaction, to_failure, write_transaction
 from abm.ports.storage import (
     AccountRecord,
@@ -18,6 +19,7 @@ from abm.ports.storage import (
     NewAccount,
     NewMovement,
     RetentionRecord,
+    Rollback,
     StorageFailure,
     StoredOutcome,
     TraceEntry,
@@ -383,13 +385,27 @@ class SqliteUnitOfWork:
         try:
             with write_transaction(self._conn):
                 yield SqliteWriteTransaction(self._conn)
+        except (Rollback, StorageFailure):
+            raise
         except sqlite3.Error as exc:
             raise StorageFailure(to_failure(exc)) from exc
+        # unexpected: already rolled back above, so nothing is committed or stored (TEST-28)
+        except Exception as exc:
+            raise StorageFailure(
+                failure("INTERNAL_ERROR", "An unexpected error occurred.")
+            ) from exc
 
     @contextmanager
     def read(self) -> Iterator[SqliteReadTransaction]:
         try:
             with read_transaction(self._conn):
                 yield SqliteReadTransaction(self._conn)
+        except StorageFailure:
+            raise
         except sqlite3.Error as exc:
             raise StorageFailure(to_failure(exc)) from exc
+        # A read adapter must not leak driver, query, path, or injected exception detail.
+        except Exception as exc:
+            raise StorageFailure(
+                failure("INTERNAL_ERROR", "An unexpected error occurred.")
+            ) from exc
