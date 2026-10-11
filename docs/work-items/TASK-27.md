@@ -47,7 +47,7 @@
 ## Scheduled items carried into TASK-27
 
 - Wire a real readiness check to the entry point (TASK-25 and TASK-26 scheduled item): covered by item 2 above.
-- Manifest revision check (Tester F10 and T2-5): decided here. `scripts/scan_aged_items.py` refuses `--spec-commit` and `--code-commit` values that are not 40-character lowercase hexadecimal SHAs. The CI job (item 8) passes the exact `GITHUB_SHA` and the Specs SHA from `SPEC_VERSION`. Owner Builder.
+- Manifest revision check (Tester F10 and T2-5): covered by item 10. `scripts/scan_aged_items.py` refuses `--spec-commit` and `--code-commit` values that are not 40-character lowercase hexadecimal SHAs. The CI job (item 8) passes the exact `GITHUB_SHA` and the Specs SHA from `SPEC_VERSION`. Owner Builder.
 - Structured events without a sink (T2-7): covered by item 9. The container writes events to stdout; the check reads them back.
 - CI execution of the TASK-25 conformance script (`scripts/check_http_conformance.py`, DEC-0056): covered by item 7.
 
