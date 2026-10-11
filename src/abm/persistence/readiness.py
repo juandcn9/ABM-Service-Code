@@ -212,6 +212,7 @@ def start_database(
     migrations: Sequence[Migration],
     applied_at: str,
     busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS,
+    check_same_thread: bool = True,
 ) -> StartupResult:
     """Open with the required settings, apply reviewed forward migrations, then run readiness.
 
@@ -219,7 +220,7 @@ def start_database(
     no usable connection; a fully committed migration is the only financial-adjacent change.
     """
     try:
-        conn = open_database(path, busy_timeout_ms)
+        conn = open_database(path, busy_timeout_ms, check_same_thread)
     except DatabaseUnavailable:
         return StartupResult(None, (DATABASE_UNAVAILABLE,))
     try:

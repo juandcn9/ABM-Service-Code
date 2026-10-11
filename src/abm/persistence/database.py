@@ -35,7 +35,9 @@ class DatabaseUnavailable(Exception):
 
 
 def open_database(
-    path: str | pathlib.Path, busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS
+    path: str | pathlib.Path,
+    busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS,
+    check_same_thread: bool = True,
 ) -> sqlite3.Connection:
     """Open one connection with the required settings, verified by reading them back.
 
@@ -54,7 +56,10 @@ def open_database(
         # sqlite3 turns the timeout into whole milliseconds by truncation; the half millisecond
         # makes every valid value land on the requested one
         conn = sqlite3.connect(
-            str(path), isolation_level=None, timeout=(busy_timeout_ms + 0.5) / 1000
+            str(path),
+            isolation_level=None,
+            timeout=(busy_timeout_ms + 0.5) / 1000,
+            check_same_thread=check_same_thread,
         )
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("PRAGMA synchronous = FULL")
