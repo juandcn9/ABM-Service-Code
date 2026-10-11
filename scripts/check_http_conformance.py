@@ -251,11 +251,343 @@ def main(contract_path: pathlib.Path) -> int:
             failures,
             f"{method.upper()} {path} [success]",
         )
+    checked += _success_flows(client, contract, failures)
     print(f"probed {checked} responses across {len(contract['paths'])} paths")
     for failure in failures:
         print("DEVIATION", failure)
     print("PASS" if not failures else f"FAIL: {len(failures)} deviation(s)")
     return 0 if not failures else 1
+
+
+REGISTRAR = {
+    "X-Caller-Id": "registrar-1",
+    "X-Caller-Role": "account_registrar",
+    "X-Correlation-Id": "corr-1",
+}
+CARD = {
+    "X-Caller-Id": "card-1",
+    "X-Caller-Role": "card_orchestrator",
+    "X-Correlation-Id": "corr-c",
+}
+RISK = {
+    "X-Caller-Id": "risk-1",
+    "X-Caller-Role": "risk_controller",
+    "X-Correlation-Id": "corr-r",
+}
+CORRECTOR = {
+    "X-Caller-Id": "corr-1",
+    "X-Caller-Role": "correction_authority",
+    "X-Correlation-Id": "corr-x",
+}
+
+
+def _success_flows(
+    client: TestClient, contract: dict[str, Any], failures: list[str]
+) -> int:
+    """Success probes for the operations not covered above, through real business flows (TEST-46).
+
+    Each step calls its operation's own path, expects a declared status, and checks the body against
+    the declared schema. acct-a carries funds; acct-b receives a transfer and a restriction; acct-f-c is
+    a fresh zero-balance account that is closed last.
+    """
+    count = 0
+    counter = [0]
+
+    def step(
+        method: str, template: str, concrete: str, body: Any, headers: dict[str, str]
+    ) -> None:
+        nonlocal count
+        counter[0] += 1
+        key = "k-flow-" + str(counter[0])
+        response = client.request(
+            method, concrete, json=body, headers={**headers, "Idempotency-Key": key}
+        )
+        count += 1
+        if response.status_code >= 300:
+            failures.append(
+                method
+                + " "
+                + template
+                + " [success flow] refused with "
+                + str(response.status_code)
+                + " "
+                + str(response.json().get("error", {}).get("code"))
+            )
+        _check_response(
+            contract,
+            template,
+            method.lower(),
+            response.status_code,
+            response.json(),
+            failures,
+            method + " " + template + " [success flow]",
+        )
+
+    def ach(extra: str) -> str:
+        return "/v1/accounts/acct-a/ach/" + extra
+
+    card = "/v1/accounts/acct-a/card-authorizations"
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/incoming",
+        ach("incoming"),
+        {
+            "instruction_id": "ins-f-in",
+            "movement_id": "mv-f-in",
+            "amount_cents": 50,
+            "currency": "USD",
+            "external_reference": "ext-f-in",
+        },
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/incoming/{movement_id}/settlements",
+        ach("incoming/mv-f-in/settlements"),
+        {"instruction_id": "ins-f-in-s", "evidence_reference": "ev-f-in-s"},
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/incoming/{movement_id}/returns",
+        ach("incoming/mv-f-in/returns"),
+        {
+            "instruction_id": "ins-f-in-r",
+            "evidence_reference": "ev-f-in-r",
+            "amount_cents": 50,
+            "currency": "USD",
+        },
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing",
+        ach("outgoing"),
+        {
+            "instruction_id": "ins-f-o",
+            "movement_id": "mv-f-o",
+            "amount_cents": 40,
+            "currency": "USD",
+            "external_reference": "ext-f-o",
+            "destination_reference": "dest-f",
+        },
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/submissions",
+        ach("outgoing/mv-f-o/submissions"),
+        {"instruction_id": "ins-f-o-sub", "evidence_reference": "ev-f-o-sub"},
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/settlements",
+        ach("outgoing/mv-f-o/settlements"),
+        {"instruction_id": "ins-f-o-set", "evidence_reference": "ev-f-o-set"},
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/returns",
+        ach("outgoing/mv-f-o/returns"),
+        {
+            "instruction_id": "ins-f-o-ret",
+            "evidence_reference": "ev-f-o-ret",
+            "amount_cents": 40,
+            "currency": "USD",
+        },
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing",
+        ach("outgoing"),
+        {
+            "instruction_id": "ins-f-r",
+            "movement_id": "mv-f-r",
+            "amount_cents": 15,
+            "currency": "USD",
+            "external_reference": "ext-f-r",
+            "destination_reference": "dest-f",
+        },
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/submissions",
+        ach("outgoing/mv-f-r/submissions"),
+        {"instruction_id": "ins-f-r-sub", "evidence_reference": "ev-f-r-sub"},
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/rejections",
+        ach("outgoing/mv-f-r/rejections"),
+        {"instruction_id": "ins-f-r-rej", "evidence_reference": "ev-f-r-rej"},
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing",
+        ach("outgoing"),
+        {
+            "instruction_id": "ins-f-c",
+            "movement_id": "mv-f-c",
+            "amount_cents": 15,
+            "currency": "USD",
+            "external_reference": "ext-f-c",
+            "destination_reference": "dest-f",
+        },
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/cancellations",
+        ach("outgoing/mv-f-c/cancellations"),
+        {"instruction_id": "ins-f-c-can", "evidence_reference": "ev-f-c-can"},
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/transfers/internal",
+        "/v1/transfers/internal",
+        {
+            "instruction_id": "ins-f-t",
+            "movement_id": "mv-f-t",
+            "source_account_id": "acct-a",
+            "destination_account_id": "acct-b",
+            "amount_cents": 10,
+            "currency": "USD",
+        },
+        PAYER,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/card-authorizations",
+        card,
+        {
+            "instruction_id": "ins-f-ca",
+            "movement_id": "mv-f-ca",
+            "amount_cents": 30,
+            "currency": "USD",
+            "external_reference": "ext-f-ca",
+            "merchant_reference": "m-f",
+        },
+        CARD,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/card-authorizations/{movement_id}/clearings",
+        card + "/mv-f-ca/clearings",
+        {
+            "instruction_id": "ins-f-cc",
+            "evidence_reference": "ev-f-cc",
+            "amount_cents": 30,
+            "currency": "USD",
+        },
+        CARD,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/card-authorizations/{movement_id}/refunds",
+        card + "/mv-f-ca/refunds",
+        {
+            "instruction_id": "ins-f-cr",
+            "evidence_reference": "ev-f-cr",
+            "amount_cents": 30,
+            "currency": "USD",
+        },
+        CARD,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/card-authorizations",
+        card,
+        {
+            "instruction_id": "ins-f-cv",
+            "movement_id": "mv-f-cv",
+            "amount_cents": 20,
+            "currency": "USD",
+            "external_reference": "ext-f-cv",
+            "merchant_reference": "m-f",
+        },
+        CARD,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/card-authorizations/{movement_id}/reversals",
+        card + "/mv-f-cv/reversals",
+        {"instruction_id": "ins-f-cv-r", "evidence_reference": "ev-f-cv-r"},
+        CARD,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/card-authorizations",
+        card,
+        {
+            "instruction_id": "ins-f-ce",
+            "movement_id": "mv-f-ce",
+            "amount_cents": 20,
+            "currency": "USD",
+            "external_reference": "ext-f-ce",
+            "merchant_reference": "m-f",
+        },
+        CARD,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/card-authorizations/{movement_id}/expirations",
+        card + "/mv-f-ce/expirations",
+        {"instruction_id": "ins-f-ce-x", "evidence_reference": "ev-f-ce-x"},
+        CARD,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/corrections",
+        "/v1/accounts/acct-a/corrections",
+        {
+            "instruction_id": "ins-f-cor",
+            "correction_id": "cor-f",
+            "direction": "credit",
+            "amount_cents": 5,
+            "currency": "USD",
+            "decision_reference": "dec-f-cor",
+        },
+        CORRECTOR,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/risk-restrictions",
+        "/v1/accounts/acct-b/risk-restrictions",
+        {
+            "instruction_id": "ins-f-risk",
+            "action": "set",
+            "decision_reference": "dec-f-risk",
+        },
+        RISK,
+    )
+    step(
+        "POST",
+        "/v1/accounts/registrations",
+        "/v1/accounts/registrations",
+        {
+            "instruction_id": "ins-f-reg-c",
+            "account_id": "acct-f-c",
+            "customer_id": "cust-f-c",
+            "currency": "USD",
+            "eligibility_reference": "elig-f-c",
+        },
+        REGISTRAR,
+    )
+    step(
+        "POST",
+        "/v1/accounts/{account_id}/closure",
+        "/v1/accounts/acct-f-c/closure",
+        {"instruction_id": "ins-f-close"},
+        REGISTRAR,
+    )
+    return count
 
 
 if __name__ == "__main__":
