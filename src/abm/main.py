@@ -58,6 +58,18 @@ from abm.ports.storage import UnitOfWork
 
 Command = Callable[..., Result[Response]]
 
+# HealthResponse.reason_codes enum (contracts/openapi.yaml)
+READY_REASONS = frozenset(
+    {
+        "CONFIG_INVALID",
+        "DATABASE_UNAVAILABLE",
+        "SCHEMA_UNSUPPORTED",
+        "INTEGRITY_FAILED",
+        "FOREIGN_KEY_FAILED",
+        "DATABASE_BUSY",
+    }
+)
+
 
 _DIGITS = re.compile(r"[0-9]+")
 
@@ -272,7 +284,10 @@ def create_app(
     async def ready() -> JSONResponse:
         # API-21: safe readiness result; a failing or raising check reports unready
         try:
-            reasons = sorted(ready_check())
+            # only the contract's reason codes leave; anything else fails closed as INTEGRITY_FAILED
+            reasons = sorted(
+                {r if r in READY_REASONS else "INTEGRITY_FAILED" for r in ready_check()}
+            )
         except Exception:  # noqa: BLE001
             reasons = ["DATABASE_UNAVAILABLE"]
         if reasons:

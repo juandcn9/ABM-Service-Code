@@ -95,7 +95,21 @@ def test_a_raising_readiness_check_reports_only_a_safe_reason(tmp_path):
 
     test_client, _conn = make_client(tmp_path, boom)
     response = test_client.get("/health/ready")
-    assert response.status_code == 503 and "secret" not in response.text
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "unready",
+        "reason_codes": ["DATABASE_UNAVAILABLE"],
+    }
+    assert "secret" not in response.text and "/db" not in response.text
+
+
+def test_unknown_reason_codes_fail_closed_as_integrity_failed(tmp_path):
+    test_client, _conn = make_client(
+        tmp_path, lambda: ["BOGUS_CODE", "DATABASE_BUSY", "DATABASE_BUSY"]
+    )
+    response = test_client.get("/health/ready")
+    assert response.status_code == 503
+    assert response.json()["reason_codes"] == ["DATABASE_BUSY", "INTEGRITY_FAILED"]
 
 
 def test_readiness_reports_integrity_reason_codes_sorted(tmp_path):
