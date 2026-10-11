@@ -66,7 +66,11 @@ def test_every_operation_refuses_missing_caller_context_with_401(client, method,
 
 @pytest.mark.parametrize(
     "raw",
-    [b'{"amount_cents": 1, "amount_cents": 99}', b"{not json"],
+    [
+        b'{"instruction_id": "ins-s", "movement_id": "mv-s", "source_account_id": "acct-a", '
+        b'"destination_account_id": "acct-b", "amount_cents": 1, "amount_cents": 99, "currency": "USD"}',
+        b"{not json",
+    ],
     ids=["duplicate-key", "malformed"],
 )
 def test_transfer_body_is_parsed_strictly_before_any_money_moves(client, raw):

@@ -17,7 +17,7 @@
 
 ## Tester FAIL on `a81b3c6` and fix
 
-- Tester (fresh context) found two Majors: an oversized integer query returned 500 instead of 400 (fixed: `_int_query` passes such values to the application, which refuses them with VALIDATION_ERROR); the transfer strict-body parse had no HTTP test (fixed: duplicate-key and malformed bodies are refused before any money moves). Both have tests that fail on the old code.
+- Tester (fresh context) found two Majors: an oversized integer query returned 500 instead of 400 (fixed: `_int_query` passes such values to the application, which refuses them with VALIDATION_ERROR); the transfer strict-body parse had no HTTP test (fixed: duplicate-key and malformed bodies are refused before any money moves). The integer fix has a test that fails on the old code. The transfer tests are new coverage for a route whose code did not change; they pass on the old code and guard against a future regression.
 - Minors recorded as limits (see Non-claims).
 
 ## Acceptance evidence for TEST-46
