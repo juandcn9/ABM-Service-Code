@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import UTC, datetime
 from typing import Any, TextIO
 
 # Every field an event may carry. Anything else is refused before it is written.
@@ -58,6 +59,16 @@ def token(value: str) -> str:
     return hashlib.sha256(_TOKEN_SALT + value.encode("utf-8")).hexdigest()[:16]
 
 
+def _severity(fields: dict[str, Any]) -> str:
+    """SEC-09: every line carries a severity, derived from the safe result (never from detail)."""
+    status = fields.get("status", 0)
+    if fields.get("decision") == "failed" or status >= 500:
+        return "ERROR"
+    if fields.get("decision") == "rejected" or status >= 400:
+        return "WARNING"
+    return "INFO"
+
+
 class EventSink:
     def __init__(self, stream: TextIO) -> None:
         self._stream = stream
@@ -69,5 +80,11 @@ class EventSink:
         for name, allowed in BOUNDED_LABELS.items():
             if name in fields and fields[name] not in allowed:
                 raise ValueError(f"label {name} outside its bounded set")
-        self._stream.write(json.dumps(fields, sort_keys=True) + "\n")
+        # the sink, not the caller, stamps UTC time and severity (specs/06 section 8)
+        line = {
+            **fields,
+            "ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "severity": _severity(fields),
+        }
+        self._stream.write(json.dumps(line, sort_keys=True) + "\n")
         self._stream.flush()

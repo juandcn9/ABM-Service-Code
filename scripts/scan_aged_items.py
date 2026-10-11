@@ -31,6 +31,11 @@ from abm.persistence.migrations import load_migrations
 _FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
+def open_read_only(database: pathlib.Path) -> sqlite3.Connection:
+    """The only connection the scan uses: SQLite refuses any write through it (BT-07, INV-12)."""
+    return sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+
+
 def run_scan(
     conn: sqlite3.Connection, sink: EventSink, now: datetime, threshold_hours: float
 ) -> int:
@@ -94,7 +99,7 @@ def main(argv: list[str]) -> int:
         parser.error("--manifest needs --spec-version, --spec-commit and --code-commit")
 
     now = datetime.now(UTC)
-    conn = sqlite3.connect(f"file:{args.database.as_posix()}?mode=ro", uri=True)
+    conn = open_read_only(args.database)
     try:
         count = run_scan(conn, EventSink(sys.stdout), now, args.older_than_hours)
     finally:
