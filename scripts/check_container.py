@@ -41,7 +41,9 @@ class CheckFailed(Exception):
     pass
 
 
-def container_failures(uid: str, app_write_rc: int, data_write_rc: int) -> list[str]:
+def container_failures(
+    uid: str, app_write_rc: int, data_write_rc: int, readonly_rootfs: bool
+) -> list[str]:
     """The security decision of the container check, kept pure so it can be tested (TEST-33).
 
     uid is the process UID reported by the engine; app_write_rc and data_write_rc are the exit codes
@@ -50,6 +52,8 @@ def container_failures(uid: str, app_write_rc: int, data_write_rc: int) -> list[
     problems = []
     if uid != str(EXPECTED_UID):
         problems.append(f"process UID is {uid}, expected {EXPECTED_UID} (not root)")
+    if not readonly_rootfs:
+        problems.append("root filesystem is not read-only (ReadonlyRootfs is false)")
     if app_write_rc == 0:
         problems.append("application layer is writable")
     if data_write_rc != 0:
@@ -131,7 +135,15 @@ def main(argv: list[str]) -> int:
         write_data = run(
             engine, "exec", name, "sh", "-c", "touch /data/probe", check=False
         )
-        problems = container_failures(uid, write_app.returncode, write_data.returncode)
+        readonly = (
+            run(
+                engine, "inspect", "--format", "{{.HostConfig.ReadonlyRootfs}}", name
+            ).stdout.strip()
+            == "true"
+        )
+        problems = container_failures(
+            uid, write_app.returncode, write_data.returncode, readonly
+        )
         if problems:
             raise CheckFailed("; ".join(problems))
 

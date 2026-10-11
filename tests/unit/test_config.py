@@ -87,9 +87,9 @@ def test_a_controlled_clock_is_refused_in_the_demonstration_container():
     assert names_of({**GOOD, "ABM_CLOCK_MODE": "controlled"}) == ("ABM_CLOCK_MODE",)
 
 
-def test_a_controlled_clock_is_allowed_in_verification():
+def test_a_controlled_clock_is_refused_in_this_entry_point_in_every_mode():
     env = {**GOOD, "ABM_MODE": "verification", "ABM_CLOCK_MODE": "controlled"}
-    assert load_settings(env).clock_mode == "controlled"
+    assert names_of(env) == ("ABM_CLOCK_MODE",)
 
 
 def test_trusted_ingress_false_is_refused_in_the_demonstration_container():
@@ -109,3 +109,9 @@ def test_trusted_ingress_false_is_allowed_outside_the_demonstration():
 
 def test_a_non_ascii_digit_busy_timeout_is_refused():
     assert names_of({**GOOD, "ABM_BUSY_TIMEOUT_MS": "٥٠٠٠"}) == ("ABM_BUSY_TIMEOUT_MS",)
+
+
+def test_a_busy_timeout_with_too_many_digits_is_refused_not_a_traceback():
+    assert names_of({**GOOD, "ABM_BUSY_TIMEOUT_MS": "9" * 5000}) == (
+        "ABM_BUSY_TIMEOUT_MS",
+    )

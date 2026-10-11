@@ -459,9 +459,8 @@ def app_from_environment() -> FastAPI:
     )
     clock: Clock = SystemClock()
     if started.connection is None:
-        return create_app(
-            UnavailableUnitOfWork(), clock, lambda: ["DATABASE_UNAVAILABLE"]
-        )
+        reasons = list(started.reasons) or ["DATABASE_UNAVAILABLE"]
+        return create_app(UnavailableUnitOfWork(), clock, lambda: reasons)
     conn = started.connection
     return create_app(
         SqliteUnitOfWork(conn),

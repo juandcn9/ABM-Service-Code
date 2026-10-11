@@ -53,7 +53,10 @@ def load_settings(env: Mapping[str, str]) -> Settings:
         bad.append("ABM_LOG_LEVEL")
 
     busy = env.get("ABM_BUSY_TIMEOUT_MS", "5000")
-    busy_timeout_ms = int(busy) if busy.isascii() and busy.isdecimal() else -1
+    # at most six digits: longer text would be refused by int() with a traceback, not CONFIG_INVALID
+    busy_timeout_ms = (
+        int(busy) if busy.isascii() and busy.isdecimal() and len(busy) <= 6 else -1
+    )
     if not MIN_BUSY_TIMEOUT_MS <= busy_timeout_ms <= MAX_BUSY_TIMEOUT_MS:
         bad.append("ABM_BUSY_TIMEOUT_MS")
 
@@ -63,9 +66,8 @@ def load_settings(env: Mapping[str, str]) -> Settings:
         bad.append("ABM_TRUSTED_INGRESS")
 
     clock_mode = env.get("ABM_CLOCK_MODE", "system")
-    if clock_mode not in CLOCK_MODES or (
-        clock_mode == "controlled" and mode == "demonstration"
-    ):
+    # only the system clock exists in this entry point; controlled is for the test harness
+    if clock_mode != "system":
         bad.append("ABM_CLOCK_MODE")
 
     if bad:

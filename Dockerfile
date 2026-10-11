@@ -1,6 +1,7 @@
 # TASK-27: non-root service image with a read-only application layer and one writable data volume.
 # The base image is pinned by digest (toolchain.toml); dependencies are installed only here, from the
-# hash-verified runtime lock. Settings come from ABM_* at run time; none are baked in.
+# hash-verified runtime lock. Mode, ingress and secrets come from ABM_* at run time; the database path
+# defaults into /data. The uvicorn access log is off: request paths carry account identifiers (SEC-09).
 FROM python:3.12.15-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -28,4 +29,4 @@ EXPOSE 8000
 
 # one worker: one shared SQLite connection behind one process-local lock (DEC-0055)
 ENTRYPOINT ["python", "-m", "uvicorn", "--factory", "abm.main:app_from_environment", \
-            "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+            "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log"]
