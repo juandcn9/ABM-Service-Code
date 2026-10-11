@@ -306,6 +306,10 @@ def test_an_unhandled_error_emits_a_request_event_with_internal_error(
         and request_line["result_code"] == "INTERNAL_ERROR"
     )
     assert "sensitive detail" not in stack["stream"].getvalue()
+    read_line = [entry for entry in lines(stack["stream"]) if entry["event"] == "read"][
+        -1
+    ]
+    assert read_line["decision"] == "failed"
 
 
 def test_a_caller_supplied_correlation_id_is_tokenized_not_logged(stack):

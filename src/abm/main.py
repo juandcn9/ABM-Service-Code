@@ -138,7 +138,9 @@ def _observe(
         if caller.value.role in BOUNDED_LABELS["caller_role"]:
             role = caller.value.role
     operation = _operation(app, request)
-    decision = "permitted" if status < 300 else "rejected"
+    decision = (
+        "permitted" if status < 300 else "failed" if status >= 500 else "rejected"
+    )
     events.emit(
         event="request",
         correlation_id=token(correlation_of(request)),

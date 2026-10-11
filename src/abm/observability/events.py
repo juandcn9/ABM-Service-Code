@@ -32,7 +32,7 @@ ALLOWED_FIELDS = frozenset(
 # Bounded label sets: a label outside its set is refused, so cardinality cannot grow.
 BOUNDED_LABELS: dict[str, frozenset[str]] = {
     "event": frozenset({"request", "read", "aged_item", "scan_summary"}),
-    "decision": frozenset({"permitted", "rejected"}),
+    "decision": frozenset({"permitted", "rejected", "failed"}),
     "caller_role": frozenset(
         {
             "account_registrar",
