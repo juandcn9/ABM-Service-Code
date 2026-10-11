@@ -15,7 +15,7 @@
 - Objective: prove restart continuity (graceful stop, and abrupt termination) on the same database file, following the Specs §5 sequence, with automated tests that run in CI.
 - Included:
   1. `tests/integration/test_restart_continuity.py`:
-     - Graceful restart: start on an empty file, apply migrations, run a representative sequence of commands across the flows named in §5 (registration; incoming ACH notice and settlement; outgoing ACH submission, settlement, and return; internal transfer; card authorization and clearing; risk restriction; correction; legal hold set through the non-public port; a closure-safe read), record balances, states, history sequence and trace cutoff, close the connection, reopen the same file, and assert: readiness is clean, every snapshot value is identical, and a prior idempotency key replays the stored response with only replay metadata changed.
+     - Graceful restart: start on an empty file, apply migrations, run the sequence in `tests/integration/continuity_sequence.py` over HTTP on the real entry point (registration of two accounts; incoming ACH notice and settlement; internal transfer; outgoing ACH create, submission and settlement; card authorization and clearing; risk restriction; correction). Legal hold (non-public port) and closure are not in this sequence; their restart behaviour stays covered by the existing retention and closure tests, and is a recorded limit. record balances, states, history sequence and trace cutoff, close the connection, reopen the same file, and assert: readiness is clean, every snapshot value is identical, and a prior idempotency key replays the stored response with only replay metadata changed.
      - Abrupt termination: a subprocess runs the same commands and prints one line per committed command; the parent kills it at a chosen command, reopens the file, and asserts that every printed command is fully present and the in-flight command is either fully present or fully absent (never partial), with readiness clean and balances equal to the sum of the ledger.
   2. CI: the existing `quality-gates` job runs these tests through `pytest` (no new job).
 - Explicit exclusions:
@@ -42,8 +42,8 @@
 
 ## Completion
 
-- Code commit/PR: pending.
-- Commands/checks and results: pending.
+- Code commit/PR: implementation on branch `feat/task-28-continuity`; PR not yet opened.
+- Commands/checks and results: `tests/integration/test_restart_continuity.py`: 4 passed (graceful restart with exact replay; three abrupt kills, each recovering to a clean prefix).
 - Review findings/resolution: pending.
 - Residual risks: the abrupt kill is an OS-level kill of a Python process; it does not simulate power loss or disk failure.
 - Next safe action: implement the graceful and abrupt continuity tests, then open the Code PR.
