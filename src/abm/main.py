@@ -1,8 +1,15 @@
-"""Composition root: builds the HTTP application from the ports and the application services (TASK-25)."""
+"""Composition root: builds the HTTP application from the ports and the application services (TASK-25).
+
+Every route follows the contract order: schema (strict body), then trusted context (headers only),
+then one application call under the process lock (DEC-0055). Application failures are values and
+map to the contract envelope in abm.api.http.
+"""
 
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -10,12 +17,55 @@ from fastapi.responses import JSONResponse
 from abm.api.caller_context import parse_caller_context
 from abm.api.http import correlation_of, envelope, invalid_body, unauthorized
 from abm.api.validation import strict_json
-from abm.application.reads import get_account
+from abm.application.cards import (
+    authorize_card,
+    clear_card,
+    expire_card,
+    refund_card,
+    reverse_card,
+)
+from abm.application.closure import close_account
+from abm.application.corrections import create_correction
+from abm.application.idempotency import Response
+from abm.application.incoming_ach import (
+    create_incoming_ach,
+    return_incoming_ach,
+    settle_incoming_ach,
+)
+from abm.application.outgoing_ach import (
+    cancel_outgoing_ach,
+    create_outgoing_ach,
+    reject_outgoing_ach,
+    return_outgoing_ach,
+    settle_outgoing_ach,
+    submit_outgoing_ach,
+)
+from abm.application.reads import (
+    DEFAULT_HISTORY_LIMIT,
+    DEFAULT_TRACE_LIMIT,
+    get_account,
+    get_history,
+    get_trace,
+)
 from abm.application.registration import register_account
+from abm.application.risk import set_risk_restriction
+from abm.application.transfers import internal_transfer
 from abm.domain.errors import InvalidValue
-from abm.domain.results import Failure, failure
+from abm.domain.results import Failure, Result, failure
 from abm.ports.clock import Clock
 from abm.ports.storage import UnitOfWork
+
+Command = Callable[..., Result[Response]]
+
+
+def _int_query(value: str | None, default: int | None) -> object:
+    """A query integer. Anything that is not an integer is passed through so the application refuses it."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return value
 
 
 def create_app(uow: UnitOfWork, clock: Clock) -> FastAPI:
@@ -29,9 +79,57 @@ def create_app(uow: UnitOfWork, clock: Clock) -> FastAPI:
         internal = failure("INTERNAL_ERROR", "An unexpected error occurred.")
         return envelope(internal, correlation_of(request))
 
+    def command(path: str, fn: Command, *, with_movement: bool) -> None:
+        async def endpoint(request: Request) -> JSONResponse:
+            # the contract order is schema, then trusted context (specs/04 section 3.1)
+            try:
+                body = strict_json(await request.body())
+            except InvalidValue:
+                return invalid_body(request)
+            caller = parse_caller_context(dict(request.headers))
+            if isinstance(caller, Failure):
+                return unauthorized(request)
+            key = request.headers.get("idempotency-key", "")
+            args: list[Any] = [request.path_params["account_id"]]
+            if with_movement:
+                args.append(request.path_params["movement_id"])
+            with guard:
+                result = fn(uow, clock, caller.value, key, *args, body)
+            return envelope(result, caller.value.correlation_id)
+
+        app.add_api_route(path, endpoint, methods=["POST"], name=f"command:{path}")
+
+    def history_route(path: str) -> None:
+        async def endpoint(request: Request) -> JSONResponse:
+            caller = parse_caller_context(dict(request.headers))
+            if isinstance(caller, Failure):
+                return unauthorized(request)
+            after = _int_query(request.query_params.get("after_sequence"), 0)
+            limit = _int_query(request.query_params.get("limit"), DEFAULT_HISTORY_LIMIT)
+            with guard:
+                result = get_history(
+                    uow, caller.value, request.path_params["account_id"], after, limit
+                )
+            return envelope(result, caller.value.correlation_id)
+
+        app.add_api_route(path, endpoint, methods=["GET"], name=f"read:{path}")
+
+    def trace_route(path: str) -> None:
+        async def endpoint(request: Request) -> JSONResponse:
+            caller = parse_caller_context(dict(request.headers))
+            if isinstance(caller, Failure):
+                return unauthorized(request)
+            after = _int_query(request.query_params.get("after_sequence"), 0)
+            limit = _int_query(request.query_params.get("limit"), DEFAULT_TRACE_LIMIT)
+            cutoff = _int_query(request.query_params.get("cutoff_sequence"), None)
+            with guard:
+                result = get_trace(uow, caller.value, after, limit, cutoff)
+            return envelope(result, caller.value.correlation_id)
+
+        app.add_api_route(path, endpoint, methods=["GET"], name=f"read:{path}")
+
     @app.post("/v1/accounts/registrations")
     async def register(request: Request) -> JSONResponse:
-        # the contract order is schema, then trusted context (specs/04 section 3.1)
         try:
             body = strict_json(await request.body())
         except InvalidValue:
@@ -51,6 +149,107 @@ def create_app(uow: UnitOfWork, clock: Clock) -> FastAPI:
             return unauthorized(request)
         with guard:
             result = get_account(uow, caller.value, account_id)
+        return envelope(result, caller.value.correlation_id)
+
+    # incoming ACH (API-04 to API-06)
+    command(
+        "/v1/accounts/{account_id}/ach/incoming",
+        create_incoming_ach,
+        with_movement=False,
+    )
+    command(
+        "/v1/accounts/{account_id}/ach/incoming/{movement_id}/settlements",
+        settle_incoming_ach,
+        with_movement=True,
+    )
+    command(
+        "/v1/accounts/{account_id}/ach/incoming/{movement_id}/returns",
+        return_incoming_ach,
+        with_movement=True,
+    )
+    # outgoing ACH (API-07 to API-11, API-22)
+    command(
+        "/v1/accounts/{account_id}/ach/outgoing",
+        create_outgoing_ach,
+        with_movement=False,
+    )
+    command(
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/submissions",
+        submit_outgoing_ach,
+        with_movement=True,
+    )
+    command(
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/settlements",
+        settle_outgoing_ach,
+        with_movement=True,
+    )
+    command(
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/rejections",
+        reject_outgoing_ach,
+        with_movement=True,
+    )
+    command(
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/cancellations",
+        cancel_outgoing_ach,
+        with_movement=True,
+    )
+    command(
+        "/v1/accounts/{account_id}/ach/outgoing/{movement_id}/returns",
+        return_outgoing_ach,
+        with_movement=True,
+    )
+    # cards (API-13 to API-15, API-23, API-24)
+    command(
+        "/v1/accounts/{account_id}/card-authorizations",
+        authorize_card,
+        with_movement=False,
+    )
+    command(
+        "/v1/accounts/{account_id}/card-authorizations/{movement_id}/clearings",
+        clear_card,
+        with_movement=True,
+    )
+    command(
+        "/v1/accounts/{account_id}/card-authorizations/{movement_id}/reversals",
+        reverse_card,
+        with_movement=True,
+    )
+    command(
+        "/v1/accounts/{account_id}/card-authorizations/{movement_id}/expirations",
+        expire_card,
+        with_movement=True,
+    )
+    command(
+        "/v1/accounts/{account_id}/card-authorizations/{movement_id}/refunds",
+        refund_card,
+        with_movement=True,
+    )
+    # controls and lifecycle (API-16 to API-18)
+    command(
+        "/v1/accounts/{account_id}/corrections", create_correction, with_movement=False
+    )
+    command(
+        "/v1/accounts/{account_id}/risk-restrictions",
+        set_risk_restriction,
+        with_movement=False,
+    )
+    command("/v1/accounts/{account_id}/closure", close_account, with_movement=False)
+    # reads (API-03, API-19)
+    history_route("/v1/accounts/{account_id}/transactions")
+    trace_route("/v1/reconciliation/trace")
+
+    @app.post("/v1/transfers/internal")
+    async def transfer(request: Request) -> JSONResponse:
+        try:
+            body = strict_json(await request.body())
+        except InvalidValue:
+            return invalid_body(request)
+        caller = parse_caller_context(dict(request.headers))
+        if isinstance(caller, Failure):
+            return unauthorized(request)
+        key = request.headers.get("idempotency-key", "")
+        with guard:
+            result = internal_transfer(uow, clock, caller.value, key, body)
         return envelope(result, caller.value.correlation_id)
 
     return app
