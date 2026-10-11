@@ -1,6 +1,8 @@
 # Work item: TASK-36 — black-box HTTP smoke check against the running container image
 
-**Status:** Draft
+**Status:** Verified
+
+Tester PASS on the merged revision `bf965d8` (PR #108; PR head `7559519`): `docs/evidence/TASK-36-tester-report.md`. CI run 38165041466 (container-check, head `7559519`): "SMOKE CHECK PASSED". Verified on the criteria: Tester PASS on the merged revision and every acceptance item met (the README now names the smoke step). Open minors are scheduled below.
 
 ## Authority
 
@@ -45,10 +47,15 @@
 - No load, throughput, concurrency, backup, restore, or disaster-recovery claim.
 - The smoke check covers the minimum scope of DEC-0067 only; it is not the full scenario of TASK-31.
 
+## Scheduled items
+
+- Tester F2 (Minor): the state-change failure paths (a denied call that changes state) are not exercised by a test; the test runs only against the unmutated app. Owner Builder; trigger: the next change to `scripts/smoke_container.py`.
+- Tester F3 (Note): the history credit check matches the amount only, not direction or effect kind. Owner Builder; trigger: the same change.
+
 ## Completion
 
 - Code commit/PR: branch `feat/task-36-smoke` from `main` `01b2cf5`; PR not yet opened.
-- Commands/checks and results: pending.
-- Review findings/resolution: pending.
+- Commands/checks and results: full pytest on `bf965d8`: 989 passed; ruff, format, mypy and both validators pass; CI container-check on `7559519` passed the smoke check.
+- Review findings/resolution: Tester PASS, `docs/evidence/TASK-36-tester-report.md`; Minor F1 (README) fixed in the close-out PR; Minor F2 scheduled.
 - Residual risks: the CI runner's container engine; the smoke check uses the CI-built image only; no claim beyond the probes listed.
 - Next safe action: implement the probe script and its in-process test, then open the Code PR.
