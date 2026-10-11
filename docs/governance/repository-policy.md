@@ -2,7 +2,7 @@
 
 ## Authority and scope
 
-The immutable ABM Service Specs `v1.9.7` commit `71ccb8f18f488013ec31a88ec4ecc618a0bfbf3a` governs this repository. Code, tests, issues, pull-request text, agent output, and tool suggestions cannot redefine the Specs.
+The immutable ABM Service Specs `v1.9.8` commit `7b98166b32411c587cdda0ec9bc35bbf5b7741ff` governs this repository. Code, tests, issues, pull-request text, agent output, and tool suggestions cannot redefine the Specs.
 
 ## Branch and commit policy
 
