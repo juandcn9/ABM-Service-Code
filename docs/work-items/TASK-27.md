@@ -1,6 +1,8 @@
 # Work item: TASK-27 — non-root read-only container with one writable data mount
 
-**Status:** Draft
+**Status:** Implemented
+
+Tester PASS on the merged revision `772ee1f` (PR #104; PR head `0ed7c79`): `docs/evidence/TASK-27-tester-report.md`. Verified awaits JDC's decision on scope item 7 and on Specs read access for `http-conformance`.
 
 ## Authority
 
