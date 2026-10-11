@@ -58,6 +58,8 @@ CONTRACT_PATHS = {
     ("POST", "/v1/accounts/{account_id}/risk-restrictions"),
     ("POST", "/v1/accounts/{account_id}/closure"),
     ("GET", "/v1/reconciliation/trace"),
+    ("GET", "/health/live"),
+    ("GET", "/health/ready"),
 }
 
 
@@ -84,7 +86,7 @@ def test_the_routes_are_exactly_the_contract_operations(client):
         (method, route.path)
         for route in test_client.app.routes
         for method in getattr(route, "methods", set()) - {"HEAD"}
-        if route.path.startswith("/v1/")
+        if route.path.startswith(("/v1/", "/health/"))
     }
     assert routes == CONTRACT_PATHS
 

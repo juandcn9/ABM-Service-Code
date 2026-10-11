@@ -48,7 +48,10 @@ def concrete(path: str) -> str:
     return path.replace("{account_id}", "acct-a").replace("{movement_id}", "mv-x")
 
 
-@pytest.mark.parametrize(("method", "path"), sorted(CONTRACT_PATHS))
+@pytest.mark.parametrize(
+    ("method", "path"),
+    sorted(p for p in CONTRACT_PATHS if not p[1].startswith("/health")),
+)
 def test_every_operation_refuses_missing_caller_context_with_401(client, method, path):
     """Mutation evidence: removing the trusted-context check on any command route now fails here."""
     response = client.request(
