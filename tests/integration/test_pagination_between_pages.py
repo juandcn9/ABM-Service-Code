@@ -87,6 +87,21 @@ def test_trace_walk_with_writes_between_pages_stays_on_the_cutoff(
     reader_conn.close()
 
 
+def walk_history(
+    reader: SqliteUnitOfWork, cursor: int, size: int
+) -> tuple[list[int], int | None]:
+    """Collect history sequences from `cursor` in pages of `size`; return them and the last cursor."""
+    seen: list[int] = []
+    while True:
+        page = get_history(reader, READER, "acct-a", cursor, size)
+        assert isinstance(page, Success)
+        seen += [item["sequence"] for item in payload(page)["items"]]
+        nxt = payload(page)["next_after_sequence"]
+        if nxt is None:
+            return seen, cursor
+        cursor = nxt
+
+
 def test_history_walk_with_writes_between_pages_neither_skips_nor_repeats(
     tmp_path: pathlib.Path,
 ):
@@ -100,6 +115,10 @@ def test_history_walk_with_writes_between_pages_neither_skips_nor_repeats(
     for n in range(1, 4):
         move(reader, now, n)
 
+    # the reference: every history row committed before any concurrent write
+    reference, _ = walk_history(reader, 0, 100)
+    assert len(reference) == len(set(reference)) and reference == sorted(reference)
+
     prefix = get_history(reader, READER, "acct-a", 0, 2)
     assert isinstance(prefix, Success)
     seen = [item["sequence"] for item in payload(prefix)["items"]]
@@ -109,17 +128,13 @@ def test_history_walk_with_writes_between_pages_neither_skips_nor_repeats(
     writer = SqliteUnitOfWork(writer_conn)
     move(writer, now, 4)
 
-    while cursor is not None:
-        page = get_history(reader, READER, "acct-a", cursor, 2)
-        assert isinstance(page, Success)
-        seen += [item["sequence"] for item in payload(page)["items"]]
-        cursor = payload(page)["next_after_sequence"]
+    if cursor is not None:
+        rest, _ = walk_history(reader, cursor, 2)
+        seen += rest
 
-    # strictly ascending, so nothing repeats; every record committed before the walk is present
-    assert seen == sorted(set(seen))
-    assert seen[: len(payload(prefix)["items"])] == [
-        item["sequence"] for item in payload(prefix)["items"]
-    ]
+    # no row is skipped or repeated: the reference is a prefix, and any extra rows come after it
+    assert seen[: len(reference)] == reference
+    assert seen[len(reference) :] == sorted(seen[len(reference) :])
     assert len(seen) == len(set(seen))
     writer_conn.close()
     reader_conn.close()

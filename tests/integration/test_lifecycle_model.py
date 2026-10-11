@@ -98,7 +98,7 @@ def check_invariants(
     assert readiness_reasons(conn, MIGRATIONS) == []
 
 
-def step(
+def act(
     rng: random.Random,
     conn: sqlite3.Connection,
     uow: SqliteUnitOfWork,
@@ -240,6 +240,22 @@ def step(
     else:
         close_account(uow, now, REGISTRAR, f"k-{n}", a, {"instruction_id": f"ins-{n}"})
 
+    return kind
+
+
+def step(
+    rng: random.Random,
+    conn: sqlite3.Connection,
+    uow: SqliteUnitOfWork,
+    now: ControllableClock,
+    n: int,
+) -> tuple[str, bool]:
+    """One random command; returns its kind and whether it was accepted (a new trace row was written)."""
+    before = conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone()[0]
+    kind = act(rng, conn, uow, now, n)
+    after = conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone()[0]
+    return kind, after > before
+
 
 def last_movement(
     conn: sqlite3.Connection, account: str, movement_type: str
@@ -264,8 +280,14 @@ def test_random_lifecycles_keep_every_invariant_at_every_step(
         register(uow, now, account)
     rng = random.Random(seed)
     recon_seen: list[int] = []
+    accepted_kinds: dict[str, int] = {}
     for n in range(STEPS):
         now.advance(1)
-        step(rng, conn, uow, now, n)
+        kind, accepted = step(rng, conn, uow, now, n)
+        if accepted:
+            accepted_kinds[kind] = accepted_kinds.get(kind, 0) + 1
         check_invariants(conn, uow, recon_seen)
     assert len(recon_seen) >= 30  # the sequence must do real work, not just be refused
+    # every core command must have been accepted at least once in this sequence
+    for kind in ("incoming", "settle", "transfer", "correct", "risk"):
+        assert accepted_kinds.get(kind, 0) >= 1, (kind, accepted_kinds)
