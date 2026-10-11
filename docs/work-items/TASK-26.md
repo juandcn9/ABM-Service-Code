@@ -1,6 +1,6 @@
 # Work item: TASK-26 — structured logs, bounded metrics, safe health, and the TEST-39 / TEST-41 facets
 
-**Status:** Draft
+**Status:** Ready for JDC review
 
 ## Authority
 
@@ -30,6 +30,22 @@
 - **D2 (DEC-0062, option a). Escalation and metric sink.** DEC-0053 forbids a new public interface. Options: (a) structured JSON lines on stdout, one line per event; (b) a log file path from configuration. Trade-off: (a) needs no new config and fits the container log model in NFR-07; (b) needs a new setting and a writable path. Recommendation: (a). Metrics also go out as events on the same stream, with no `/metrics` route.
 - **D3 (DEC-0063, option a). Trigger for the aged scan.** No scheduler exists, and the spec adds none. Options: (a) the scan is a function plus a script entry point, run by an operator or test, with no HTTP route; (b) a route under `/v1/...`. Trade-off: (b) breaks DEC-0053 and the contract; (a) leaves scheduling to TASK-27. Recommendation: (a).
 - **D4 (DEC-0064, option a). Manifest scope.** Options: (a) TASK-26 writes a manifest file with exact revisions and scan results, and TASK-34 bundles it; (b) TASK-26 writes nothing and the manifest moves to TASK-34. Trade-off: (a) keeps the TASK-26 row as written; (b) defers more work. Recommendation: (a), limited to the file format and generation, no bundle.
+
+## Implemented
+
+- `src/abm/observability/events.py`: one JSON line per event on the given stream; an allowlist of fields (refused otherwise); bounded label sets for `event`, `decision`, and `caller_role`; one-way tokens for identifiers.
+- `src/abm/main.py`: an opt-in observation middleware (`create_app(..., events=...)`). Every request emits one `request` event (correlation id, route template, status, safe result code, duration, validated caller role and token). Permitted and rejected account and trace reads also emit a `read` event (TEST-41). Unknown roles are logged as `none`.
+- `src/abm/persistence/aged.py`: a read-only query for pending ACH and card movements older than a cutoff.
+- `scripts/scan_aged_items.py`: the TEST-39 scan (threshold required, database opened read-only) and the manifest (revisions, migration checksums, scan count). Events go to stdout.
+- Tests: `tests/integration/test_observability.py` (17 tests: allowlist, bounded labels, no raw identifiers or body values in output, permitted and rejected reads, unknown role, scan threshold and no state change, read-only connection refuses writes, manifest content, threshold validation). Mutant check: with the allowlist check disabled, the allowlist test fails.
+
+## Limits (recorded)
+
+- `token` is a salted SHA-256 with a fixed salt. A small identifier space can be brute-forced by someone holding the logs. Upgrade to a deployment secret with TASK-27 (shortcut in the code).
+- The middleware buffers each response body to observe it. Acceptable for the demonstration sizes (history and trace pages are bounded by TASK-24).
+- Metrics are bounded events, not an aggregated metrics endpoint (DEC-0062). Aggregation is the log consumer's job.
+- The scan runs only when an operator or test runs the script (DEC-0063). No scheduler; scheduled runs are TASK-27.
+- The manifest format is TASK-26's; the bundle and its scan are TASK-34 (DEC-0064).
 
 ## Non-claims (until implemented and tested)
 

@@ -7,13 +7,17 @@ map to the contract envelope in abm.api.http.
 
 from __future__ import annotations
 
+import json
 import re
 import threading
+import time
 from collections.abc import Callable
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.responses import Response as RawResponse
+from starlette.routing import Match
 
 from abm.api.caller_context import parse_caller_context
 from abm.api.http import correlation_of, envelope, invalid_body, unauthorized
@@ -53,6 +57,7 @@ from abm.application.risk import set_risk_restriction
 from abm.application.transfers import internal_transfer
 from abm.domain.errors import InvalidValue
 from abm.domain.results import Failure, Result, failure
+from abm.observability.events import BOUNDED_LABELS, EventSink, token
 from abm.ports.clock import Clock
 from abm.ports.storage import UnitOfWork
 
@@ -89,10 +94,76 @@ def _int_query(value: str | None, default: int | None) -> object:
         return value
 
 
+# Read routes whose permitted and rejected calls emit attributable security events (TEST-41).
+READ_TEMPLATES = frozenset(
+    {
+        "/v1/accounts/{account_id}",
+        "/v1/accounts/{account_id}/transactions",
+        "/v1/reconciliation/trace",
+    }
+)
+
+
+def _operation(app: FastAPI, request: Request) -> str:
+    for route in app.routes:
+        match, _ = route.matches(request.scope)
+        if match == Match.FULL:
+            return f"{request.method} {getattr(route, 'path', 'unmatched')}"
+    return "unmatched"
+
+
+def _result_code(body: bytes, status: int) -> str:
+    try:
+        error = json.loads(body).get("error")
+    except ValueError:
+        return f"HTTP_{status}"
+    if isinstance(error, dict) and isinstance(error.get("code"), str):
+        return error["code"]
+    return "OK" if status < 300 else f"HTTP_{status}"
+
+
+def _observe(
+    app: FastAPI,
+    events: EventSink,
+    request: Request,
+    status: int,
+    body: bytes,
+    started: float,
+) -> None:
+    caller = parse_caller_context(dict(request.headers))
+    role = "none"
+    fields: dict[str, Any] = {}
+    if not isinstance(caller, Failure):
+        fields["caller_token"] = token(caller.value.caller_id)
+        if caller.value.role in BOUNDED_LABELS["caller_role"]:
+            role = caller.value.role
+    operation = _operation(app, request)
+    decision = "permitted" if status < 300 else "rejected"
+    events.emit(
+        event="request",
+        correlation_id=correlation_of(request),
+        operation=operation,
+        status=status,
+        result_code=_result_code(body, status),
+        duration_ms=round((time.perf_counter() - started) * 1000, 3),
+        caller_role=role,
+        **fields,
+    )
+    if operation.split(" ", 1)[-1] in READ_TEMPLATES:
+        parts = request.url.path.split("/")
+        account = (
+            {"account_token": token(parts[3])} if parts[2:3] == ["accounts"] else {}
+        )
+        events.emit(
+            event="read", decision=decision, caller_role=role, **fields, **account
+        )
+
+
 def create_app(
     uow: UnitOfWork,
     clock: Clock,
     readiness: Callable[[], list[str]] | None = None,
+    events: EventSink | None = None,
 ) -> FastAPI:
     # the readiness check returns safe reason codes, empty when ready; with none supplied the
     # service reports unready (fails closed)
@@ -302,5 +373,22 @@ def create_app(
                 {"status": "unready", "reason_codes": reasons}, status_code=503
             )
         return JSONResponse({"status": "ready"}, status_code=200)
+
+    if events is not None:
+
+        @app.middleware("http")
+        async def observe(
+            request: Request, call_next: Callable[[Request], Any]
+        ) -> RawResponse:
+            started = time.perf_counter()
+            response = await call_next(request)
+            body = b"".join([chunk async for chunk in response.body_iterator])
+            _observe(app, events, request, response.status_code, body, started)
+            return RawResponse(
+                content=body,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                media_type=response.media_type,
+            )
 
     return app

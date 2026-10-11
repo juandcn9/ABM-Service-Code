@@ -1,0 +1,287 @@
+"""TASK-26: structured events, TEST-29 redaction and bounded labels, TEST-41 read evidence, TEST-39 scan."""
+
+from __future__ import annotations
+
+import io
+import json
+import pathlib
+import sqlite3
+import sys
+from datetime import UTC, datetime
+from typing import Any
+
+import pytest
+from starlette.testclient import TestClient
+
+from abm.main import create_app
+from abm.observability.events import ALLOWED_FIELDS, EventSink, token
+from abm.persistence.readiness import start_database
+from abm.persistence.sqlite_store import SqliteUnitOfWork
+from harness.clock import ControllableClock
+from tests.integration.store_support import MIGRATIONS, NOW, fund, register
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from scan_aged_items import run_scan  # type: ignore[import-not-found]
+
+PAYER = {
+    "X-Caller-Id": "pay-1",
+    "X-Caller-Role": "payment_orchestrator",
+    "X-Correlation-Id": "corr-p",
+}
+READER = {
+    "X-Caller-Id": "rd-1",
+    "X-Caller-Role": "account_reader",
+    "X-Correlation-Id": "corr-r",
+    "X-Account-Scope": "acct-a",
+}
+RECON = {
+    "X-Caller-Id": "recon-1",
+    "X-Caller-Role": "reconciliation_reader",
+    "X-Correlation-Id": "corr-t",
+}
+
+
+@pytest.fixture
+def stack(tmp_path: pathlib.Path):
+    db = tmp_path / "abm.sqlite3"
+    started = start_database(db, MIGRATIONS, NOW, check_same_thread=False)
+    assert started.connection is not None
+    uow = SqliteUnitOfWork(started.connection)
+    clock = ControllableClock(datetime(2026, 10, 10, 12, 0, 0, tzinfo=UTC))
+    register(uow, clock, "acct-a")
+    register(uow, clock, "acct-b")
+    fund(uow, clock, "acct-a", 500)
+    stream = io.StringIO()
+    client = TestClient(
+        create_app(uow, clock, events=EventSink(stream)), raise_server_exceptions=False
+    )
+    yield {
+        "db": db,
+        "client": client,
+        "clock": clock,
+        "stream": stream,
+        "conn": started.connection,
+    }
+    client.close()
+    started.connection.close()
+
+
+def lines(stream: io.StringIO) -> list[dict]:
+    return [json.loads(line) for line in stream.getvalue().splitlines()]
+
+
+# --- the sink: allowlist, bounded labels, tokens -------------------------------------------------
+
+
+def test_the_sink_refuses_a_field_outside_the_allowlist():
+    with pytest.raises(ValueError):
+        EventSink(io.StringIO()).emit(event="request", body='{"amount_cents": 1}')
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"event": "anything_else"},
+        {"event": "request", "decision": "maybe"},
+        {"event": "request", "caller_role": "root"},
+    ],
+)
+def test_the_sink_refuses_a_label_outside_its_bounded_set(fields):
+    with pytest.raises(ValueError):
+        EventSink(io.StringIO()).emit(**fields)
+
+
+def test_identifiers_leave_only_as_stable_one_way_tokens():
+    assert token("acct-a") == token("acct-a")
+    assert token("acct-a") != token("acct-b")
+    assert "acct-a" not in token("acct-a")
+    assert set(ALLOWED_FIELDS) >= {"caller_token", "account_token", "item_token"}
+
+
+# --- TEST-29 and TEST-41 over HTTP ---------------------------------------------------------------
+
+
+def test_each_request_emits_one_line_with_allowed_fields_only(stack):
+    stack["client"].get("/health/live")
+    stack["client"].get("/v1/accounts/acct-a", headers=READER)
+    for entry in lines(stack["stream"]):
+        assert set(entry) <= ALLOWED_FIELDS, entry
+        assert entry["event"] in {"request", "read"}
+
+
+def test_no_raw_identifier_or_body_value_is_logged(stack):
+    stack["client"].post(
+        "/v1/accounts/acct-a/ach/incoming",
+        json={
+            "instruction_id": "ins-x",
+            "movement_id": "mv-secret-7",
+            "amount_cents": 4321,
+            "currency": "USD",
+            "external_reference": "ext-x",
+        },
+        headers={**PAYER, "Idempotency-Key": "k-x"},
+    )
+    stack["client"].get("/v1/accounts/acct-a", headers=READER)
+    output = stack["stream"].getvalue()
+    for raw in (
+        "pay-1",
+        "rd-1",
+        "acct-a",
+        "mv-secret-7",
+        "4321",
+        "amount_cents",
+        "ext-x",
+    ):
+        assert raw not in output, raw
+
+
+def test_a_permitted_read_and_a_rejected_read_are_both_attributable(stack):
+    stack["client"].get("/v1/accounts/acct-a", headers=READER)
+    stack["client"].get("/v1/accounts/acct-a")  # no caller context: rejected
+    reads = [entry for entry in lines(stack["stream"]) if entry["event"] == "read"]
+    assert [entry["decision"] for entry in reads] == ["permitted", "rejected"]
+    assert all(entry["account_token"] == token("acct-a") for entry in reads)
+    assert reads[0]["caller_token"] == token("rd-1")
+    assert "caller_token" not in reads[1]
+
+
+def test_trace_reads_emit_a_read_event_without_an_account_token(stack):
+    stack["client"].get("/v1/reconciliation/trace", headers=RECON)
+    reads = [entry for entry in lines(stack["stream"]) if entry["event"] == "read"]
+    assert len(reads) == 1 and "account_token" not in reads[0]
+
+
+def test_an_unknown_role_is_logged_as_none_not_refused(stack):
+    response = stack["client"].get(
+        "/v1/accounts/acct-a",
+        headers={
+            "X-Caller-Id": "x-1",
+            "X-Caller-Role": "not_a_role",
+            "X-Correlation-Id": "corr-u",
+        },
+    )
+    assert response.status_code == 403
+    request_line = [
+        entry for entry in lines(stack["stream"]) if entry["event"] == "request"
+    ][-1]
+    assert request_line["caller_role"] == "none"
+
+
+# --- TEST-39 aged-item scan ----------------------------------------------------------------------
+
+
+def _pending_incoming(stack, movement_id: str) -> None:
+    stack["client"].post(
+        "/v1/accounts/acct-a/ach/incoming",
+        json={
+            "instruction_id": f"ins-{movement_id}",
+            "movement_id": movement_id,
+            "amount_cents": 25,
+            "currency": "USD",
+            "external_reference": f"ext-{movement_id}",
+        },
+        headers={**PAYER, "Idempotency-Key": f"k-{movement_id}"},
+    )
+
+
+def _snapshot(conn: sqlite3.Connection) -> list[list[Any]]:
+    return [
+        conn.execute("SELECT * FROM movements ORDER BY movement_id").fetchall(),
+        conn.execute("SELECT * FROM holds ORDER BY hold_id").fetchall(),
+        conn.execute("SELECT * FROM ledger_entries ORDER BY sequence").fetchall(),
+        conn.execute("SELECT * FROM accounts ORDER BY account_id").fetchall(),
+    ]
+
+
+def test_the_scan_reports_only_items_older_than_the_threshold_and_changes_nothing(
+    stack,
+):
+    _pending_incoming(stack, "mv-old")
+    stack["clock"].advance(48 * 3600)
+    _pending_incoming(stack, "mv-new")
+    before = _snapshot(stack["conn"])
+
+    reader = sqlite3.connect(f"file:{stack['db'].as_posix()}?mode=ro", uri=True)
+    sink = EventSink(io.StringIO())
+    now = datetime(2026, 10, 12, 12, 0, 0, tzinfo=UTC)
+    try:
+        count = run_scan(reader, sink, now, threshold_hours=24)
+    finally:
+        reader.close()
+
+    assert count == 1
+    assert _snapshot(stack["conn"]) == before
+
+
+def test_the_scan_refuses_writes_through_its_read_only_connection(stack):
+    reader = sqlite3.connect(f"file:{stack['db'].as_posix()}?mode=ro", uri=True)
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            reader.execute("UPDATE movements SET state = 'expired'")
+    finally:
+        reader.close()
+
+
+def test_the_scan_emits_safe_item_events_and_a_summary(stack):
+    _pending_incoming(stack, "mv-aged-1")
+    stack["clock"].advance(30 * 3600)
+    reader = sqlite3.connect(f"file:{stack['db'].as_posix()}?mode=ro", uri=True)
+    out = io.StringIO()
+    try:
+        run_scan(
+            reader,
+            EventSink(out),
+            datetime(2026, 10, 11, 18, 0, 0, tzinfo=UTC),
+            threshold_hours=24,
+        )
+    finally:
+        reader.close()
+    emitted = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert emitted[0]["event"] == "aged_item"
+    assert emitted[0]["item_token"] == token("mv-aged-1")
+    assert emitted[0]["state"] == "pending"
+    assert emitted[-1] == {"count": 1, "event": "scan_summary", "threshold_hours": 24}
+    assert "mv-aged-1" not in out.getvalue() and "acct-a" not in out.getvalue()
+
+
+def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp_path):
+    from scan_aged_items import main  # type: ignore[import-not-found]
+
+    db = tmp_path / "manifest.sqlite3"
+    started = start_database(db, MIGRATIONS, NOW, check_same_thread=False)
+    started.connection.close()
+    manifest = tmp_path / "manifest.json"
+    code = main(
+        [
+            str(db),
+            "--older-than-hours",
+            "24",
+            "--manifest",
+            str(manifest),
+            "--spec-version",
+            "v1.9.11",
+            "--spec-commit",
+            "d2211b53a0570437b7fa9ddb1a1ba46969d6ac40",
+            "--code-commit",
+            "abc1234",
+        ]
+    )
+    assert code == 0
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    assert data["spec_version"] == "v1.9.11" and data["code_commit"] == "abc1234"
+    assert data["aged_scan"] == {"threshold_hours": 24.0, "count": 0}
+    assert data["migrations"] and all(
+        len(m["checksum"]) == 64 for m in data["migrations"]
+    )
+
+
+@pytest.mark.parametrize(
+    "argv", [["--older-than-hours", "0"], ["--older-than-hours", "-1"], []]
+)
+def test_the_scan_refuses_a_missing_or_non_positive_threshold(tmp_path, argv):
+    from scan_aged_items import main  # type: ignore[import-not-found]
+
+    with pytest.raises(SystemExit):
+        main([str(tmp_path / "none.sqlite3"), *argv])
