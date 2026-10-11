@@ -79,7 +79,14 @@ def _int_query(value: str | None, default: int | None) -> object:
     application refuses it with VALIDATION_ERROR, as the contract's integer type requires."""
     if value is None:
         return default
-    return int(value) if _DIGITS.fullmatch(value) else value
+    if not _DIGITS.fullmatch(value):
+        return value
+    try:
+        return int(value)
+    except (
+        ValueError
+    ):  # more digits than Python's int limit; the application refuses it
+        return value
 
 
 def create_app(
