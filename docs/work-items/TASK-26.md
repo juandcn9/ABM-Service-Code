@@ -1,8 +1,8 @@
 # Work item: TASK-26 — structured logs, bounded metrics, safe health, and the TEST-39 / TEST-41 facets
 
-**Status:** Implemented
+**Status:** Verified
 
-Tester PASS on `de2ca70` (`docs/evidence/TASK-26-tester-report-2.md`). Verified awaits JDC's decision.
+Tester PASS on the merged revision `d45e766` (PR #100): `docs/evidence/TASK-26-tester-report-3.md`. Earlier passes: `TASK-26-tester-report.md` (FAIL at `7ff1580`) and `TASK-26-tester-report-2.md` (PASS at `de2ca70`). JDC decided Verified on 2026-10-11 after those passes.
 
 ## Authority
 
