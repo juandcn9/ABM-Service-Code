@@ -1,6 +1,6 @@
 # Work item: TASK-01 — establish Code repository governance
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -44,3 +44,9 @@
 - Revision tested: Code `a61319842567d859a7b2fd5f68b06690e40e6fd8`. Specs `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`.
 - Result: PASS with findings: one Major (the repository policy omitted required controls), three Minor, one Observation. The findings are addressed by the follow-up change that carries this section (policy sections, template alignment, validator hardening with a committed mutation guard, honest completion record).
 - Status: stays `Implemented` until a fresh-context re-verification of that change passes; the Verified record is then a separate documentation change.
+
+## Verified record
+
+- Independent Tester PASS with findings on `fe28fd9` (Blocker 0, Major 0), merged to `main` as `3eb1e69` (PR #130). The merged result was checked: the governance validator and the guard tests pass on the merge with current `main` (220 passed). Report: `docs/evidence/TASK-01-remediation-tester-report.md`.
+- Earlier Tester Majors were closed in order: the policy omissions (R1 to R4, then the authority pause triggers and the hook, codebase-map and ID rules), and the TEST-32 recovery guard. The guard keeps its strict disclaimer pattern; the one exception is the Gate 7 row, matched by exact line (see GAP-0004 in Specs).
+- Scheduled items, with owners and triggers: the policy phrase checks are whole-document substring checks (Tester Observation O1; owner Builder; trigger the next change to `scripts/validate_governance.py`). Non-blocking observations from the earlier Tester (persist-credentials default, SECURITY.md private channel) stay as recorded in the Tester reports; owner Builder; trigger the next governance change.

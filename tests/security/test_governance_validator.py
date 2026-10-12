@@ -256,16 +256,17 @@ DOCUMENT_EDITS: dict[str, Mutation] = {
     "work-item status duplicated": lambda root: edit(
         root,
         "docs/work-items/TASK-01.md",
-        lambda text: text.replace(
-            "**Status:** Implemented",
-            "**Status:** Implemented\n**Status:** Verified",
-            1,
+        lambda text: re.sub(
+            r"(?m)^(\*\*Status:\*\* \w+)",
+            r"\1\n**Status:** Verified",
+            text,
+            count=1,
         ),
     ),
     "work-item status unbolded": lambda root: edit(
         root,
         "docs/work-items/TASK-01.md",
-        lambda text: text.replace("**Status:** Implemented", "Status: Implemented", 1),
+        lambda text: re.sub(r"(?m)^\*\*Status:\*\* ", "Status: ", text, count=1),
     ),
     "work-item template GAP sentence weakened": replace(
         WI, "becomes GAP-nnnn and pauses", "becomes a note and may pause"
