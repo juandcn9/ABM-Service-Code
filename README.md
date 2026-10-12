@@ -65,4 +65,4 @@ Ponytail was not applicable to the original Codex-authored tasks. Claude Code ta
 
 ## Non-claims
 
-This repository does not yet contain a runnable HTTP service or built image. It makes no claim of production readiness, regulatory approval, live partner integration, capacity, availability, backup restoration, disaster recovery, or permission to process real money or real customer data.
+This repository contains a runnable HTTP service and a built-image reference, for demonstration only. It is not a deployed production service. It makes no claim of production readiness, regulatory approval, live partner integration, capacity, availability, backup restoration, disaster recovery, or permission to process real money or real customer data.

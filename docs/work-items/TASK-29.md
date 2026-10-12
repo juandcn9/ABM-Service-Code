@@ -1,6 +1,8 @@
 # Work item: TASK-29 — intact-volume restart as the only supported recovery; no backup or disaster-recovery claim
 
-**Status:** Draft
+**Status:** Verified
+
+Tester PASS on the merged revision `e95fe56` (PR #117; PR head `8f42e70`): `docs/evidence/TASK-29-tester-report.md`. JDC decided Verified on the criteria: Tester PASS on the merged revision, acceptance met.
 
 ## Authority
 
@@ -34,7 +36,7 @@
 ## Completion
 
 - Code commit/PR: branch `feat/task-29-recovery` from `main`; PR not yet opened.
-- Commands/checks and results: pending.
-- Review findings/resolution: pending.
+- Commands/checks and results: full pytest on `e95fe56`: 999 passed; ruff, format, mypy and both validators pass; scan adversarial cases pass.
+- Review findings/resolution: Tester PASS (no Blocker or Major). Notes: a paraphrased claim without a listed term is not caught (accepted limit); the stale README non-claim line is corrected in the Verified record PR.
 - Residual risks: the term list is fixed; a paraphrased claim without those words is not caught.
 - Next safe action: open the Code PR, run CI, then the Tester pass on the merged head.
