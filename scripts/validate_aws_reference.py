@@ -128,12 +128,12 @@ def check(template: dict[str, Any]) -> list[str]:
     if "single-instance" not in description:
         failures.append("the description must document the single-instance limits")
     for name, res in resources.items():
-        if (
-            res.get("Type") == "AWS::EC2::Volume"
-            and res.get("DeletionPolicy") != "Retain"
+        if res.get("Type") == "AWS::EC2::Volume" and (
+            res.get("DeletionPolicy") != "Retain"
+            or res.get("UpdateReplacePolicy") != "Retain"
         ):
             failures.append(
-                f"{name}: the persistent volume must be retained on stack deletion (DeletionPolicy Retain)"
+                f"{name}: the persistent volume must be retained on stack deletion and replacement (DeletionPolicy and UpdateReplacePolicy Retain)"
             )
     for name, param in template.get("Parameters", {}).items():
         if name == "IngressCidr" and "Default" in param:
