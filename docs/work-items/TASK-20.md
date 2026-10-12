@@ -59,5 +59,5 @@
 
 - Open Major (M-1): permitted resolution of accepted card movements under the block was untested. The acceptance (clearing of an authorized card movement and late clearing, DEC-0031, while the block is set) had no test.
 - Fix: `test_block_permits_clearing_of_authorized_card_movements_and_late_clearing` in `tests/integration/test_risk_restriction.py`. It authorizes one card movement and reverses another before the block, sets the block, then clears the authorized movement (`cleared`) and late-clears the reversed one (`late_cleared`). It asserts both are permitted, the balance is 400, and the block is still set.
-- Mutation: blocking `clear_card` with `OUTGOING_BLOCKED` makes the test fail; the source was then restored.
+- Mutation: blocking `clear_card` with `OUTGOING_BLOCKED` makes the test fail; the source was then reverted to its committed form.
 - Checks on the fix head: `tests/integration/test_risk_restriction.py` 9 passed; `ruff`, `mypy` pass. Full-suite run and fresh Tester pass on the fix head are pending.
