@@ -1,6 +1,6 @@
 # Work item: TASK-23 — application and persistence security-negative evidence
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -60,7 +60,7 @@ Structured safe security evidence for rejected commands is an observability arti
 
 - Approved and merged by JDC at exact head `114599ec826dd9f6017e9752afc69ae2920b8ecb` as `c04a8cc` (PR #79). The merged tree equals the tested tree.
 - Independent exact-head review: fresh-context Tester PASS, recorded in `docs/evidence/TASK-23-tester-report.md` and in the PR #79 body before merge. Ponytail review run on the same head: Ship.
-- Verified status: not yet set. It needs a JDC decision, recorded in `specs/09` through a Specs PR.
+- Verified status: set by DEC-0052 (JDC, 2026-10-10) in Specs; the `specs/09` status cell is Verified.
 - Scheduled items, each with an owner and a trigger:
   - Unexpected errors are not logged (the broad mapping in `sqlite_store.py`). Owner Builder. Trigger TASK-26 (structured logs).
   - TEST-27 baseline cites TASK-02 evidence rather than re-proving it. Owner Builder. Trigger: the first task that introduces a required secret must add the missing-secret branch (DEC-0051).

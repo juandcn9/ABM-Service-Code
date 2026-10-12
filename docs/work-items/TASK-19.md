@@ -1,6 +1,6 @@
 # Work item: TASK-19 — append-only approved corrections and permitted negative behavior
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -56,3 +56,8 @@
 ## Process record
 
 - Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
+
+## Verified record
+
+- Tester PASS at exact head `0feb40a`, merged as `5d2cc58` (PR #62; tested tree equals merged tree): `docs/evidence/TASK-19-tester-report.md`. No Blocker, no Major.
+- Scheduled items above stay open: M-1 (TASK-25), closed-account correction cases (TASK-21). M-2 and M-3 are resolved by TASK-23 PR #79.

@@ -1,6 +1,6 @@
 # Work item: TASK-06 — immutable migrations and schema-version checksum handling
 
-**Status:** Implemented
+**Status:** Verified
 
 Implemented. Final head e461c90: fresh-context review of a244215 PASS with findings, all fixed in e461c90 (re-review of the final head waived by JDC); independent Tester pass of e461c90 PASS (no Blocker or Major). Ready for JDC merge.
 
@@ -69,3 +69,13 @@ Implemented. Final head e461c90: fresh-context review of a244215 PASS with findi
 
 - Revision: merge `45f3880`. Report: [`docs/evidence/TASK-06-tester-report.md`](../evidence/TASK-06-tester-report.md).
 - Result: PASS with findings: 0 Blocker, 0 Major, 4 Minor listed (the report summary says 3). Status stays Implemented until the Major findings are resolved.
+
+## Verified record
+
+- Tester PASS on the merged revision `45f388064` (PR #8, `main`), with Blocker 0, Major 0, Minor 3: `docs/evidence/TASK-06-tester-report.md`. The Tester did not build the task and derived its checks from the work item and Specs.
+- The "hardening in progress" note in Completion is superseded by this pass: the Tester tested the merged content, which includes the completed hardening.
+- Scheduled items, each with an owner and a trigger:
+  - Specs drift: Specs `contracts/sqlite-schema.sql` changed after the pinned `v1.0.1`. Owner Updater. Trigger: JDC decision on schema policy (Tester Minor 1).
+  - Detection not wired: `retained_history_protected()` is not called by a startup or readiness path in this revision. Owner Builder. Trigger: TASK-12 wiring; confirm before closing (Tester Minor 2).
+  - M09 timing-dependent kill of the deferred `BEGIN` mutant. Owner Builder. Trigger: TASK-18 concurrency barriers (Tester Minor 3).
+  - Record drift: the local counts in this work item (275 pytest, 28 mypy files) differ from the Tester's counts on `main`; the Tester report is authoritative for this revision (Tester Minor 4). Owner Builder.

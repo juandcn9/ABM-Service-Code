@@ -1,6 +1,6 @@
 # Work item: TASK-21 — closure eligibility, terminal state, and permitted late evidence
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -52,3 +52,8 @@
 ## Process record
 
 - Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
+
+## Verified record
+
+- Tester PASS on the fixed head `c7c5048`, merged as `6653ce1` (PR #70): `docs/evidence/TASK-21-tester-report.md`. The first head `7729b9c` failed on one Major, fixed in `c7c5048`.
+- Scheduled items above stay open as listed; the TASK-23 resolutions are recorded there.

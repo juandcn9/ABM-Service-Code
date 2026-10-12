@@ -1,6 +1,6 @@
 # Work item: TASK-24 — deterministic reconciliation and read pagination; model-based lifecycle coverage
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -37,3 +37,8 @@
 - Outgoing ACH in the model sequence: Owner Builder. Trigger: this task, before Implemented.
 - `TEST-39` and `TEST-41` facets: Owner Builder. Trigger: `TASK-26` (DEC-0053).
 - HTTP read responses and error envelopes: Owner Builder. Trigger: `TASK-25`.
+
+## Verified record
+
+- Tester PASS on `e3c616f` (PR #83, merged `6a6b9f2`) and a second PASS on `025037b` (PR #86, merged `668f1b4`), which adds outgoing ACH to the model: `docs/evidence/TASK-24-tester-report.md`. The Major found on `24a0f55` was fixed in `603314a` and covered by the later pass.
+- Scheduled items above stay open as listed.

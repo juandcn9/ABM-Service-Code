@@ -1,6 +1,6 @@
 # Work item: TASK-07 — SQLite connection, transaction unit, and error mapping
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -49,3 +49,10 @@
 
 - Revision: merge `5eab23f`. Report: [`docs/evidence/TASK-07-tester-report.md`](../evidence/TASK-07-tester-report.md).
 - Result: PASS with findings: 0 Blocker, 0 Major, 2 Minor. Status stays Implemented until the Major findings are resolved.
+
+## Verified record
+
+- Tester PASS on the merged revision `5eab23f` (PR #13, `main`), with Blocker 0, Major 0, Minor 2: `docs/evidence/TASK-07-tester-report.md`.
+- Scheduled items, each with an owner and a trigger:
+  - Stale test count in this work item (337 locally; 420 passed at the verified merge). Owner Builder. Trigger: the next change to this work item.
+  - `synchronous = FULL` is not discriminated by the tests, because the build default is already FULL. Owner Builder. Trigger: TASK-18 concurrency and durability tests.
