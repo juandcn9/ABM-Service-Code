@@ -51,6 +51,12 @@ curl -s http://127.0.0.1:8000/health/ready
 
 `ABM_TRUSTED_INGRESS=true` is set only where the caller-context boundary is controlled (SEC-01). The container refuses `ABM_CLOCK_MODE=controlled`. Run `python scripts/check_container.py` to repeat the checks (build, non-root, read-only, restart, manifest). Run `python scripts/smoke_container.py` for the black-box HTTP smoke check of the running image (liveness, readiness, registration, an authorized read, one incoming ACH credit visible in history and balance, and denied requests with no state change; TASK-36, DEC-0067).
 
+## Recovery (TASK-29, NFR-08)
+
+The supported demonstration recovery is restart of the same application version against the intact mounted SQLite volume. On restart the service runs the full readiness integrity check before it reports ready (TASK-12, TEST-17 and the TASK-28 continuity tests).
+
+Not claimed: backup, restore, disaster recovery, RPO, and RTO. These are deferred to a future production-readiness gate. The demonstration and the container reference do not test or claim them.
+
 ## Working rule
 
 Implement only one dependency-ready Specs TASK at a time. A normative ambiguity or proposed change to money, customer rights, public behavior, ownership, retention, security, architecture, or governance stops affected work and returns to the Specs change process.
