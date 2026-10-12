@@ -123,6 +123,24 @@ def test_the_reference_template_is_valid():
             ),
             "non-claim for 'backup'",
         ),
+        (
+            lambda t: t.update(
+                Description=t["Description"].replace("Single-instance", "one-host")
+            ),
+            "single-instance limits",
+        ),
+        (
+            lambda t: t["Resources"]["DataVolume"].pop("DeletionPolicy"),
+            "retained on stack deletion",
+        ),
+        (
+            lambda t: t["Resources"]["DataVolume"].pop("UpdateReplacePolicy"),
+            "retained on stack deletion",
+        ),
+        (
+            lambda t: t["Parameters"]["IngressCidr"].update(Default="10.0.0.0/8"),
+            "must not have a default",
+        ),
     ],
 )
 def test_each_rule_names_its_violation(edit, expected):
