@@ -40,3 +40,9 @@
 ## Process record
 
 - Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
+
+## Remediation (Tester FAIL on `00e45c6`)
+
+- Open Major: no test that a 401 is not stored and that the same key is evaluated fresh (TEST-15, TEST-46; the work item gap table and plan step 2 name 401).
+- Fix: `test_401_is_not_stored_and_the_same_key_is_evaluated_fresh` in `tests/integration/test_http_slice1.py`, beside the existing 401 test. It posts without caller context, asserts no `idempotency_outcomes` row for the key, then posts with valid context and asserts a fresh 201 with one `success` outcome. It lives in the HTTP slice rather than the application conformance file because the 401 is a transport-layer denial.
+- Checks on the fix head: `tests/integration/test_http_slice1.py` 9 passed; `ruff check .` and `mypy src harness tests scripts` pass. Full-suite run and fresh Tester pass on the fix head are pending.

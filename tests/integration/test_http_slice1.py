@@ -74,6 +74,33 @@ def test_missing_or_contradictory_caller_context_is_401_before_any_write(client)
     assert conn.execute("SELECT COUNT(*) FROM accounts").fetchone()[0] == before
 
 
+def test_401_is_not_stored_and_the_same_key_is_evaluated_fresh(client):
+    # TEST-15: a 401 stores no outcome, so a later request with the same key runs fresh
+    test_client, conn = client
+    key = "k-h1-401"
+    denied = test_client.post(
+        "/v1/accounts/registrations", json=BODY, headers={"Idempotency-Key": key}
+    )
+    assert denied.status_code == 401
+    stored = conn.execute(
+        "SELECT COUNT(*) FROM idempotency_outcomes WHERE idempotency_key = ?", (key,)
+    ).fetchone()[0]
+    assert stored == 0
+
+    fresh = test_client.post(
+        "/v1/accounts/registrations",
+        json=BODY,
+        headers={**ADMIN, "Idempotency-Key": key},
+    )
+    assert fresh.status_code == 201
+    assert "replayed" not in fresh.json()["meta"]
+    assert conn.execute(
+        "SELECT outcome_class, http_status FROM idempotency_outcomes"
+        " WHERE idempotency_key = ?",
+        (key,),
+    ).fetchall() == [("success", 201)]
+
+
 def test_registration_returns_the_success_envelope_and_replays_exactly(client):
     test_client, _conn = client
     first = test_client.post(
