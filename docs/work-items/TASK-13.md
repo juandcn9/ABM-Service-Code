@@ -1,6 +1,6 @@
 # Work item: TASK-13 — incoming ACH notice, settlement, and return
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -67,3 +67,9 @@
 - F5 (Minor): the INV-10 negative-balance return path is not exercised; it needs an outgoing debit fixture. Owner Builder. Trigger: the next test that builds an outgoing debit before an incoming return.
 - F6 (Minor, Specs-side): `specs/04-api.md` line 84 has a garbled sentence, with an orphaned "API-06,". Owner Updater (Specs repository, outside this Code repository). Trigger: the next Specs documentation change.
 - F7 (Minor, carried over): a credit beyond the schema cents bound becomes INTERNAL_ERROR. Owner Builder. Trigger: the next change to credit amount validation.
+
+## Verified record
+
+- Independent Tester PASS with findings on `442bcb5` (PR #129, merged as `84294b7`). The only changes between the tested head and the merge are TASK-05's documentation changes merged in between; this task's files are identical. Blocker 0, Major 0. Report: `docs/evidence/TASK-13-remediation-tester-report.md`.
+- The Tester Majors were closed: the Authority section cites DEC-0014 and DEC-0015 and the current pin; the cross-account settlement and return test is confirmed by mutation.
+- The five Minors (F3 to F7) stay as scheduled items above, each with an owner and a trigger.
