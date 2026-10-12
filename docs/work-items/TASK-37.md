@@ -49,4 +49,4 @@ Tester PASS on the merged revision `e6cbe81` (PR #115; implementation PR #114 me
 - Commands/checks and results: `tests/integration/test_multiprocess.py`: 3 passed on three repeated runs; mypy and ruff pass.
 - Review findings/resolution: first Tester FAIL (F-01 Major: contention workers did not overlap; F-02 Minor: busy wait unbounded) fixed in PR #115; re-pass PASS on `e6cbe81`; repeat runs 5 of 5 clean.
 - Residual risks: the tests run on Windows and on the CI runner (Linux); the lock behaviour under SQLite WAL is the library's, not verified beyond these cases.
-- Next safe action: open the Code PR, run CI, then the Tester pass on the merged head.
+- Next safe action: the Specs status cell for TASK-37 (normative; needs JDC exact-SHA approval).
