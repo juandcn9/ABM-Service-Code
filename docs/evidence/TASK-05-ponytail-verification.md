@@ -28,8 +28,8 @@
 | Measure | Result |
 |---|---|
 | Pinned tree entries (`git ls-tree -r`) | 199 (199 `blob`, all mode `100644`; no symlink, submodule or other type) |
-| Tree entries matching the installed file byte for byte (git blob hash) | 199 |
-| Tree entries matching only after CRLF normalization | 0 |
+| Tree entries matching the installed file byte for byte (git blob hash) | 42 (binary files) |
+| Tree entries matching only after CRLF normalization | 157 (text files; 42 + 157 = 199) |
 | Tree entries missing from the installed copy | 0 |
 | Tree entries present but not a regular file | 0 |
 | Tree entries with a different hash | 0 |
