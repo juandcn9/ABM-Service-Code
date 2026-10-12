@@ -1,6 +1,6 @@
 # Work item: TASK-05 — Ponytail configuration and review wiring
 
-**Status:** Implemented
+**Status:** Verified
 
 Resolved: the Specs now pin Ponytail `v5.1.0` (DEC-0013, merged with Specs PR #3). The installed copy was verified against the pinned tree; see Verification below. Deviation DV-01 is closed.
 
@@ -59,3 +59,9 @@ Recommendation: option 1.
 - Source: `https://github.com/DietrichGebert/ponytail`, tag `v5.1.0` resolves to commit `9cc65d03aa2da1db7121b912d03596409ee340b8` (DEC-0013).
 - Installed copy: the plugin cache directory for version `5.1.0`, compared file by file with `git archive` of the pinned commit: 199 files on both sides, all contents identical, no file missing or extra. The only installed extra is `.in_use/31236`, a runtime marker of the plugin, excluded from the comparison.
 - Method: read-only. The upstream repository was cloned into a scratch folder and nothing from it was executed.
+
+## Verified record
+
+- Independent Tester PASS on the merged revision `e333cdf` (PR #128, merged as `9757d88`; merged content identical to the tested head): `docs/evidence/TASK-05-remediation-tester-report.md`. Blocker 0, Major 0, Minor 0.
+- Earlier findings closed: the DEC-0020 counts (42 byte-for-byte, 157 CRLF-normalized, total 199) in `docs/evidence/TASK-05-ponytail-verification.md` and the stale "Blocked" wording (fixed in `c8360f7` and `e333cdf`).
+- The historical options text in the Decision section (`Blocked` as the status of a rejected option) is kept as history.
