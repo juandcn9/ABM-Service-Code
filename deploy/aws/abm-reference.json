@@ -1,0 +1,263 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "ABM demonstration reference: one private single-container host with an encrypted persistent volume, least-privilege role, restricted ingress, centralized logs and a basic alarm. Validation only; no live deployment. Not claimed: backup or restore, disaster recovery, RPO, RTO, production readiness, multi-instance operation, or live partner integration. SQLite remains the demonstration database.",
+  "Parameters": {
+    "VpcId": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "VPC for the private boundary."
+    },
+    "PrivateSubnetId": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Private subnet; the instance gets no public address."
+    },
+    "AvailabilityZone": {
+      "Type": "AWS::EC2::AvailabilityZone::Name",
+      "Description": "AZ of the instance and its volume (single-instance boundary)."
+    },
+    "ImageId": {
+      "Type": "AWS::EC2::Image::Id",
+      "Description": "Image that runs the ABM container (built and pinned outside this template)."
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Default": "t3.small",
+      "Description": "Single instance size."
+    },
+    "DataVolumeSizeGiB": {
+      "Type": "Number",
+      "Default": 10,
+      "MinValue": 1,
+      "MaxValue": 100,
+      "Description": "Persistent volume for the SQLite file."
+    },
+    "IngressCidr": {
+      "Type": "String",
+      "Description": "CIDR allowed to reach the service port. No default; never 0.0.0.0/0."
+    },
+    "ServicePort": {
+      "Type": "Number",
+      "Default": 8000,
+      "Description": "Container port behind the ingress."
+    },
+    "AbmMode": {
+      "Type": "String",
+      "Default": "demonstration",
+      "AllowedValues": [
+        "demonstration",
+        "aws-reference"
+      ],
+      "Description": "ABM_MODE (non-secret)."
+    },
+    "ConfigParameterPrefix": {
+      "Type": "String",
+      "Default": "/abm/demo",
+      "Description": "SSM parameter path holding non-secret configuration and secret references (names only, never values)."
+    },
+    "LogRetentionDays": {
+      "Type": "Number",
+      "Default": 30,
+      "AllowedValues": [
+        7,
+        14,
+        30,
+        90
+      ],
+      "Description": "Centralized log retention."
+    }
+  },
+  "Resources": {
+    "InstanceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "abm-least-privilege",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "AppLogGroup",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ConfigParameterPrefix}/*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "InstanceRole"
+          }
+        ]
+      }
+    },
+    "ServiceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Ingress to the ABM service port from the configured CIDR only; no egress rules beyond the default.",
+        "VpcId": {
+          "Ref": "VpcId"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": {
+              "Ref": "ServicePort"
+            },
+            "ToPort": {
+              "Ref": "ServicePort"
+            },
+            "CidrIp": {
+              "Ref": "IngressCidr"
+            }
+          }
+        ]
+      }
+    },
+    "AppLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "RetentionInDays": {
+          "Ref": "LogRetentionDays"
+        }
+      }
+    },
+    "AppInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": {
+          "Ref": "ImageId"
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "AvailabilityZone": {
+          "Ref": "AvailabilityZone"
+        },
+        "SubnetId": {
+          "Ref": "PrivateSubnetId"
+        },
+        "IamInstanceProfile": {
+          "Ref": "InstanceProfile"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "ServiceSecurityGroup"
+          }
+        ],
+        "Monitoring": true,
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "Encrypted": true,
+              "VolumeType": "gp3",
+              "DeleteOnTermination": true
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "abm-role",
+            "Value": "single-container-reference"
+          }
+        ]
+      }
+    },
+    "DataVolume": {
+      "Type": "AWS::EC2::Volume",
+      "Properties": {
+        "AvailabilityZone": {
+          "Ref": "AvailabilityZone"
+        },
+        "Size": {
+          "Ref": "DataVolumeSizeGiB"
+        },
+        "Encrypted": true,
+        "VolumeType": "gp3"
+      }
+    },
+    "DataVolumeAttachment": {
+      "Type": "AWS::EC2::VolumeAttachment",
+      "Properties": {
+        "Device": "/dev/sdf",
+        "InstanceId": {
+          "Ref": "AppInstance"
+        },
+        "VolumeId": {
+          "Ref": "DataVolume"
+        }
+      }
+    },
+    "InstanceStatusAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "Basic alarm: the single instance fails its status check. Not a recovery mechanism.",
+        "Namespace": "AWS/EC2",
+        "MetricName": "StatusCheckFailed",
+        "Dimensions": [
+          {
+            "Name": "InstanceId",
+            "Value": {
+              "Ref": "AppInstance"
+            }
+          }
+        ],
+        "Statistic": "Maximum",
+        "Period": 60,
+        "EvaluationPeriods": 2,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold"
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceId": {
+      "Value": {
+        "Ref": "AppInstance"
+      },
+      "Description": "The single instance (single-instance boundary)."
+    },
+    "LogGroupName": {
+      "Value": {
+        "Ref": "AppLogGroup"
+      },
+      "Description": "Centralized application logs."
+    }
+  }
+}

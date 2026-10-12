@@ -26,6 +26,7 @@ SCOPE = [
     *sorted((ROOT / "docs").rglob("*.md")),
     *sorted((ROOT / "scripts").rglob("*.py")),
     *sorted((ROOT / ".github").rglob("*.yml")),
+    *sorted((ROOT / "deploy").rglob("*.json")),
 ]
 EXCLUDED = {ROOT / "docs" / "evidence"}
 

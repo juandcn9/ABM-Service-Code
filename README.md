@@ -51,6 +51,12 @@ curl -s http://127.0.0.1:8000/health/ready
 
 `ABM_TRUSTED_INGRESS=true` is set only where the caller-context boundary is controlled (SEC-01). The container refuses `ABM_CLOCK_MODE=controlled`. Run `python scripts/check_container.py` to repeat the checks (build, non-root, read-only, restart, manifest). Run `python scripts/smoke_container.py` for the black-box HTTP smoke check of the running image (liveness, readiness, registration, an authorized read, one incoming ACH credit visible in history and balance, and denied requests with no state change; TASK-36, DEC-0067).
 
+## AWS reference (TASK-30, NFR-11, DEC-0006)
+
+`deploy/aws/abm-reference.json` is an architectural reference: one private single-container host, an encrypted persistent volume, a least-privilege role, restricted ingress, centralized logs, and a basic alarm. It is validated statically and never deployed here. Validate it with `python scripts/validate_aws_reference.py`.
+
+Not claimed: a live deployment, a database service, horizontal scaling or a load-balanced multi-instance design, backup or restore, disaster recovery, RPO, RTO, production readiness, or live partner integration. SQLite remains the demonstration database.
+
 ## Recovery (TASK-29, NFR-08)
 
 The supported demonstration recovery is restart of the same application version against the intact mounted SQLite volume. On restart the service runs the full readiness integrity check before it reports ready (TASK-12, TEST-17 and the TASK-28 continuity tests).
