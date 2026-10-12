@@ -4,7 +4,7 @@
 
 ## Authority
 
-- Specs version and exact SHA: `v1.6.0` / `fa3250e38d04bfc442ee037466a159219092701c` (advanced from `v1.2.0`; the TASK-14 rules DEC-0023 and DEC-0024 are in this tag)
+- Specs version and exact SHA: `v1.9.14` / `0cca28b2201ae1785044a246c75c37cd655210da` (current Code pin, `SPEC_VERSION`; Specs origin/main is `v1.9.15` / `0e3b7cacab3142c54f9ba1e24a757ee913ad6d57`, not yet pinned). The TASK-14 rules DEC-0023 and DEC-0024 are present at this pin (`governance/decisions.md`); they first entered at `v1.6.0` / `fa3250e38d04bfc442ee037466a159219092701c`, which is an ancestor of the pin.
 - TASK and affected IDs: `TASK-14`; `FR-04`, `FR-05`; `API-07`, `API-08`, `API-09`, `API-10`, `API-11`, `API-22`; `INV-07`, `INV-10`, `INV-15`, `INV-16`; `DATA-02`, `DATA-04`
 - Decision, gap, or risk records: `DEC-0017` (destination reference, migration `0002`, Specs PR #8 merged as `1c7213c`); `DEC-0015` and `DEC-0016` (closure); DV-01 closed by `DEC-0020`
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required
