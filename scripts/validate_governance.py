@@ -11,8 +11,8 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EXPECTED_SPEC = {
     "spec_repository": "https://github.com/juandcn9/ABM-Service-Specs",
-    "spec_version": "v1.9.13",
-    "spec_commit": "fb32e092b7bab696c0dcad7ef76eb7ef7fa08c65",
+    "spec_version": "v1.9.14",
+    "spec_commit": "0cca28b2201ae1785044a246c75c37cd655210da",
 }
 REVIEWED_GITHUB_FILES = {
     ".github/workflows/governance-ci.yml",
@@ -53,7 +53,7 @@ PLACEHOLDER_PATTERN = (
 # step, permission, trigger, or condition, must update this value in the same reviewed commit, so
 # "no required check is advisory" cannot be weakened silently.
 EXPECTED_WORKFLOW_SHA256 = (
-    "cee625512b2203b23efa48b70ad20e92486e5fac7a3aff2295a9907371d0598a"
+    "5a578f1880ae24dffb69fc7b835100373ec7d43a144df19f756ca28ef76ecf0b"
 )
 # paths that must be ignored by git, and one that must stay trackable
 IGNORED_SAMPLES = (
@@ -566,7 +566,7 @@ def main() -> int:
         return 1
     print("TASK-01 VALIDATION PASSED")
     print(f"- required files: {len(REQUIRED_FILES)}")
-    print("- Specs pointer: v1.9.13 / fb32e092b7bab696c0dcad7ef76eb7ef7fa08c65")
+    print("- Specs pointer: v1.9.14 / 0cca28b2201ae1785044a246c75c37cd655210da")
     print(
         "- governance headings, workflow pin, placeholders, and secret patterns: passed"
     )
