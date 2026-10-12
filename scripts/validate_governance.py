@@ -34,6 +34,7 @@ REQUIRED_FILES = {
 }
 TEXT_SUFFIXES = {
     ".example",
+    ".json",
     ".lock",
     ".md",
     ".python-version",
