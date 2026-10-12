@@ -27,7 +27,7 @@ TASK-01 through TASK-22 establish the governed toolchain, modular-monolith bound
 - [`docs/work-items/TASK-07.md`](docs/work-items/TASK-07.md): SQLite connection and transaction-unit work item.
 - [`docs/work-items/TASK-08.md`](docs/work-items/TASK-08.md): domain value objects, results, fingerprint, and clock port work item.
 - [`docs/work-items/TASK-09.md`](docs/work-items/TASK-09.md): caller context, authorization, and transport validation work item.
-- [`docs/work-items/TASK-05.md`](docs/work-items/TASK-05.md): Ponytail configuration work item (Blocked on the pin decision).
+- [`docs/work-items/TASK-05.md`](docs/work-items/TASK-05.md): Ponytail configuration work item (Implemented; the DEC-0020 pin verification is recorded in the evidence file).
 - [`docs/work-items/TASK-10.md`](docs/work-items/TASK-10.md): idempotency foundation and registration work item.
 - [`docs/work-items/TASK-12.md`](docs/work-items/TASK-12.md): startup and readiness work item.
 - [`docs/work-items/TASK-23.md`](docs/work-items/TASK-23.md): application/persistence security-negative evidence and exact later-facet ownership.
