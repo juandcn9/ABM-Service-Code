@@ -7,7 +7,9 @@ subprocess killed inside an open write transaction must recover the same way.
 
 from __future__ import annotations
 
+import inspect
 import pathlib
+import re
 import sqlite3
 import subprocess
 import sys
@@ -376,6 +378,18 @@ def test_every_write_command_leaves_the_pre_command_snapshot_under_a_fault(
             assert isinstance(retry, Success), where
         finally:
             reopened.connection.close()
+
+
+def test_every_sql_writing_method_is_instrumented() -> None:
+    # guard: a write method missing from MUTATORS would be skipped silently by the sweep (TEST-16)
+    writers = {
+        name
+        for name, fn in vars(sqlite_store.SqliteWriteTransaction).items()
+        if not name.startswith("_")
+        and callable(fn)
+        and re.search(r"\b(INSERT|UPDATE|DELETE)\b", inspect.getsource(fn))
+    }
+    assert writers == set(MUTATORS)
 
 
 # ---- section 7 recovery: a subprocess killed inside an open write transaction ----
