@@ -1,6 +1,8 @@
 # Work item: TASK-37 — multi-process isolation for one database file
 
-**Status:** Draft
+**Status:** Verified
+
+Tester PASS on the merged revision `e6cbe81` (PR #115; implementation PR #114 merged `96199fc`; the first pass FAIL on `96199fc` findings F-01 and F-02 are resolved): `docs/evidence/TASK-37-tester-report.md`. JDC decided Verified on the criteria: Tester PASS on the merged revision, acceptance met.
 
 ## Authority
 
@@ -43,8 +45,8 @@
 
 ## Completion
 
-- Code commit/PR: branch `feat/task-37-multiprocess` from `main` `d32b2fe`; PR not yet merged.
+- Code commit/PR: PR #114 (merged `96199fc`) and the overlap fix PR #115 (merged `e6cbe81`).
 - Commands/checks and results: `tests/integration/test_multiprocess.py`: 3 passed on three repeated runs; mypy and ruff pass.
-- Review findings/resolution: pending.
+- Review findings/resolution: first Tester FAIL (F-01 Major: contention workers did not overlap; F-02 Minor: busy wait unbounded) fixed in PR #115; re-pass PASS on `e6cbe81`; repeat runs 5 of 5 clean.
 - Residual risks: the tests run on Windows and on the CI runner (Linux); the lock behaviour under SQLite WAL is the library's, not verified beyond these cases.
 - Next safe action: open the Code PR, run CI, then the Tester pass on the merged head.
