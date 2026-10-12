@@ -232,6 +232,24 @@ DOCUMENT_EDITS: dict[str, Mutation] = {
     "policy single-maintainer statement removed": replace(
         POL, "single maintainer", "team of maintainers"
     ),
+    "policy loses Ponytail mode reason rule": replace(
+        POL,
+        "`lite`, `ultra`, or `off` may be used only when the work item records the reason; ",
+        "",
+    ),
+    "policy loses Ponytail upgrade control": replace(
+        POL, "Automatic updates are disabled.", "Updates are optional."
+    ),
+    "policy loses defect regression rule": replace(
+        POL,
+        "A defect within approved behavior is fixed in Code with regression evidence. ",
+        "",
+    ),
+    "policy loses escalation package": replace(
+        POL,
+        "The escalation package contains only: issue, impact, viable options, recommendation, and the exact decision required.",
+        "The escalation is informal.",
+    ),
     "policy Cursor controls removed": lambda root: edit(
         root, POL, lambda text: text.replace("Cursor", "Editor")
     ),

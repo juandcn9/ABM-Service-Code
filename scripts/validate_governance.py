@@ -171,6 +171,14 @@ POLICY_PHRASES = (
     "exact Specs commit SHA that contains it",
     "A Claude Code task is Blocked until",
     "upgrade trigger",
+    "`lite`, `ultra`, or `off` may be used only when the work item records the reason",
+    "no mode may weaken trust-boundary validation, authorization, data-loss safeguards, or required evidence",
+    "Automatic updates are disabled.",
+    "No task auto-upgrades or follows the upstream default branch.",
+    "https://github.com/DietrichGebert/ponytail, tag `v5.1.0`, commit `9cc65d03aa2da1db7121b912d03596409ee340b8`",
+    "A defect within approved behavior is fixed in Code with regression evidence.",
+    "is deferred, not added opportunistically",
+    "The escalation package contains only: issue, impact, viable options, recommendation, and the exact decision required.",
 )
 POLICY_BULLETS = (
     "- **Blocker:**",

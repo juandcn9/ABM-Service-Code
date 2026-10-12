@@ -37,7 +37,9 @@ The author cannot provide the sole independent verification. A fresh-context rev
 - Do not skip or relabel a failing required check.
 - Record failures that affect confidence; never hide them by rerunning only the passing path.
 - Stop and escalate any normative ambiguity, required approval, security weakening, or risk acceptance: record it as a GAP-nnnn or RISK-nnnn with its owner and next authorized action, preserve the safer behavior, and do not merge dependent work until JDC decides.
+- The escalation package contains only: issue, impact, viable options, recommendation, and the exact decision required.
 - A normative change is implemented in Code only after JDC approves the exact Specs commit SHA that contains it.
+- A defect within approved behavior is fixed in Code with regression evidence. A useful enhancement outside the baseline is deferred, not added opportunistically.
 
 ## Human approval for risky actions
 
@@ -88,3 +90,7 @@ JDC approves and merges. The author of a change never approves it, and self-appr
 The original `TASK-01` implementation was performed by Codex, so Ponytail was recorded as not applicable to that runtime; follow-up changes made with Claude Code record their `ponytail-review` evidence in the pull request. Claude Code work must use the exact Ponytail version, source, mode, and review commands governed by the approved Specs. A Claude Code task is Blocked until the installed Ponytail copy is verified against the pinned file tree at task start, and each retained `shortcut:` or `ponytail:` marker needs a ceiling, an upgrade trigger, an owner, and a TASK or issue reference.
 
 For Claude Code work, Builder Audit runs `ponytail-review` on every implementation diff, `ponytail-debt` whenever `shortcut:` or `ponytail:` markers exist, and `ponytail-audit` at each phase boundary and release candidate; `full` mode is the default. Plugin output is finding input only, never authority, an approver, or a substitute for tests and independent review. Deviation DV-01 is closed (`docs/governance/deviations.md`): the Specs pin Ponytail `v5.1.0` (DEC-0013, DEC-0020), and the installed copy matches the pinned file tree, so `TASK-05` is Implemented and every PR records the verified version.
+
+`lite`, `ultra`, or `off` may be used only when the work item records the reason; no mode may weaken trust-boundary validation, authorization, data-loss safeguards, or required evidence.
+
+Automatic updates are disabled. An upgrade uses a dedicated Specs PR containing the proposed exact version and commit, upstream release notes, manifest and hook diff, compatibility and security assessment, validator and document updates, and JDC approval of the exact Specs SHA. No task auto-upgrades or follows the upstream default branch. The only authorized source is https://github.com/DietrichGebert/ponytail, tag `v5.1.0`, commit `9cc65d03aa2da1db7121b912d03596409ee340b8`.
