@@ -1,6 +1,6 @@
 # Work item: TASK-11 — account projection, history reads, and reconciliation trace
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -54,3 +54,12 @@
 
 - Revision: merge `f201f51`. Report: [`docs/evidence/TASK-11-tester-report.md`](../evidence/TASK-11-tester-report.md).
 - Result: PASS with findings: 0 Blocker, 0 Major, 4 Minor. Status stays Implemented until the Major findings are resolved.
+
+## Verified record
+
+- Tester PASS on the merged revision `f201f51` (`main`), with Blocker 0, Major 0, Minor 4: `docs/evidence/TASK-11-tester-report.md`.
+- Scheduled items, each with an owner and the trigger the Tester report names:
+  - Client-echoed trace cutoff on later pages: a caller that omits `cutoff_sequence` gets a fresh cutoff. Owner Builder. Trigger: TASK-25 (Tester Minor 1).
+  - Cross-process snapshot isolation is not tested in this task. Owner Builder. Trigger: TASK-28 (Tester Minor 2). Confirm TASK-28 covers it before closing.
+  - Immutability of trace fields is enforced by schema triggers, with no read test. Owner Builder. Trigger: TASK-24 (Tester Minor 3). Confirm TASK-24 covers it before closing.
+  - The "available only when the ledger allows" rule is tested for the negative result only. Owner Builder. Trigger: TASK-24 (Tester Minor 4). Confirm before closing.

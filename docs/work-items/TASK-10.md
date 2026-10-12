@@ -1,6 +1,6 @@
 # Work item: TASK-10 — transactional idempotency foundation and account registration
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -51,3 +51,11 @@
 
 - Revision: merge `17ffbcf`. Report: [`docs/evidence/TASK-10-tester-report.md`](../evidence/TASK-10-tester-report.md).
 - Result: PASS with findings: 0 Blocker, 0 Major, 3 Minor. Status stays Implemented until the Major findings are resolved.
+
+## Verified record
+
+- Tester PASS on the merged revision `17ffbcf` (PR #14, `main`), with Blocker 0, Major 0, Minor 3: `docs/evidence/TASK-10-tester-report.md`. The earlier "review and Tester still required" wording in Completion is superseded by this pass.
+- Scheduled items, each with an owner and a trigger:
+  - Safe rejected-request security evidence is not emitted for deterministic rejections (`specs/04` API-01). Owner Builder. Trigger: TASK-25 (API edge). Tester Minor 1.
+  - Unexpected exceptions from the instruction propagate out of `run_idempotent` without a safe `INTERNAL_ERROR` mapping. Owner Builder. Trigger: TASK-25 (API edge). Tester Minor 2.
+  - "Failure only before writes" is a convention, not enforced, for storable rejections. Owner Builder. Trigger: the first task that adds a storable rejection after a write. Tester Minor 3.

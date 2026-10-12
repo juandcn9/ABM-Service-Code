@@ -1,6 +1,6 @@
 # Work item: TASK-22 — seven-year retention evaluation and non-public legal-hold port
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -53,3 +53,8 @@
 
 - Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
 - TASK-22 pass 1 (`07d12eb`) is recorded in `docs/evidence/TASK-22-tester-report-1.md`. Its DEC-0047 check was not made against the Specs text by the reviewer; the pass-2 record states this.
+
+## Verified record
+
+- Tester PASS on the merged head `caacace`, merged as `9811a61` (PR #74): `docs/evidence/TASK-22-tester-report.md`. Pass 1 (`07d12eb`) found two Majors, resolved before the final pass; see Process record for the review-timing gap.
+- Scheduled items above stay open as listed (README pin Minor, Builder, docs-only fix before the next release).

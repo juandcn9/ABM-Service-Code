@@ -1,6 +1,6 @@
 # Work item: TASK-18 — concurrency barriers and fault injection; funds protection, final-effect uniqueness, and rollback
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -62,3 +62,9 @@
 - F1 (Major): TEST-16 "each command" was verified for two of about eleven write commands. Fix: `test_every_write_command_leaves_the_pre_command_snapshot_under_a_fault` in `tests/integration/test_fault_injection.py` runs the before, after, and before-commit sweep for every command: the 16 in the conformance table plus `close_account`, `set_risk_restriction`, `set_legal_hold`, and `create_correction`, for four error kinds (80 cases). It also found that the write-method list omitted `set_restriction`, `close_account`, `set_retention_dates`, and `set_legal_hold`; those are now instrumented.
 - F2 (conditional Major, the M09 acceptance bullet): `test_a_second_writer_is_refused_while_a_write_transaction_is_open` in `tests/integration/test_concurrency.py`. It is deterministic and uses no timing or thread race: a second connection with `busy_timeout = 0` must be refused while the first holds `write_transaction`, and it proceeds after the commit. Mutation: changing `BEGIN IMMEDIATE` to a deferred `BEGIN` fails the test; the source was then reverted to its committed form.
 - Checks on the fix head: `ruff check`, `ruff format --check`, `mypy src harness tests scripts` pass; the full-suite run and a fresh Tester pass on the fix head are pending.
+
+## Verified record
+
+- Remediation of the TASK-18 Tester FAIL on `da05269` (F1 sweep coverage, F2 M09 probe). Fix branch head `c29f895` (guard for F3) was merged to `main` as `1a1eade` (PR #125); the test files on `main` are identical to the tested head.
+- Independent Tester PASS with findings on `c29f895`: Blocker 0, Major 0. The earlier Minor F3 (no completeness guard) is closed by the guard test `test_every_sql_writing_method_is_instrumented`. Report: `docs/evidence/TASK-18-remediation-tester-report.md`.
+- Tester observation, not blocking: the guard is a source-text regex heuristic, not a full static analysis.
