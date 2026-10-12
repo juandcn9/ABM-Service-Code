@@ -1,6 +1,8 @@
 # Work item: TASK-30 — minimal AWS CloudFormation reference with static validation and explicit non-claims
 
-**Status:** Draft
+**Status:** Verified
+
+Tester PASS on the merged revision `198ad1b` (PR #121; PR head `b59ac0c`): `docs/evidence/TASK-30-tester-report.md`. The earlier Tester findings are closed: the three fixes have broken-copy tests, and UpdateReplacePolicy is enforced. JDC decided Verified on the criteria: Tester PASS on the merged revision, acceptance met.
 
 ## Authority
 
