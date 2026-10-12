@@ -44,7 +44,7 @@ Recommendation: option 1.
 
 ## Implementation notes
 
-- Until this task is unblocked, every Claude Code task records `ponytail-review` (and `ponytail-debt` when markers exist, and `ponytail-audit` at phase/release boundaries) as run with the installed plugin and cites DV-01. Plugin output is finding input, never authority.
+- Every Claude Code task records `ponytail-review` (and `ponytail-debt` when markers exist, and `ponytail-audit` at phase/release boundaries) as run with the installed plugin and cites DV-01. Plugin output is finding input, never authority.
 
 ## Completion
 
