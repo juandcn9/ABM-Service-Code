@@ -514,7 +514,7 @@ def test_a_closing_transition_without_an_active_hold_moves_no_money(
     create(uow, clock)
     evidence(submit_outgoing_ach, uow, clock)
     conn.execute("UPDATE holds SET state = 'released', finalized_at = ?", (NOW,))
-    before = balances(conn)
+    before = state(conn)
     refused = evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
     assert isinstance(refused, Failure) and refused.error.code == "INVALID_TRANSITION"
-    assert balances(conn) == before
+    assert state(conn) == before
