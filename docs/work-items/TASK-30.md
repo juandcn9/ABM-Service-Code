@@ -43,6 +43,6 @@
 
 - Code commit/PR: branch `feat/task-30-aws` from `main`; PR not yet opened.
 - Commands/checks and results: `tests/unit/test_aws_reference.py` and the recovery-claim scan: 19 passed; the validator reports the reference valid; ruff and mypy pass.
-- Review findings/resolution: pending.
+- Review findings/resolution: Tester PASS on merged `91ea7ca` (no Blocker or Major). Minors fixed in the review-fix PR: ingress CIDR has no default (enforced); data volume retained on stack deletion (DeletionPolicy and UpdateReplacePolicy Retain, enforced); the description documents the single-instance limits (enforced, TEST-34). Recorded limits: a reduced static validator, not a schema validation; no load balancer by design (Specs section 11 names one as an option; TASK-30 excludes it).
 - Residual risks: the static validator is a reduced check, not a full CloudFormation schema validation; the template has never been deployed.
 - Next safe action: open the Code PR, run CI, then the Tester pass on the merged head.

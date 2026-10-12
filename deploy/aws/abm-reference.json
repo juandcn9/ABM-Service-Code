@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "ABM demonstration reference: one private single-container host with an encrypted persistent volume, least-privilege role, restricted ingress, centralized logs and a basic alarm. Validation only; no live deployment. Not claimed: backup or restore, disaster recovery, RPO, RTO, production readiness, multi-instance operation, or live partner integration. SQLite remains the demonstration database.",
+  "Description": "ABM demonstration reference: one private single-container host with an encrypted persistent volume, least-privilege role, restricted ingress, centralized logs and a basic alarm. Validation only; no live deployment. Single-instance limits: one instance and one data volume; no failover, no scaling, and a restart of the instance is not a recovery mechanism. Not claimed: backup or restore, disaster recovery, RPO, RTO, production readiness, multi-instance operation, or live partner integration. SQLite remains the demonstration database.",
   "Parameters": {
     "VpcId": {
       "Type": "AWS::EC2::VPC::Id",
@@ -210,7 +210,9 @@
         },
         "Encrypted": true,
         "VolumeType": "gp3"
-      }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
     },
     "DataVolumeAttachment": {
       "Type": "AWS::EC2::VolumeAttachment",
