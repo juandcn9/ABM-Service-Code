@@ -6,7 +6,8 @@
 
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
 - TASK and affected IDs: `TASK-13`; `FR-02`, `FR-03`; `API-04`, `API-05`, `API-06`; `INV-10`; `INV-07`; `INV-15`; `DATA-02`, `DATA-04`
-- Decision, gap, or risk records: none new; the decisions below are Builder choices recorded here for review; DV-01 and DV-02 in `docs/governance/deviations.md`
+- Closed-account and duplicate-movement rules: `DEC-0014` and `DEC-0015` (Specs PR #5 and #6, approved) in `governance/decisions.md`; not in the `v1.0.1` text above. Present at Specs `v1.6.0` and later, including the current pin `v1.9.13` / `fb32e092b7bab696c0dcad7ef76eb7ef7fa08c65`.
+- Decision, gap, or risk records: `DEC-0014`, `DEC-0015` (Specs); the Builder choices below are recorded here for review; DV-01 and DV-02 in `docs/governance/deviations.md`
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required
 
 ## Scope
@@ -30,7 +31,7 @@
 - The return may take the balance negative (INV-10). No test drives the balance negative yet; that needs an outgoing debit (`TASK-14`).
 - Builder decisions for review:
   - A duplicate `movement_id` is refused as `INVALID_TRANSITION` (409). The Specs name no duplicate-movement code.
-  - Settlement and return on a closed account are refused as `ACCOUNT_CLOSED` (422). The Specs allow only defined late evidence after closure; whether incoming settlement or return is such evidence belongs to `TASK-21`, and this choice must be revisited there.
+  - Settlement on a closed account is refused as `ACCOUNT_CLOSED` (422); a return on a closed account is accepted (`DEC-0015`, INV-16). Revisit with `TASK-21`.
   - A reused evidence reference is refused as `INVALID_TRANSITION` (409).
 - Installed Ponytail plugin 5.1.0 (`full`) and local Python 3.12.10 are declared deviations DV-01 and DV-02; CI runs the pinned 3.12.15.
 
@@ -56,4 +57,13 @@
 ## Remediation of the Tester Majors (2026-10-10)
 
 - F2 closed: tests `test_another_accounts_movement_is_not_found_for_settlement_or_return` in `tests/integration/test_incoming_ach.py` cover settlement and return through another account's id (MOVEMENT_NOT_FOUND, no write). Each owner-check mutant fails the test. Code commit `43ffbfb`.
-- F1 (traceability) resolved by reference: the rules the Tester found missing from the pinned v1.0.1 (closed-account late return, duplicate movement) are in later Specs releases: DEC-0014 and DEC-0015 (v1.6.0 and later). The Code pin is `v1.7.0` (eb345c8 on main). This work item still cites v1.0.1 for its original scope; the rules it implements are cited at the later pin.
+- F1 (traceability) fixed: the rules the Tester found missing from the pinned v1.0.1 (closed-account return, duplicate movement) are approved in `DEC-0014` and `DEC-0015` (Specs PR #5 and #6), present at `v1.6.0` and later. The Authority section now cites them; the Code pin is `v1.9.13` / `fb32e092b7bab696c0dcad7ef76eb7ef7fa08c65` (`SPEC_VERSION`). The earlier "v1.7.0 (eb345c8)" reference was wrong: `eb345c8` is not a commit in the Specs repository.
+- The Completion item on Specs PR #5 "awaiting approval" is superseded: `DEC-0014` and `DEC-0015` are approved.
+
+## Scheduled items (Tester Minors on 487be1f, not resolved here)
+
+- F3 (Minor): return-side evidence reuse is untested; mutant M14 survives. Owner Builder. Trigger: the next change to the incoming return path or its tests.
+- F4 (Minor): Implementation notes (closed-account settlement and return refused) conflict with the Completion section and the code, which accepts a return on a closed account per DEC-0015. The test count (523) is stale; the Tester counted 527 at that head. Owner Builder. Trigger: the next change to this work item.
+- F5 (Minor): the INV-10 negative-balance return path is not exercised; it needs an outgoing debit fixture. Owner Builder. Trigger: the next test that builds an outgoing debit before an incoming return.
+- F6 (Minor, Specs-side): `specs/04-api.md` line 84 has a garbled sentence, with an orphaned "API-06,". Owner Updater (Specs repository, outside this Code repository). Trigger: the next Specs documentation change.
+- F7 (Minor, carried over): a credit beyond the schema cents bound becomes INTERNAL_ERROR. Owner Builder. Trigger: the next change to credit amount validation.
