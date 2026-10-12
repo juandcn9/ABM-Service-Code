@@ -125,6 +125,21 @@ def check(template: dict[str, Any]) -> list[str]:
     for word in sorted(REQUIRED_NON_CLAIMS):
         if word not in description:
             failures.append(f"the description must state the non-claim for '{word}'")
+    if "single-instance" not in description:
+        failures.append("the description must document the single-instance limits")
+    for name, res in resources.items():
+        if (
+            res.get("Type") == "AWS::EC2::Volume"
+            and res.get("DeletionPolicy") != "Retain"
+        ):
+            failures.append(
+                f"{name}: the persistent volume must be retained on stack deletion (DeletionPolicy Retain)"
+            )
+    for name, param in template.get("Parameters", {}).items():
+        if name == "IngressCidr" and "Default" in param:
+            failures.append(
+                "parameter IngressCidr must not have a default (no open ingress by default)"
+            )
     if "not claimed" not in description and "not claim" not in description:
         failures.append("the description must say what is not claimed")
 
