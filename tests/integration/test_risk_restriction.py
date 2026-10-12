@@ -6,7 +6,7 @@ import pathlib
 import sqlite3
 
 from abm.application.caller import CallerContext
-from abm.application.cards import authorize_card
+from abm.application.cards import authorize_card, clear_card, reverse_card
 from abm.application.corrections import create_correction
 from abm.application.incoming_ach import create_incoming_ach, settle_incoming_ach
 from abm.application.outgoing_ach import create_outgoing_ach
@@ -297,3 +297,72 @@ def test_clearing_the_block_allows_outgoing_again(tmp_path):
     )
     assert isinstance(transfer, Success)
     assert balance(conn, "acct-a") == 900
+
+
+def test_block_permits_clearing_of_authorized_card_movements_and_late_clearing(
+    tmp_path,
+):
+    # permitted while the block is set (specs/02 section 7, DEC-0031): clearing an authorization
+    # made before the block, and a late clearing after a reversal
+    conn, uow = setup(tmp_path)
+    now = clock()
+    card_body = {"amount_cents": 300, "currency": "USD", "merchant_reference": "m-1"}
+    for movement in ("mv-auth", "mv-rev"):
+        auth = authorize_card(
+            uow,
+            now,
+            CARD,
+            f"k-{movement}",
+            "acct-a",
+            {
+                **card_body,
+                "instruction_id": f"ins-{movement}",
+                "movement_id": movement,
+                "external_reference": f"ext-{movement}",
+            },
+        )
+        assert isinstance(auth, Success)
+    released = reverse_card(
+        uow,
+        now,
+        CARD,
+        "k-rev",
+        "acct-a",
+        "mv-rev",
+        {"instruction_id": "ins-rev", "evidence_reference": "ev-rev"},
+    )
+    assert isinstance(released, Success)
+    set_block(uow)
+
+    cleared = clear_card(
+        uow,
+        now,
+        CARD,
+        "k-clr",
+        "acct-a",
+        "mv-auth",
+        {
+            "instruction_id": "ins-clr",
+            "evidence_reference": "ev-clr",
+            "amount_cents": 300,
+            "currency": "USD",
+        },
+    )
+    assert isinstance(cleared, Success) and cleared.value.data["state"] == "cleared"
+    late = clear_card(
+        uow,
+        now,
+        CARD,
+        "k-late",
+        "acct-a",
+        "mv-rev",
+        {
+            "instruction_id": "ins-late",
+            "evidence_reference": "ev-late",
+            "amount_cents": 300,
+            "currency": "USD",
+        },
+    )
+    assert isinstance(late, Success) and late.value.data["state"] == "late_cleared"
+    assert balance(conn, "acct-a") == 1000 - 300 - 300
+    assert restriction_of(conn, "acct-a") == ("outgoing_blocked", "dec-r1")

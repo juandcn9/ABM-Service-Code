@@ -7,6 +7,7 @@ attempts BEGIN IMMEDIATE. Assertions are on outcomes and final state, never on t
 from __future__ import annotations
 
 import pathlib
+import sqlite3
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -24,7 +25,7 @@ from abm.application.outgoing_ach import (
 )
 from abm.application.transfers import internal_transfer
 from abm.domain.results import Failure, Result, Success
-from abm.persistence.database import open_database
+from abm.persistence.database import open_database, write_transaction
 from abm.persistence.readiness import readiness_reasons
 from abm.persistence.sqlite_store import SqliteUnitOfWork
 from harness.clock import ControllableClock
@@ -419,3 +420,26 @@ def test_settlement_and_return_of_one_movement_keep_at_most_one_effect_of_each_k
                 )
                 == expected
             )
+
+
+def test_a_second_writer_is_refused_while_a_write_transaction_is_open(tmp_path):
+    # M09 (routed from TASK-06): BEGIN IMMEDIATE takes the write lock before any read. Without a barrier
+    # or timing, a second connection with no busy wait must be refused while the first holds the lock;
+    # a deferred BEGIN would let it in.
+    path = tmp_path / "abm.sqlite3"
+    setup_funded(path)
+    first = open_database(path)
+    second = open_database(path)
+    second.execute("PRAGMA busy_timeout = 0")
+    try:
+        with (
+            write_transaction(first),
+            pytest.raises(sqlite3.OperationalError, match="locked"),
+            write_transaction(second),
+        ):
+            pass  # never reached while the first transaction holds the lock
+        with write_transaction(second):
+            pass  # the lock is free again once the first transaction has committed
+    finally:
+        first.close()
+        second.close()

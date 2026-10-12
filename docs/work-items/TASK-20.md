@@ -4,7 +4,7 @@
 
 ## Authority
 
-- Specs version and exact SHA: `v1.9.1` / `3a2e4b26070fc4d43bb52182991c72693c67fb7d`
+- Specs version and exact SHA the task was implemented against: `v1.9.1` / `3a2e4b26070fc4d43bb52182991c72693c67fb7d`. Current Code pointer: `v1.9.12` / `1f6a26d379f82ce0cb227b02d7e197fb4bb99b2f`.
 - TASK and affected IDs: `TASK-20`; `FR-10`; `API-17`; `INV-11`; `DATA-01`, `DATA-06`; `TEST-10` (risk restriction blocks outgoing ACH, transfers and card authorization, and permits incoming credit, reads and correction). Governing trace: `specs/08-verification.md` section 9.1 (TASK-20 row) and `specs/09-delivery-plan.md` TASK-20.
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required.
 - Dependencies: `TASK-17` merged and recorded Implemented (true on `main` at `00e45c6`).
@@ -54,3 +54,11 @@
 ## Process record
 
 - Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
+
+## Remediation (Tester FAIL on `efd6c55`)
+
+- Open Major (M-1): permitted resolution of accepted card movements under the block was untested. The acceptance (clearing of an authorized card movement and late clearing, DEC-0031, while the block is set) had no test.
+- Fix: `test_block_permits_clearing_of_authorized_card_movements_and_late_clearing` in `tests/integration/test_risk_restriction.py`. It authorizes one card movement and reverses another before the block, sets the block, then clears the authorized movement (`cleared`) and late-clears the reversed one (`late_cleared`). It asserts both are permitted, the balance is 400, and the block is still set.
+- Mutation: blocking `clear_card` with `OUTGOING_BLOCKED` makes the test fail; the source was then reverted to its committed form.
+- Checks on the fix head `5c9bfe4`: full suite 1020 passed; `ruff check`, `ruff format --check`, `mypy`, and `validate_governance.py` pass. Fresh Tester pass on `5c9bfe4`: PASS with findings, Blocker 0, Major 0 (`docs/evidence/TASK-20-remediation-tester-report.md` once committed in the record PR).
+- Scheduled item (Tester Minor 3): the new test does not assert hold release on clearing or the absence of a hold on late clearing (specs/02 lines 92-94). Owner Builder. Trigger: the next change to `tests/integration/test_risk_restriction.py`.

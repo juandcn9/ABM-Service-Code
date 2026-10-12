@@ -56,3 +56,9 @@
 ## Process record
 
 - Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here so the Verified decision is made with it in view.
+
+## Remediation (Tester FAIL on `da05269`)
+
+- F1 (Major): TEST-16 "each command" was verified for two of about eleven write commands. Fix: `test_every_write_command_leaves_the_pre_command_snapshot_under_a_fault` in `tests/integration/test_fault_injection.py` runs the before, after, and before-commit sweep for every command: the 16 in the conformance table plus `close_account`, `set_risk_restriction`, `set_legal_hold`, and `create_correction`, for four error kinds (80 cases). It also found that the write-method list omitted `set_restriction`, `close_account`, `set_retention_dates`, and `set_legal_hold`; those are now instrumented.
+- F2 (conditional Major, the M09 acceptance bullet): `test_a_second_writer_is_refused_while_a_write_transaction_is_open` in `tests/integration/test_concurrency.py`. It is deterministic and uses no timing or thread race: a second connection with `busy_timeout = 0` must be refused while the first holds `write_transaction`, and it proceeds after the commit. Mutation: changing `BEGIN IMMEDIATE` to a deferred `BEGIN` fails the test; the source was then reverted to its committed form.
+- Checks on the fix head: `ruff check`, `ruff format --check`, `mypy src harness tests scripts` pass; the full-suite run and a fresh Tester pass on the fix head are pending.
