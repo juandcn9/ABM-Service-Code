@@ -50,30 +50,6 @@ def is_exempt(path: pathlib.Path, line: str) -> bool:
     return path in GATE7_EXACT and line.strip() == GATE7_EXACT[path]
 
 
-SCOPE = [
-    ROOT / "README.md",
-    ROOT / "Dockerfile",
-    ROOT / ".dockerignore",
-    *sorted((ROOT / "docs").rglob("*.md")),
-    *sorted((ROOT / "scripts").rglob("*.py")),
-    *sorted((ROOT / ".github").rglob("*.yml")),
-    *sorted((ROOT / "deploy").rglob("*.json")),
-]
-EXCLUDED = {ROOT / "docs" / "evidence"}
-
-# The one exact-text exemption: the Gate 7 row names "backup/restore non-claims" verbatim (Specs
-# quality-gates Gate 7). A GAP records that the Specs wording should later state the disclaimer in a
-# form the guard can read. Any change to this row stops matching and fails the guard.
-GATE7_PATHS = {
-    ROOT / "docs" / "governance" / "repository-policy.md",
-    ROOT / "scripts" / "validate_governance.py",  # quotes the row as a required phrase
-}
-GATE7_ROW = (
-    "| Gate 7 Operational | Container least privilege, mounted persistence, readiness, intact-volume restart, "
-    "abrupt failure, and explicit backup/restore non-claims | Phase 4 cannot exit. |"
-)
-
-
 def in_scope() -> list[pathlib.Path]:
     return [
         path
