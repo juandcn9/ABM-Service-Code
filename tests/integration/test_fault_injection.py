@@ -19,23 +19,122 @@ from unittest.mock import patch
 
 import pytest
 
+from abm.application.caller import CallerContext
+from abm.application.closure import close_account
+from abm.application.corrections import create_correction
 from abm.application.idempotency import Response
+from abm.application.legal_hold import set_legal_hold
 from abm.application.outgoing_ach import settle_outgoing_ach
+from abm.application.risk import set_risk_restriction
 from abm.application.transfers import internal_transfer
 from abm.domain.results import Failure, Result, Success
 from abm.persistence import database, sqlite_store
 from abm.persistence.readiness import readiness_reasons, start_database
 from abm.persistence.sqlite_store import SqliteUnitOfWork
+from harness.clock import ControllableClock
 from tests.integration.store_support import (
     MIGRATIONS,
     NOW,
     PAYER,
     clock,
     open_started,
+    register,
     setup_funded,
     setup_submitted,
     snapshot,
 )
+from tests.integration.test_idempotency_conformance import (
+    COMMANDS,
+    KEY,
+    START,
+    SUCCESS,
+)
+from tests.integration.test_idempotency_conformance import (
+    Command as ConformanceCommand,
+)
+
+REGISTRAR = CallerContext("registrar-1", "account_registrar", "corr-1")
+RISK = CallerContext("risk-1", "risk_controller", "corr-r")
+RETENTION = CallerContext("ret-1", "retention_controller", "corr-t")
+CORRECTOR = CallerContext("corr-1", "correction_authority", "corr-x")
+
+
+def _account_only(uow: SqliteUnitOfWork, clk: ControllableClock, scenario: str) -> None:
+    register(uow, clk, "acct-a")
+
+
+# write commands outside the conformance table: each needs only a registered account
+ADMIN_COMMANDS: tuple[ConformanceCommand, ...] = (
+    ConformanceCommand(
+        "close_account",
+        _account_only,
+        lambda uow, clk, key, scenario, changed: close_account(
+            uow, clk, REGISTRAR, key, "acct-a", {"instruction_id": "ins-cl"}
+        ),
+        "INVALID_TRANSITION",
+        409,
+    ),
+    ConformanceCommand(
+        "set_risk_restriction",
+        _account_only,
+        lambda uow, clk, key, scenario, changed: set_risk_restriction(
+            uow,
+            clk,
+            RISK,
+            key,
+            "acct-a",
+            {
+                "instruction_id": "ins-rs",
+                "action": "set",
+                "decision_reference": "dec-rs",
+            },
+        ),
+        "INVALID_TRANSITION",
+        409,
+    ),
+    ConformanceCommand(
+        "set_legal_hold",
+        _account_only,
+        lambda uow, clk, key, scenario, changed: set_legal_hold(
+            uow,
+            clk,
+            RETENTION,
+            key,
+            "acct-a",
+            {
+                "instruction_id": "ins-lh",
+                "record_type": "account",
+                "record_id": "acct-a",
+                "action": "set",
+                "decision_reference": "dec-lh",
+            },
+        ),
+        "INVALID_TRANSITION",
+        409,
+    ),
+    ConformanceCommand(
+        "create_correction",
+        _account_only,
+        lambda uow, clk, key, scenario, changed: create_correction(
+            uow,
+            clk,
+            CORRECTOR,
+            key,
+            "acct-a",
+            {
+                "instruction_id": "ins-c1",
+                "correction_id": "cor-1",
+                "direction": "credit",
+                "amount_cents": 500,
+                "currency": "USD",
+                "decision_reference": "dec-1",
+            },
+        ),
+        "INVALID_TRANSITION",
+        409,
+    ),
+)
+ALL_COMMANDS: tuple[ConformanceCommand, ...] = (*COMMANDS, *ADMIN_COMMANDS)
 
 # every method on SqliteWriteTransaction that issues an INSERT or UPDATE
 MUTATORS = (
@@ -49,6 +148,10 @@ MUTATORS = (
     "finalize_hold",
     "append_trace",
     "save_outcome",
+    "set_restriction",
+    "close_account",
+    "set_retention_dates",
+    "set_legal_hold",
 )
 
 Command = Callable[[SqliteUnitOfWork], Result[Response]]
@@ -215,6 +318,66 @@ def test_a_fault_at_any_write_or_before_commit_leaves_the_pre_command_snapshot(
             reopened.connection.close()
 
 
+def _command_db(
+    path: pathlib.Path, command: Any
+) -> tuple[Any, SqliteUnitOfWork, ControllableClock]:
+    conn = open_started(path)
+    uow, clk = SqliteUnitOfWork(conn), ControllableClock(START)
+    command.prepare(uow, clk, SUCCESS)
+    return conn, uow, clk
+
+
+@pytest.mark.parametrize("kind", sorted(ERRORS))
+@pytest.mark.parametrize("command", ALL_COMMANDS, ids=[c.name for c in ALL_COMMANDS])
+def test_every_write_command_leaves_the_pre_command_snapshot_under_a_fault(
+    tmp_path: pathlib.Path, command: Any, kind: str
+) -> None:
+    # TEST-16: the sweep covers every write command in the conformance table, not only two
+    error, code = ERRORS[kind]
+    conn, uow, clk = _command_db(tmp_path / "count.sqlite3", command)
+    plan = Plan(None, "none", _Generic)
+    with instrumented(plan):
+        command.call(uow, clk, KEY, SUCCESS, False)
+    conn.close()
+    writes = plan.calls
+    assert writes >= 2, command.name  # at least one effect plus the stored outcome
+
+    points: list[tuple[int | None, str]] = [
+        (n, phase) for n in range(1, writes + 1) for phase in ("before", "after")
+    ]
+    points.append((None, "commit"))
+
+    for index, (target, phase) in enumerate(points):
+        path = tmp_path / f"{command.name}-{kind}-{index}.sqlite3"
+        conn, uow, clk = _command_db(path, command)
+        before = snapshot(conn)
+        with instrumented(Plan(target, phase, error)):
+            result = command.call(uow, clk, KEY, SUCCESS, False)
+        conn.close()
+
+        where = (command.name, target, phase)
+        assert isinstance(result, Failure), where
+        assert result.error.code == code, where
+        assert result.error.retryable == (kind == "busy"), where
+
+        reopened = start_database(path, MIGRATIONS, NOW)
+        assert reopened.ready, (where, reopened.reasons)
+        assert reopened.connection is not None
+        try:
+            assert readiness_reasons(reopened.connection, MIGRATIONS) == []
+            assert snapshot(reopened.connection) == before, where
+            retry = command.call(
+                SqliteUnitOfWork(reopened.connection),
+                ControllableClock(START),
+                KEY,
+                SUCCESS,
+                False,
+            )
+            assert isinstance(retry, Success), where
+        finally:
+            reopened.connection.close()
+
+
 # ---- section 7 recovery: a subprocess killed inside an open write transaction ----
 
 CHILD = r"""
@@ -227,8 +390,8 @@ from abm.application.caller import CallerContext
 from abm.application.transfers import internal_transfer
 from abm.persistence.readiness import start_database
 from abm.persistence.sqlite_store import SqliteUnitOfWork, SqliteWriteTransaction
-from harness.clock import ControllableClock
 from abm.persistence.migrations import load_migrations
+from harness.clock import ControllableClock
 
 original = SqliteWriteTransaction.apply_balance
 
