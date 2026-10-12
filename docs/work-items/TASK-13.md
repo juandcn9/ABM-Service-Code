@@ -59,3 +59,11 @@
 - F2 closed: tests `test_another_accounts_movement_is_not_found_for_settlement_or_return` in `tests/integration/test_incoming_ach.py` cover settlement and return through another account's id (MOVEMENT_NOT_FOUND, no write). Each owner-check mutant fails the test. Code commit `43ffbfb`.
 - F1 (traceability) fixed: the rules the Tester found missing from the pinned v1.0.1 (closed-account return, duplicate movement) are approved in `DEC-0014` and `DEC-0015` (Specs PR #5 and #6), present at `v1.6.0` and later. The Authority section now cites them; the Code pin is `v1.9.13` / `fb32e092b7bab696c0dcad7ef76eb7ef7fa08c65` (`SPEC_VERSION`). The earlier "v1.7.0 (eb345c8)" reference was wrong: `eb345c8` is not a commit in the Specs repository.
 - The Completion item on Specs PR #5 "awaiting approval" is superseded: `DEC-0014` and `DEC-0015` are approved.
+
+## Scheduled items (Tester Minors on 487be1f, not resolved here)
+
+- F3 (Minor): return-side evidence reuse is untested; mutant M14 survives. Owner Builder. Trigger: the next change to the incoming return path or its tests.
+- F4 (Minor): Implementation notes (closed-account settlement and return refused) conflict with the Completion section and the code, which accepts a return on a closed account per DEC-0015. The test count (523) is stale; the Tester counted 527 at that head. Owner Builder. Trigger: the next change to this work item.
+- F5 (Minor): the INV-10 negative-balance return path is not exercised; it needs an outgoing debit fixture. Owner Builder. Trigger: the next test that builds an outgoing debit before an incoming return.
+- F6 (Minor, Specs-side): `specs/04-api.md` line 84 has a garbled sentence, with an orphaned "API-06,". Owner Updater (Specs repository, outside this Code repository). Trigger: the next Specs documentation change.
+- F7 (Minor, carried over): a credit beyond the schema cents bound becomes INTERNAL_ERROR. Owner Builder. Trigger: the next change to credit amount validation.
