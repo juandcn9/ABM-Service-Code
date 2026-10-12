@@ -16,7 +16,7 @@ TERMS = re.compile(
     r"\b(backups?|restor(e|es|ed|ing|ation)|disaster|RPO|RTO)\b", re.IGNORECASE
 )
 DISCLAIMER = re.compile(
-    r"\b(no|not|none|never|without|outside|exclud\w*|unclaimed|absence|deferred|out of scope|limit\w*)\b",
+    r"\b(no|not|none|never|without|outside|exclud\w*|unclaimed|absence|deferred|out of scope|limit\w*|non-claims?)\b",
     re.IGNORECASE,
 )
 SCOPE = [
