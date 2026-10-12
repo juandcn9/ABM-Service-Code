@@ -16,7 +16,7 @@ TERMS = re.compile(
     r"\b(backups?|restor(e|es|ed|ing|ation)|disaster|RPO|RTO)\b", re.IGNORECASE
 )
 DISCLAIMER = re.compile(
-    r"\b(no|not|none|never|without|outside|exclud\w*|unclaimed|absence|deferred|out of scope|limit\w*|non-claims?)\b",
+    r"\b(no|not|none|never|without|outside|exclud\w*|unclaimed|absence|deferred|out of scope|limit\w*)\b",
     re.IGNORECASE,
 )
 SCOPE = [
@@ -29,6 +29,18 @@ SCOPE = [
     *sorted((ROOT / "deploy").rglob("*.json")),
 ]
 EXCLUDED = {ROOT / "docs" / "evidence"}
+
+# The one exact-text exemption: the Gate 7 row names "backup/restore non-claims" verbatim (Specs
+# quality-gates Gate 7). A GAP records that the Specs wording should later state the disclaimer in a
+# form the guard can read. Any change to this row stops matching and fails the guard.
+GATE7_PATHS = {
+    ROOT / "docs" / "governance" / "repository-policy.md",
+    ROOT / "scripts" / "validate_governance.py",  # quotes the row as a required phrase
+}
+GATE7_ROW = (
+    "| Gate 7 Operational | Container least privilege, mounted persistence, readiness, intact-volume restart, "
+    "abrupt failure, and explicit backup/restore non-claims | Phase 4 cannot exit. |"
+)
 
 
 def in_scope() -> list[pathlib.Path]:
@@ -44,13 +56,20 @@ def test_every_recovery_term_is_disclaimed_on_its_line():
     for path in in_scope():
         text = path.read_text(encoding="utf-8", errors="replace")
         for number, line in enumerate(text.splitlines(), start=1):
-            if TERMS.search(line) and not DISCLAIMER.search(line):
+            exempt = path in GATE7_PATHS and GATE7_ROW in line
+            if TERMS.search(line) and not DISCLAIMER.search(line) and not exempt:
                 failures.append(
                     f"{path.relative_to(ROOT)}:{number}: {line.strip()[:120]}"
                 )
     assert failures == [], "recovery claim without a disclaimer:\n" + "\n".join(
         failures
     )
+
+
+def test_the_only_exemption_matches_exactly_one_line_in_each_file():
+    for path in GATE7_PATHS:
+        text = path.read_text(encoding="utf-8")
+        assert text.count(GATE7_ROW) == 1, path
 
 
 def test_the_scan_reads_the_documentation_it_is_meant_to_cover():
