@@ -1,6 +1,6 @@
 # Work item: TASK-20 — outgoing risk restriction set/clear and enforcement
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -62,3 +62,9 @@
 - Mutation: blocking `clear_card` with `OUTGOING_BLOCKED` makes the test fail; the source was then reverted to its committed form.
 - Checks on the fix head `5c9bfe4`: full suite 1020 passed; `ruff check`, `ruff format --check`, `mypy`, and `validate_governance.py` pass. Fresh Tester pass on `5c9bfe4`: PASS with findings, Blocker 0, Major 0 (`docs/evidence/TASK-20-remediation-tester-report.md` once committed in the record PR).
 - Scheduled item (Tester Minor 3): the new test does not assert hold release on clearing or the absence of a hold on late clearing (specs/02 lines 92-94). Owner Builder. Trigger: the next change to `tests/integration/test_risk_restriction.py`.
+
+## Verified record
+
+- Remediation of the TASK-20 Tester FAIL on `efd6c55` (untested card clearing under the block). Fix branch head `5c9bfe4` was merged to `main` as `0e8c7a8` (PR #126); the test files on `main` are identical to the tested head.
+- Independent Tester PASS with findings on `5c9bfe4`: Blocker 0, Major 0; the Minor is scheduled above. Report: `docs/evidence/TASK-20-remediation-tester-report.md`.
+- Later commit `e045250` corrects the Specs pin text and the pending wording; no code change.

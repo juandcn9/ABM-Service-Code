@@ -1,6 +1,6 @@
 # Work item: TASK-17 — cross-flow idempotency conformance, exact stored-data replay, and conflict tests for every command
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -47,3 +47,9 @@
 - Fix: `test_401_is_not_stored_and_the_same_key_is_evaluated_fresh` in `tests/integration/test_http_slice1.py`, beside the existing 401 test. It posts without caller context, asserts no `idempotency_outcomes` row for the key, then posts with valid context and asserts a fresh 201 with one `success` outcome. It lives in the HTTP slice rather than the application conformance file because the 401 is a transport-layer denial.
 - Checks on the fix head `1924c28`: full suite 1020 passed; `ruff check .`, `ruff format --check .`, `mypy src harness tests scripts`, and `validate_governance.py` pass. Fresh Tester pass on `1924c28`: PASS with findings, Blocker 0, Major 0. Mutation: storing an outcome on the registration 401 path makes the new test fail.
 - Scheduled item (Tester Minor): the test covers only `POST /v1/accounts/registrations`. The other command, read and trace routes share the 401 branch, and only their status is checked, so no test asserts they store nothing (TEST-46 is broader). Owner Builder. Trigger: TASK-25 HTTP conformance work, or the next change to `tests/integration/test_http_slice1.py`.
+
+## Verified record
+
+- Remediation of the TASK-17 Tester FAIL on `00e45c6`. Fix branch head `1924c28` was merged to `main` as `2c85165` (PR #124); the test files on `main` are identical to the tested head.
+- Independent Tester PASS with findings on `1924c28`: Blocker 0, Major 0; the Minor is scheduled above. Report: `docs/evidence/TASK-17-remediation-tester-report.md`.
+- Later commit `c4bab88` changes only this work item's remediation text; the code and tests are unchanged.
