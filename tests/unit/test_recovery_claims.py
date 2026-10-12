@@ -30,6 +30,25 @@ SCOPE = [
 ]
 EXCLUDED = {ROOT / "docs" / "evidence"}
 
+# The one exact-text exemption: the Gate 7 row names "backup/restore non-claims" verbatim (Specs
+# quality-gates Gate 7). A GAP records that the Specs wording should later state the disclaimer in a
+# form the guard can read. A line is exempt only when its stripped text equals the exact form below;
+# any appended text is not exempt.
+GATE7_ROW = (
+    "| Gate 7 Operational | Container least privilege, mounted persistence, readiness, intact-volume restart, "
+    "abrupt failure, and explicit backup/restore non-claims | Phase 4 cannot exit. |"
+)
+GATE7_EXACT = {
+    ROOT / "docs" / "governance" / "repository-policy.md": GATE7_ROW,
+    ROOT / "scripts" / "validate_governance.py": '"'
+    + GATE7_ROW
+    + '",',  # the validator's quoted copy
+}
+
+
+def is_exempt(path: pathlib.Path, line: str) -> bool:
+    return path in GATE7_EXACT and line.strip() == GATE7_EXACT[path]
+
 
 def in_scope() -> list[pathlib.Path]:
     return [
@@ -44,13 +63,29 @@ def test_every_recovery_term_is_disclaimed_on_its_line():
     for path in in_scope():
         text = path.read_text(encoding="utf-8", errors="replace")
         for number, line in enumerate(text.splitlines(), start=1):
-            if TERMS.search(line) and not DISCLAIMER.search(line):
+            exempt = is_exempt(path, line)
+            if TERMS.search(line) and not DISCLAIMER.search(line) and not exempt:
                 failures.append(
                     f"{path.relative_to(ROOT)}:{number}: {line.strip()[:120]}"
                 )
     assert failures == [], "recovery claim without a disclaimer:\n" + "\n".join(
         failures
     )
+
+
+def test_the_exemption_matches_exactly_one_line_in_each_file():
+    for path, exact in GATE7_EXACT.items():
+        lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines()]
+        assert lines.count(exact) == 1, path
+
+
+def test_an_appended_claim_on_the_exempt_row_is_not_exempt():
+    claim = (
+        " Nightly backups are restored within one hour (RTO 1h); this is a non-claim."
+    )
+    for path, exact in GATE7_EXACT.items():
+        assert is_exempt(path, exact)
+        assert not is_exempt(path, exact + claim)
 
 
 def test_the_scan_reads_the_documentation_it_is_meant_to_cover():
