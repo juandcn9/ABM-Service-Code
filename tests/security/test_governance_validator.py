@@ -222,6 +222,13 @@ DOCUMENT_EDITS: dict[str, Mutation] = {
         "| Verified | Required independent tests and gates passed against the named immutable revision. |\n",
         "",
     ),
+    "policy loses negative-test review check": replace(
+        POL, "missing negative tests", "missing tests"
+    ),
+    "policy loses GAP escalation record": replace(POL, "GAP-nnnn or RISK-nnnn", "note"),
+    "policy loses Ponytail marker ceiling rule": replace(
+        POL, "an upgrade trigger", "a note"
+    ),
     "policy single-maintainer statement removed": replace(
         POL, "single maintainer", "team of maintainers"
     ),

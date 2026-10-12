@@ -27,7 +27,7 @@ The target repository controls are: pull requests for `main`, required `validate
 
 ## Review independence
 
-The author cannot provide the sole independent verification. A fresh-context reviewer receives the approved Specs SHA, Code diff, evidence, and declared risks; it checks omissions, authority expansion, security/data exposure, unnecessary complexity, and reproducibility. The reviewer does not repair the implementation during that verification pass.
+The author cannot provide the sole independent verification. A fresh-context reviewer receives the approved Specs SHA, Code diff, evidence, and declared risks; it checks omissions, partial effects, unsupported behavior, hidden authority expansion, weak authorization, missing negative tests, data leakage, unnecessary complexity or abstraction, and reproducibility. The reviewer does not repair the implementation during that verification pass.
 
 ## Task and evidence discipline
 
@@ -36,7 +36,8 @@ The author cannot provide the sole independent verification. A fresh-context rev
 - Keep evidence reproducible, sanitized, and attributable to exact revisions.
 - Do not skip or relabel a failing required check.
 - Record failures that affect confidence; never hide them by rerunning only the passing path.
-- Stop and escalate any normative ambiguity, required approval, security weakening, or risk acceptance.
+- Stop and escalate any normative ambiguity, required approval, security weakening, or risk acceptance: record it as a GAP-nnnn or RISK-nnnn with its owner and next authorized action, preserve the safer behavior, and do not merge dependent work until JDC decides.
+- A normative change is implemented in Code only after JDC approves the exact Specs commit SHA that contains it.
 
 ## Human approval for risky actions
 
@@ -84,6 +85,6 @@ JDC approves and merges. The author of a change never approves it, and self-appr
 
 ## Tool applicability
 
-The original `TASK-01` implementation was performed by Codex, so Ponytail was recorded as not applicable to that runtime; follow-up changes made with Claude Code record their `ponytail-review` evidence in the pull request. Claude Code work must use the exact Ponytail version, source, mode, and review commands governed by the approved Specs.
+The original `TASK-01` implementation was performed by Codex, so Ponytail was recorded as not applicable to that runtime; follow-up changes made with Claude Code record their `ponytail-review` evidence in the pull request. Claude Code work must use the exact Ponytail version, source, mode, and review commands governed by the approved Specs. A Claude Code task is Blocked until the installed Ponytail copy is verified against the pinned file tree at task start, and each retained `shortcut:` or `ponytail:` marker needs a ceiling, an upgrade trigger, an owner, and a TASK or issue reference.
 
 For Claude Code work, Builder Audit runs `ponytail-review` on every implementation diff, `ponytail-debt` whenever `shortcut:` or `ponytail:` markers exist, and `ponytail-audit` at each phase boundary and release candidate; `full` mode is the default. Plugin output is finding input only, never authority, an approver, or a substitute for tests and independent review. Deviation DV-01 is closed (`docs/governance/deviations.md`): the Specs pin Ponytail `v5.1.0` (DEC-0013, DEC-0020), and the installed copy matches the pinned file tree, so `TASK-05` is Implemented and every PR records the verified version.

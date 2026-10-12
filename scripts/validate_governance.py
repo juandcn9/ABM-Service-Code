@@ -165,6 +165,12 @@ POLICY_PHRASES = (
     "short-lived",
     "is incomplete",
     "workflow digest",
+    "missing negative tests",
+    "partial effects",
+    "GAP-nnnn or RISK-nnnn",
+    "exact Specs commit SHA that contains it",
+    "A Claude Code task is Blocked until",
+    "upgrade trigger",
 )
 POLICY_BULLETS = (
     "- **Blocker:**",
