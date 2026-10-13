@@ -4,7 +4,7 @@
 
 ## Authority
 
-- Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`
+- Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91` (the version this item was built against; the current Specs pointer is in `README.md`)
 - TASK and affected IDs: `TASK-12`; `INV-18`; `NFR-02`; `SEC-10`; `API-20`, `API-21` (the readiness computation only); `TEST-18`; `TEST-30` (direct-corruption half)
 - Decision, gap, or risk records: `DEC-0007`; no new decision or gap; DV-01 and DV-02 in `docs/governance/deviations.md`
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required
@@ -30,16 +30,16 @@
   - Driver errors map to codes by their SQLite class: busy gives `DATABASE_BUSY`; corrupt, unreadable, or full storage gives `INTEGRITY_FAILED`; anything else gives `DATABASE_UNAVAILABLE`.
   - The transfer check compares the sum of source debits with the sum of destination credits per transfer, so it assumes nothing about which account column holds which side.
   - `start_database` closes the connection and returns no usable handle whenever the result is not ready.
-- Active-hold, transfer, trace, and outcome checks are written against the schema and will first see data from `TASK-13` onward; their tests insert rows directly, so a later task that changes how it records movements must keep these queries true or update them with the Specs.
-- Installed Ponytail plugin 5.1.0 (`full`) and local Python 3.12.10 are declared deviations DV-01 and DV-02; CI runs the pinned 3.12.15.
+- Active-hold, transfer, trace, and outcome checks are written against the schema and first saw data from `TASK-13` onward; their tests insert rows directly, so a later task that changes how it records movements must keep these queries true or update them with the Specs.
+- Installed Ponytail plugin 5.1.0 (`full`) and local Python 3.12.10 were declared deviations DV-01 and DV-02. Both are closed in `docs/governance/deviations.md`: DV-01 by DEC-0020, DV-02 by the TASK-27 container evidence. CI runs the pinned 3.12.15.
 
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record; the PR is opened after the `TASK-06` through `TASK-10` PRs merge.
-- Commands/checks and results: locally `pytest` 460 passed in this branch (CI 460 passed on the head) (includes the merged earlier tasks), `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators pass.
+- Commands/checks and results: `pytest --collect-only` collects 1291 tests at head `b122e10` (checked 2026-10-12; the earlier 460-pass count is not restated); `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators as recorded at completion.
 - Review findings/resolution: fresh-context review of ce8b25d (FAIL: three Majors, all fixed in eb1a4e8); focused re-review of eb1a4e8 PASS with findings (no Blocker or Major); independent Tester pass of eb1a4e8 PASS (CI green on CPython 3.12.15). ponytail-review (Gate 8) of the remediation diff returned Ship, with no Must-fix or Should-fix finding (see the evidence report): `ponytail-review` for this branch (DV-01 is closed, DEC-0020).
 - Residual risks: a very large database makes `PRAGMA integrity_check` slow at startup (acceptable for the single-writer demonstration, `RISK-0001`); the inconsistency queries encode the Builder's reading of `specs/05` section 7 and need a Tester pass against the Specs; readiness is computed on demand, so caching or rate limiting for the health route is a `TASK-25`/`TASK-26` decision.
-- Next safe action: none for TASK-12 (Verified). Its scheduled Minors are listed in the Specs status file.
+- Next safe action: an independent Tester pass on the current code head naming zero findings. Until then the status stays Implemented (see Status note). The open item is under Scheduled items.
 
 ## Wiring added before merge
 
@@ -50,11 +50,11 @@
 ## Specs check of the inconsistency queries (Tester, PR #15)
 
 - Matches `specs/05-data-model.md` section 7: projection equals signed ledger sum; holds only for outgoing ACH in `accepted_with_hold|submitted` and card in `authorized_with_hold`, and every such movement has its hold; a hold reserves its own movement's account; no active hold on a closed account; transfer source debits equal destination credits; registration trace and retention row per account; every accepted trace has a committed successful outcome.
-- Not yet checked, recorded as open: the explicit available-balance identity (posted minus active held must equal the projection; no separate column exists, so it is implied by the projection check), and the closure and finalized-effects rules, which need data from TASK-13 to TASK-21.
+- Not yet checked, recorded as open: the explicit available-balance identity (posted minus active held must equal the projection; no separate column exists, so it is implied by the projection check). The closure rule is in `readiness.py` (no active hold on a closed account; no non-permitted effect after `closed_at`), but effects are ordered by timestamp only (the shortcut comment there), so same-second effects are not ordered. The finalized-state check beyond that is open.
 
 ## Review fixes (PR #15, fresh-context review of ce8b25d)
 
-- Major 1 (vacuous corruption evidence): the test helper dropped the guard triggers for every case, so the nine data checks were never the reason. `tamper()` now restores the guard triggers after the bad rows are written. Removing the inconsistency loop now fails 11 readiness tests.
+- Major 1 (vacuous corruption evidence): the test helper dropped the guard triggers for every case, so the nine data checks were never the reason. `tamper()` now reinstates the guard triggers after the bad rows are written. Removing the inconsistency loop now fails 11 readiness tests.
 - Major 2 (wrong code for a missing object): readiness now compares the set of tables, indexes, views and triggers with the set the reviewed migrations create. A mismatch is `INTEGRITY_FAILED` and stops before the data queries, so a missing table no longer surfaces as `DATABASE_UNAVAILABLE`. Covered by `test_a_missing_table_is_integrity_failed_not_database_unavailable`.
 - Major 3 (index checks): the same object comparison covers indexes, so a dropped required index is `INTEGRITY_FAILED` (`test_a_dropped_index_is_integrity_failed`; specs/07 section 3 step 6).
 - Minor: the controlled-codes test no longer asserts a string check that could never fail.
@@ -69,17 +69,17 @@
 ## Remediation of the Tester Major (2026-10-10)
 
 - Gap closed: readiness now checks that stored idempotency responses are valid JSON (specs/05 s7) before `integrity_check`, and reports `INTEGRITY_FAILED`, not `DATABASE_UNAVAILABLE`. Regression test: `tests/integration/test_readiness.py` (malformed-row case); the test fails without the check. Code commit `43ffbfb` on branch `fix/majors-task-12-13-15`.
-- Resolved: the unsupported-schema branch of `readiness_reasons` is tested by `test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported` (`tests/integration/test_readiness.py`). The trigger (TASK-25) has passed; the item is closed. Owner: Builder (closed).
+- Resolved: the unsupported-schema branch of `readiness_reasons` is tested by `test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported` (`tests/integration/test_readiness.py`). Its trigger (TASK-25) has passed; closed by Code PR #41. Owner: Builder (closed).
 
-- Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`. The Scheduled items above are resolved. The open note in the Specs check section is scheduled in the Scheduled items section at the end of this file.
+- Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`. Not current: the Stream A Minor closure changed the code on `18fc4e3` after that head, so the status is Implemented (see Status note). The open note in the Specs check section is under Scheduled items.
 
 ## Stream A Minor closure (Tester findings of the TASK-12 report)
 
-- Minor 3, reason-code mapping: closed. `readiness.py` now applies one documented rule (`_storage_reason`): busy or locked gives `DATABASE_BUSY`; I/O error, corrupt, or full storage gives `INTEGRITY_FAILED`; any other storage error gives `DATABASE_UNAVAILABLE`. The startup path (open and migration causes) and `readiness_reasons` both use it. Tests: `test_each_storage_error_class_maps_to_the_documented_reason_on_readiness` and `test_each_storage_error_class_maps_to_the_documented_reason_at_startup` (nine SQLite classes each; the error carries the SQLite result code), and `test_a_corrupt_database_file_at_startup_is_integrity_failed` (real damaged pages). Before the fix, a corrupt file at startup reported `DATABASE_UNAVAILABLE`.
-- Minor 4, hold reserving its own account: closed. Test `test_a_hold_reserving_another_accounts_movement_is_integrity_failed` writes a hold on a second, registered account for a movement of the first account, past the guards, and asserts `INTEGRITY_FAILED`.
-- Minor 5, non-retained table definitions: closed. The object check now compares each stored definition (`sqlite_master.sql`) with the reviewed migrations, not only names. Basis: specs/05 section 8 (the migrated schema is the target) and `contracts/sqlite-schema.sql` (canonical DDL). The migrated `movements` text differs from the contract text only in column order, because section 8 requires `ALTER TABLE ... ADD COLUMN` for releases 1.2.0 and 1.5.0; the reference is therefore the migrated schema. Test `test_a_non_retained_table_definition_changed_out_of_band_is_integrity_failed` alters the `movements` state CHECK through `writable_schema` and asserts `INTEGRITY_FAILED`.
+- Minor 3, reason-code mapping: closed. Owner: Builder (closed). `readiness.py` now applies one documented rule (`_storage_reason`): busy or locked gives `DATABASE_BUSY`; I/O error, corrupt, or full storage gives `INTEGRITY_FAILED`; any other storage error gives `DATABASE_UNAVAILABLE`. The startup path (open and migration causes) and `readiness_reasons` both use it. Tests: `test_each_storage_error_class_maps_to_the_documented_reason_on_readiness` and `test_each_storage_error_class_maps_to_the_documented_reason_at_startup` (nine SQLite classes each; the error carries the SQLite result code), and `test_a_corrupt_database_file_at_startup_is_integrity_failed` (real damaged pages). Before the fix, a corrupt file at startup reported `DATABASE_UNAVAILABLE`.
+- Minor 4, hold reserving its own account: closed. Owner: Builder (closed). Test `test_a_hold_reserving_another_accounts_movement_is_integrity_failed` writes a hold on a second, registered account for a movement of the first account, past the guards, and asserts `INTEGRITY_FAILED`.
+- Minor 5, non-retained table definitions: closed. Owner: Builder (closed). The object check now compares each stored definition (`sqlite_master.sql`) with the reviewed migrations, not only names. Basis: specs/05 section 8 (the migrated schema is the target) and `contracts/sqlite-schema.sql` (canonical DDL). The migrated `movements` text differs from the contract text only in column order, because section 8 requires `ALTER TABLE ... ADD COLUMN` for releases 1.2.0 and 1.5.0; the reference is therefore the migrated schema. Test `test_a_non_retained_table_definition_changed_out_of_band_is_integrity_failed` alters the `movements` state CHECK through `writable_schema` and asserts `INTEGRITY_FAILED`.
 - Mutation evidence (sources put back from SHA-256-verified saved copies): the integrity-code set without 11 fails three tests; the startup cause mapping reverted fails six; the readiness fallback to `DATABASE_UNAVAILABLE` fails five; the cross-account query removed fails `test_a_hold_reserving_another_accounts_movement_is_integrity_failed`; the name-only object comparison fails `test_a_non_retained_table_definition_changed_out_of_band_is_integrity_failed`.
-- Not in this closure: Minor 2 (the unsupported-schema readiness test) was closed earlier (Code PR #41) and is not changed here.
+- Not in this closure: Minor 2 (the unsupported-schema readiness test) is recorded once, under Remediation above (Resolved, closed by Code PR #41), and is not changed here.
 
 ## Status note (Stream A)
 
@@ -87,4 +87,4 @@
 
 ## Scheduled items
 
-- Available-balance identity and the closure and finalized-state checks (the open note in the Specs check section above). Owner: Builder. Trigger: the next change to `src/abm/persistence/readiness.py`.
+- Available-balance identity and the finalized-state check beyond the timestamp-ordering shortcut in `readiness.py` (the open note in the Specs check section above). Owner: Builder. Trigger: TASK-32 (Constitution/Specs conformance and independent review, Draft in `specs/09-delivery-plan.md`).

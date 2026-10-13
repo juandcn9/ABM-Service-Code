@@ -4,7 +4,7 @@
 
 ## Authority
 
-- Specs version and exact SHA: `v1.9.3` / `e72391c0f53d678c6e013cc0f1d9808f730994fa`
+- Specs version and exact SHA: `v1.9.3` / `e72391c0f53d678c6e013cc0f1d9808f730994fa` (the version this item was built against; the current Specs pointer, v1.9.16, is in `README.md`)
 - TASK and affected IDs: `TASK-22`; `FR-16`; `INV-12`; `DATA-07`; `DEC-0008`, `DEC-0010`, `DEC-0012`; `BT-08`; `TEST-19` (retention row starts with null timestamps; closure and later final resolution set and advance both; seven-year predicate; legal hold always blocks eligibility), `TEST-37` (legal-hold and retention evaluation are not public HTTP and cannot delete anything), `TEST-45` (legal-hold set and clear accept only `retention_controller` through the non-public port, with record target checks, fingerprint conflict without mutation, exact replay, atomic commit). Governing trace: `specs/08-verification.md` section 9.1 (TASK-22 row) and `specs/09-delivery-plan.md` TASK-22.
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required.
 - Dependencies: `TASK-21` merged and recorded Implemented (true on `main` at `6653ce1`).
@@ -42,11 +42,11 @@
 
 ## Implementation and evidence
 
-- Code PR #74, merged to `main` as `9811a61` (head `caacace`; JDC approved the exact head in the session, 2026-10-10). Tester record: [`docs/evidence/TASK-22-tester-report.md`](../evidence/TASK-22-tester-report.md). Pass 1 on `07d12eb` found two Majors, both fixed; pass 2 on `caacace` PASS. Full suite 770 passing. The legal-hold refusal rule is DEC-0047 (Specs v1.9.4).
+- Code PR #74, merged to `main` as `9811a61` (head `caacace`; JDC approved the exact head in the session, 2026-10-10). Tester record: [`docs/evidence/TASK-22-tester-report.md`](../evidence/TASK-22-tester-report.md). Pass 1 on `07d12eb` found two Majors, both fixed; pass 2 on `caacace` PASS. Full-suite count at head `b122e10`: 1291 tests collected (`pytest --collect-only`, checked 2026-10-12). The legal-hold refusal rule is DEC-0047 (Specs v1.9.4).
 
 ## Scheduled items
 
-- Resolved by TASK-23 PR #79: the late-event docstring names the cases in that module and points to `test_retention.py` for incoming return. Owner: Builder (closed).
+- Resolved by TASK-23 PR #79 (commit `3072eec`): the late-event docstring in `tests/integration/test_retention_late_events.py` names the cases in that module and points to `test_retention.py` for incoming return. Owner: Builder (closed).
 - Resolved by commit `2cc5ae0` (chore: point the Code repository at Specs v1.9.16, DEC-0075): `README.md` now states `v1.9.16`; the Minor is closed. Owner: Builder (closed).
 
 ## Process record
