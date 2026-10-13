@@ -1,6 +1,6 @@
 # Work item: TASK-12 — startup migration, integrity, and fail-closed readiness
 
-**Status:** Verified
+**Status:** Implemented
 
 ## Authority
 
@@ -80,3 +80,7 @@
 - Minor 5, non-retained table definitions: closed. The object check now compares each stored definition (`sqlite_master.sql`) with the reviewed migrations, not only names. Basis: specs/05 section 8 (the migrated schema is the target) and `contracts/sqlite-schema.sql` (canonical DDL). The migrated `movements` text differs from the contract text only in column order, because section 8 requires `ALTER TABLE ... ADD COLUMN` for releases 1.2.0 and 1.5.0; the reference is therefore the migrated schema. Test `test_a_non_retained_table_definition_changed_out_of_band_is_integrity_failed` alters the `movements` state CHECK through `writable_schema` and asserts `INTEGRITY_FAILED`.
 - Mutation evidence (sources put back from SHA-256-verified saved copies): the integrity-code set without 11 fails three tests; the startup cause mapping reverted fails six; the readiness fallback to `DATABASE_UNAVAILABLE` fails five; the cross-account query removed fails `test_a_hold_reserving_another_accounts_movement_is_integrity_failed`; the name-only object comparison fails `test_a_non_retained_table_definition_changed_out_of_band_is_integrity_failed`.
 - Not in this closure: Minor 2 (the unsupported-schema readiness test) was closed earlier (Code PR #41) and is not changed here.
+
+## Status note (Stream A)
+
+- Set to Implemented: the Stream A Minor closure changed this task's code on `18fc4e3`. Verified returns only after an independent Tester pass names the new head and reports zero findings.

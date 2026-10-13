@@ -1,6 +1,6 @@
 # Work item: TASK-15 — atomic internal transfer
 
-**Status:** Verified
+**Status:** Implemented
 
 ## Authority
 
@@ -61,3 +61,7 @@
 
 - Closed: `test_a_storage_fault_on_the_destination_rolls_everything_back` (`tests/integration/test_transfers.py`) now asserts the error code `INTERNAL_ERROR`. The injected driver error carries no SQLite result code, and `database.to_failure` maps such an error to `INTERNAL_ERROR` (the documented fallback). The rollback assertions are unchanged.
 - Mutation evidence (SHA-256-verified copy, put back after the run): changing the fallback code in `to_failure` from `INTERNAL_ERROR` to `SERVICE_UNREADY` fails this test.
+
+## Status note (Stream A)
+
+- Set to Implemented: the Stream A Minor closure changed this task's code on `18fc4e3`. Verified returns only after an independent Tester pass names the new head and reports zero findings.
