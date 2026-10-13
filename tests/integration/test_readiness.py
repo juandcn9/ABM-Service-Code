@@ -12,7 +12,12 @@ from abm.application.caller import CallerContext
 from abm.application.registration import register_account
 from abm.domain.results import Success
 from abm.persistence.database import open_database
-from abm.persistence.migrations import Migration, checksum, load_migrations
+from abm.persistence.migrations import (
+    Migration,
+    MigrationError,
+    checksum,
+    load_migrations,
+)
 from abm.persistence.readiness import (
     DATABASE_BUSY,
     DATABASE_UNAVAILABLE,
@@ -412,3 +417,118 @@ def test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported(
         ("a" * 64, NOW),
     )
     assert reasons(conn) == [SCHEMA_UNSUPPORTED]
+
+
+def register_second_account(conn: sqlite3.Connection) -> None:
+    clock = ControllableClock(datetime(2026, 10, 9, 12, 0, 0, tzinfo=UTC))
+    body = {
+        "instruction_id": "ins-2",
+        "account_id": "acct-2",
+        "customer_id": "cust-2",
+        "currency": "USD",
+        "eligibility_reference": "elig-2",
+    }
+    caller = CallerContext("registrar-1", "account_registrar", "corr-2")
+    result = register_account(SqliteUnitOfWork(conn), clock, caller, "key-2", body)
+    assert isinstance(result, Success)
+
+
+def test_a_hold_reserving_another_accounts_movement_is_integrity_failed(
+    path: pathlib.Path,
+) -> None:
+    conn = registered(path)
+    register_second_account(conn)
+    assert reasons(conn) == []
+    tamper(
+        conn,
+        [
+            (MOVEMENT, ("m1", "outgoing_ach", "accepted_with_hold", NOW, NOW)),
+            (
+                (
+                    "INSERT INTO holds (hold_id, movement_id, account_id, amount_cents, state,"
+                    " created_at) VALUES ('h1', 'm1', 'acct-2', 500, 'active', ?)"
+                ),
+                (NOW,),
+            ),
+        ],
+    )
+    assert reasons(conn) == [INTEGRITY_FAILED]
+
+
+def test_a_non_retained_table_definition_changed_out_of_band_is_integrity_failed(
+    path: pathlib.Path,
+) -> None:
+    registered(path).close()
+    conn = open_database(path)
+    conn.execute("PRAGMA writable_schema = ON")
+    conn.execute(
+        "UPDATE sqlite_master SET sql = replace(sql, 'CHECK (state IN (''pending'','"
+        ", 'CHECK (1 OR state IN (''pending'',') WHERE type = 'table' AND name = 'movements'"
+    )
+    conn.execute("PRAGMA writable_schema = OFF")
+    conn.close()
+    result = start_database(path, MIGRATIONS, NOW)
+    assert result.reasons == (INTEGRITY_FAILED,) and result.connection is None
+
+
+class _CodedError(sqlite3.OperationalError):
+    """A driver error carrying a SQLite primary result code, as sqlite3 raises it."""
+
+    def __init__(self, code: int) -> None:
+        super().__init__("simulated storage error")
+        self.sqlite_errorcode = code
+
+
+# (SQLite primary code, documented reason): busy, I/O error, corrupt, full, read-only, cannot-open,
+# not-a-database, and any other code
+STORAGE_CLASSES = [
+    (5, DATABASE_BUSY),
+    (6, DATABASE_BUSY),
+    (10, INTEGRITY_FAILED),
+    (11, INTEGRITY_FAILED),
+    (13, INTEGRITY_FAILED),
+    (8, DATABASE_UNAVAILABLE),
+    (14, DATABASE_UNAVAILABLE),
+    (26, DATABASE_UNAVAILABLE),
+    (1, DATABASE_UNAVAILABLE),
+]
+
+
+@pytest.mark.parametrize(("code", "expected"), STORAGE_CLASSES)
+def test_each_storage_error_class_maps_to_the_documented_reason_on_readiness(
+    path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, code: int, expected: str
+) -> None:
+    conn = registered(path)
+
+    def fail(_conn: sqlite3.Connection) -> bool:
+        raise _CodedError(code)
+
+    monkeypatch.setattr("abm.persistence.readiness._can_begin_write", fail)
+    assert reasons(conn) == [expected]
+
+
+@pytest.mark.parametrize(("code", "expected"), STORAGE_CLASSES)
+def test_each_storage_error_class_maps_to_the_documented_reason_at_startup(
+    path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, code: int, expected: str
+) -> None:
+    def fail(conn: sqlite3.Connection, migrations: object, applied_at: str) -> None:
+        raise MigrationError("MIGRATION_FAILED") from _CodedError(code)
+
+    monkeypatch.setattr("abm.persistence.readiness.apply_migrations", fail)
+    result = start_database(path, MIGRATIONS, NOW)
+    assert result.reasons == (expected,) and result.connection is None
+
+
+def test_a_corrupt_database_file_at_startup_is_integrity_failed(
+    path: pathlib.Path,
+) -> None:
+    ready = start_database(path, MIGRATIONS, NOW).connection
+    assert ready is not None
+    ready.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    ready.close()
+    data = bytearray(path.read_bytes())
+    for offset in range(4096, len(data), 4096):  # damage every page after the first
+        data[offset + 100 : offset + 400] = b"\x07" * 300
+    path.write_bytes(bytes(data))
+    result = start_database(path, MIGRATIONS, NOW)
+    assert result.reasons == (INTEGRITY_FAILED,) and result.connection is None

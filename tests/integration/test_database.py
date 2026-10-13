@@ -7,6 +7,7 @@ import pathlib
 import sqlite3
 import threading
 import time
+from typing import Any, cast
 
 import pytest
 
@@ -275,3 +276,35 @@ def test_error_mapping_never_exposes_driver_text() -> None:
             "secret" not in result.error.safe_message
             and "private" not in result.error.safe_message
         )
+
+
+class _RecordingConnection(sqlite3.Connection):
+    """Records each statement before running it, so a test can see what open_database issued."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.statements: list[str] = []
+
+    def execute(self, sql: str, parameters: Any = (), /) -> sqlite3.Cursor:
+        self.statements.append(sql)
+        return super().execute(sql, parameters)
+
+
+def test_a_file_database_is_opened_with_synchronous_full(
+    db_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The SQLite default on this build is already FULL, so the value alone cannot show that the PRAGMA
+    # ran. The statement issued by open_database is what is checked.
+    real_connect = sqlite3.connect
+
+    def recording_connect(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        return real_connect(*args, **kwargs, factory=_RecordingConnection)
+
+    monkeypatch.setattr(sqlite3, "connect", recording_connect)
+    conn = open_database(db_path)
+    try:
+        assert pragma(conn, "synchronous") == 2  # FULL
+        recorded = cast(_RecordingConnection, conn).statements
+        assert "PRAGMA synchronous = FULL" in recorded
+    finally:
+        conn.close()

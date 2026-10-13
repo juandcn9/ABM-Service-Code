@@ -22,6 +22,7 @@ from abm.application.outgoing_ach import (
     reject_outgoing_ach,
     return_outgoing_ach,
     settle_outgoing_ach,
+    submit_outgoing_ach,
 )
 from abm.application.transfers import internal_transfer
 from abm.domain.results import Failure, Result, Success
@@ -55,7 +56,8 @@ def race(path: pathlib.Path, contenders: list[Contender]) -> list[Result[Respons
     """Run each contender on its own connection. All read the same state, then start together."""
     count = len(contenders)
     barrier = threading.Barrier(count)
-    results: list[object] = [None] * count
+    results: list[Result[Response] | None] = [None] * count
+    errors: list[BaseException | None] = [None] * count
     now = clock()
 
     def run(index: int) -> None:
@@ -68,7 +70,7 @@ def race(path: pathlib.Path, contenders: list[Contender]) -> list[Result[Respons
             barrier.wait(timeout=30)
             results[index] = contenders[index](SqliteUnitOfWork(conn), now)
         except BaseException as exc:  # noqa: BLE001  # re-raised in the test thread
-            results[index] = exc
+            errors[index] = exc
         finally:
             conn.close()
 
@@ -78,10 +80,11 @@ def race(path: pathlib.Path, contenders: list[Contender]) -> list[Result[Respons
     for thread in threads:
         thread.join(timeout=60)
     assert not any(thread.is_alive() for thread in threads)
-    for value in results:
-        if isinstance(value, BaseException):
-            raise value
-    return list(results)  # type: ignore[arg-type]
+    for error in errors:
+        if error is not None:
+            raise error
+    assert all(result is not None for result in results)
+    return [result for result in results if result is not None]
 
 
 def scalar(path: pathlib.Path, sql: str, *params: object) -> Any:
@@ -443,3 +446,115 @@ def test_a_second_writer_is_refused_while_a_write_transaction_is_open(tmp_path):
     finally:
         first.close()
         second.close()
+
+
+def setup_two_submitted(path: pathlib.Path) -> None:
+    """Funded acct-a with two submitted outgoing movements, mv-o and mv-p, of 400 cents each."""
+    setup_funded(path)
+    conn = open_started(path)
+    uow, now = SqliteUnitOfWork(conn), clock()
+    for movement in ("mv-o", "mv-p"):
+        body = {
+            "instruction_id": f"ins-{movement}",
+            "movement_id": movement,
+            "amount_cents": 400,
+            "currency": "USD",
+            "external_reference": f"ext-{movement}",
+            "destination_reference": "dest-o",
+        }
+        assert isinstance(
+            create_outgoing_ach(uow, now, PAYER, f"c-{movement}", "acct-a", body),
+            Success,
+        )
+        evidence = {
+            "instruction_id": f"ins-sub-{movement}",
+            "evidence_reference": f"ev-sub-{movement}",
+        }
+        assert isinstance(
+            submit_outgoing_ach(
+                uow, now, PAYER, f"s-{movement}", "acct-a", movement, evidence
+            ),
+            Success,
+        )
+    conn.close()
+
+
+def _settle_movement(movement: str, key: str, evidence: str) -> Contender:
+    return lambda uow, now: settle_outgoing_ach(
+        uow,
+        now,
+        PAYER,
+        key,
+        "acct-a",
+        movement,
+        {"instruction_id": f"ins-{key}", "evidence_reference": evidence},
+    )
+
+
+def test_two_settlements_of_different_movements_sharing_evidence_apply_one(
+    tmp_path: pathlib.Path,
+) -> None:
+    # Both movements are still submitted when the race starts, so only the evidence-reference guard
+    # can refuse the loser. Without that guard the loser would fail later with an unmapped error.
+    for repeat in range(REPEATS):
+        path = tmp_path / f"shared-evidence-{repeat}.sqlite3"
+        setup_two_submitted(path)
+        results = race(
+            path,
+            [
+                _settle_movement("mv-o", "ka", "ev-shared"),
+                _settle_movement("mv-p", "kb", "ev-shared"),
+            ],
+        )
+
+        won = successes(results)
+        assert len(won) == 1, results
+        loser = results[1 - won[0]]
+        assert isinstance(loser, Failure) and loser.error.code == "INVALID_TRANSITION"
+
+        winner, refused = ("mv-o", "mv-p") if won[0] == 0 else ("mv-p", "mv-o")
+        assert (
+            scalar(path, "SELECT state FROM movements WHERE movement_id = ?", winner)
+            == "settled"
+        )
+        assert (
+            scalar(path, "SELECT state FROM movements WHERE movement_id = ?", refused)
+            == "submitted"
+        )
+        # TEST-36: one evidence item for the reference, one settlement effect in total
+        assert (
+            scalar(
+                path,
+                "SELECT COUNT(*) FROM movement_evidence WHERE evidence_reference = 'ev-shared'",
+            )
+            == 1
+        )
+        assert (
+            scalar(
+                path,
+                "SELECT COUNT(*) FROM ledger_entries WHERE effect_kind = 'outgoing_settlement'",
+            )
+            == 1
+        )
+        # the refused movement keeps its hold: 1000 - 400 settled, and 400 still held
+        assert (
+            scalar(
+                path,
+                "SELECT current_balance_cents FROM accounts WHERE account_id = 'acct-a'",
+            )
+            == 600
+        )
+        assert (
+            scalar(
+                path,
+                "SELECT COALESCE(SUM(amount_cents), 0) FROM holds"
+                " WHERE account_id = 'acct-a' AND state = 'active'",
+            )
+            == 400
+        )
+
+        conn = open_started(path)
+        try:
+            assert readiness_reasons(conn, MIGRATIONS) == []
+        finally:
+            conn.close()

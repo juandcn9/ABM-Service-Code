@@ -16,7 +16,6 @@ from abm.persistence.database import (
     DEFAULT_BUSY_TIMEOUT_MS,
     DatabaseUnavailable,
     open_database,
-    to_failure,
 )
 from abm.persistence.migrations import (
     Migration,
@@ -104,6 +103,21 @@ _INVALID_JSON = (
     "SELECT 1 FROM idempotency_outcomes WHERE NOT json_valid(response_json) LIMIT 1"
 )
 
+# SQLite primary result codes (sqlite_errorcode & 0xFF): busy or locked; I/O error, corrupt, full
+_BUSY_CODES = frozenset({5, 6})
+_INTEGRITY_CODES = frozenset({10, 11, 13})
+
+
+def _storage_reason(exc: sqlite3.Error) -> str:
+    """The documented rule (TASK-12): busy gives DATABASE_BUSY; corrupt, unreadable (I/O), or full
+    storage gives INTEGRITY_FAILED; any other storage error gives DATABASE_UNAVAILABLE."""
+    code = (getattr(exc, "sqlite_errorcode", None) or 0) & 0xFF
+    if code in _BUSY_CODES:
+        return DATABASE_BUSY
+    if code in _INTEGRITY_CODES:
+        return INTEGRITY_FAILED
+    return DATABASE_UNAVAILABLE
+
 
 def readiness_reasons(
     conn: sqlite3.Connection, migrations: Sequence[Migration]
@@ -133,32 +147,29 @@ def readiness_reasons(
         if not _can_begin_write(conn):
             reasons.add(DATABASE_BUSY)
     except sqlite3.Error as exc:
-        failure = to_failure(exc)
-        if failure.error.code == "SERVICE_BUSY":
-            reasons.add(DATABASE_BUSY)
-        elif failure.error.code == "SERVICE_UNREADY":
-            reasons.add(INTEGRITY_FAILED)  # corrupt, unreadable, or full storage
-        else:
-            reasons.add(DATABASE_UNAVAILABLE)
+        reasons.add(_storage_reason(exc))
     return sorted(reasons)
 
 
 _SHAPE_APPLIED_AT = (
-    "2000-01-01T00:00:00Z"  # any valid instant; only the object names matter here
+    "2000-01-01T00:00:00Z"  # any valid instant; only the object definitions matter here
 )
 
 
-def _objects(conn: sqlite3.Connection) -> frozenset[tuple[str, str]]:
-    """Every named table, index, view and trigger, excluding SQLite's own sqlite_* objects."""
+def _objects(conn: sqlite3.Connection) -> frozenset[tuple[str, str, str | None]]:
+    """Every named table, index, view and trigger with its stored definition (specs/05 s8: the
+    migrated schema is the target), excluding SQLite's own sqlite_* objects."""
     return frozenset(
         conn.execute(
-            "SELECT type, name FROM sqlite_master WHERE substr(name, 1, 7) <> 'sqlite_'"
+            "SELECT type, name, sql FROM sqlite_master WHERE substr(name, 1, 7) <> 'sqlite_'"
         )
     )
 
 
 @functools.lru_cache(maxsize=8)
-def _shipped_objects(migrations: tuple[Migration, ...]) -> frozenset[tuple[str, str]]:
+def _shipped_objects(
+    migrations: tuple[Migration, ...],
+) -> frozenset[tuple[str, str, str | None]]:
     """The objects the reviewed migrations create, built once in memory."""
     shipped = sqlite3.connect(":memory:", isolation_level=None)
     try:
@@ -190,7 +201,7 @@ def _can_begin_write(conn: sqlite3.Connection) -> bool:
     try:
         conn.execute("BEGIN IMMEDIATE")
     except sqlite3.OperationalError as exc:
-        if to_failure(exc).error.code == "SERVICE_BUSY":
+        if _storage_reason(exc) == DATABASE_BUSY:
             return False
         raise
     conn.execute("ROLLBACK")  # nothing was written; this only releases the lock
@@ -221,20 +232,19 @@ def start_database(
     """
     try:
         conn = open_database(path, busy_timeout_ms, check_same_thread)
-    except DatabaseUnavailable:
-        return StartupResult(None, (DATABASE_UNAVAILABLE,))
+    except DatabaseUnavailable as err:
+        cause = err.__cause__
+        reason = _storage_reason(cause) if isinstance(cause, sqlite3.Error) else None
+        return StartupResult(None, (reason or DATABASE_UNAVAILABLE,))
     try:
         apply_migrations(conn, migrations, applied_at)
     except MigrationError as err:
         conn.close()
-        busy = isinstance(err.__cause__, sqlite3.OperationalError) and (
-            to_failure(err.__cause__).error.code == "SERVICE_BUSY"
-        )
-        if busy:
-            return StartupResult(None, (DATABASE_BUSY,))
-        if err.code == "MIGRATION_FAILED":
-            return StartupResult(None, (DATABASE_UNAVAILABLE,))
-        return StartupResult(None, (SCHEMA_UNSUPPORTED,))
+        if err.code != "MIGRATION_FAILED":
+            return StartupResult(None, (SCHEMA_UNSUPPORTED,))
+        cause = err.__cause__
+        reason = _storage_reason(cause) if isinstance(cause, sqlite3.Error) else None
+        return StartupResult(None, (reason or DATABASE_UNAVAILABLE,))
     reasons = readiness_reasons(conn, migrations)
     if reasons:
         conn.close()

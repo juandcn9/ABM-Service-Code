@@ -56,3 +56,8 @@
 - Closed: `test_a_closed_source_account_takes_no_transfer_and_nothing_is_written` in `tests/integration/test_transfers.py` closes the source account and asserts ACCOUNT_CLOSED with no write. The mutant that drops the source status check fails it. Code commit `43ffbfb`.
 
 - Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`.
+
+## Stream A Minor closure (storage-fault test asserts only Failure)
+
+- Closed: `test_a_storage_fault_on_the_destination_rolls_everything_back` (`tests/integration/test_transfers.py`) now asserts the error code `INTERNAL_ERROR`. The injected driver error carries no SQLite result code, and `database.to_failure` maps such an error to `INTERNAL_ERROR` (the documented fallback). The rollback assertions are unchanged.
+- Mutation evidence (SHA-256-verified copy, put back after the run): changing the fallback code in `to_failure` from `INTERNAL_ERROR` to `SERVICE_UNREADY` fails this test.
