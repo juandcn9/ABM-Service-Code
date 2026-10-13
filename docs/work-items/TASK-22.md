@@ -46,8 +46,8 @@
 
 ## Scheduled items
 
-- Resolved by TASK-23 PR #79: the late-event docstring names the cases in that module and points to `test_retention.py` for incoming return.
-- Resolved by commit `2cc5ae0` (chore: point the Code repository at Specs v1.9.16, DEC-0075): `README.md` now states `v1.9.16`; the Minor is closed.
+- Resolved by TASK-23 PR #79: the late-event docstring names the cases in that module and points to `test_retention.py` for incoming return. Owner: Builder (closed).
+- Resolved by commit `2cc5ae0` (chore: point the Code repository at Specs v1.9.16, DEC-0075): `README.md` now states `v1.9.16`; the Minor is closed. Owner: Builder (closed).
 
 ## Process record
 

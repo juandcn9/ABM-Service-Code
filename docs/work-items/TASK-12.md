@@ -69,9 +69,9 @@
 ## Remediation of the Tester Major (2026-10-10)
 
 - Gap closed: readiness now checks that stored idempotency responses are valid JSON (specs/05 s7) before `integrity_check`, and reports `INTEGRITY_FAILED`, not `DATABASE_UNAVAILABLE`. Regression test: `tests/integration/test_readiness.py` (malformed-row case); the test fails without the check. Code commit `43ffbfb` on branch `fix/majors-task-12-13-15`.
-- Resolved: the unsupported-schema branch of `readiness_reasons` is tested by `test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported` (`tests/integration/test_readiness.py`). The trigger (TASK-25) has passed; the item is closed.
+- Resolved: the unsupported-schema branch of `readiness_reasons` is tested by `test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported` (`tests/integration/test_readiness.py`). The trigger (TASK-25) has passed; the item is closed. Owner: Builder (closed).
 
-- Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`. All Scheduled items above are resolved; none remains open in this file.
+- Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`. The Scheduled items above are resolved. The open note in the Specs check section is scheduled in the Scheduled items section at the end of this file.
 
 ## Stream A Minor closure (Tester findings of the TASK-12 report)
 
@@ -84,3 +84,7 @@
 ## Status note (Stream A)
 
 - Set to Implemented: the Stream A Minor closure changed this task's code on `18fc4e3`. Verified returns only after an independent Tester pass names the new head and reports zero findings.
+
+## Scheduled items
+
+- Available-balance identity and the closure and finalized-state checks (the open note in the Specs check section above). Owner: Builder. Trigger: the next change to `src/abm/persistence/readiness.py`.
