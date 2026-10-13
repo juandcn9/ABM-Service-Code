@@ -419,7 +419,7 @@ def test_a_card_refund_is_accepted_on_a_closed_account(
     refunded = data_of(step(refund_card, uow, clock, ref="ev-f", cents=card_cents))
     assert refunded["state"] == "refunded"
     # the refund returns exactly the clearing debit, so the balance is back to the funded amount
-    assert balances(conn) == (funded_cents - card_cents + card_cents, 0)
+    assert balances(conn) == (funded_cents, 0)
 
 
 def test_clearing_and_late_clearing_are_not_blocked_by_outgoing_blocked(
