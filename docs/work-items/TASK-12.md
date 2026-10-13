@@ -1,6 +1,6 @@
 # Work item: TASK-12 — startup migration, integrity, and fail-closed readiness
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -42,9 +42,10 @@
 - Review findings/resolution: fresh-context review of ce8b25d (FAIL: three Majors, all fixed in eb1a4e8); focused re-review of eb1a4e8 PASS with findings (no Blocker or Major); independent Tester pass of eb1a4e8 PASS (CI green on CPython 3.12.15). Gate 8 ponytail-review of the remediation diff returned Ship, with no Must-fix or Should-fix finding; the Ponytail deviation DV-01 is closed by DEC-0020.
 - Residual risks: a very large database makes `PRAGMA integrity_check` slow at startup (acceptable for the single-writer demonstration, `RISK-0001`); the inconsistency queries encode the Builder's reading of `specs/05` section 7 and need a Tester pass against the Specs; readiness is computed on demand, so caching or rate limiting for the health route is a `TASK-25`/`TASK-26` decision.
 - Verified on merged head `0ba2fc4` (PR #148, merge of branch head `0cf87ee`; the merge added no `src/` change beyond the TASK-12 commits). Fresh-context Tester on `0cf87ee`: PASS, Blocker 0, Major 0, Minor 0. Report: [`docs/evidence/TASK-12-tester-report-2.md`](../evidence/TASK-12-tester-report-2.md).
-- Status is Implemented on this branch: the closure-ordering change in `readiness.py` is new code, so Verified returns only after an independent Tester pass on the new head with zero findings, then a record commit. The Verified record of `0ba2fc4` stays as history.
-- Scheduled items: none remain open in code. The section 5 remainder closes with DEC-0085, which needs JDC approval.
-- Next safe action: an independent Tester pass on the branch head naming zero findings.
+- Verified on merged head `eae098a` (PR #150, merge of branch head `ad68ced`). Fresh-context Tester on `ad68ced`: PASS, Blocker 0, Major 0, Minor 0. Report: [`docs/evidence/TASK-12-tester-report-3.md`](../evidence/TASK-12-tester-report-3.md). The Verified record of `0ba2fc4` stays as history.
+- Closed on this revision: closure ordering (trace sequence, with a fail-closed fallback when a trace row is missing) and the `specs/05` section 5 remainder (schema-enforced; DEC-0085, pending JDC approval in Specs).
+- Scheduled items: none open.
+- Next safe action: none for this item.
 
 ## Wiring added before merge
 
