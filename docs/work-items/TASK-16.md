@@ -35,7 +35,7 @@
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: as recorded at the verified head `0ce8071` (local pytest, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; see Acceptance evidence). At head `b733389`: 1293 tests collected (`pytest --collect-only -q -p no:cacheprovider`, 2026-10-13).
-- Review findings/resolution: fresh-context review of the final head `8827002` found one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest and ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. Minor findings are under Scheduled items. The committed report is [`docs/evidence/TASK-16-tester-report.md`](../evidence/TASK-16-tester-report.md).
+- Review findings/resolution: fresh-context review of the final head `8827002` found one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest and ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. Minor findings are under the Minor closure section. The committed report is [`docs/evidence/TASK-16-tester-report.md`](../evidence/TASK-16-tester-report.md).
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
 - Next safe action: an independent Tester pass on the current head `b733389` naming zero findings; then a new JDC decision on the Verified status (see Status decision). The open decision is under Open decision; the scheduled items are under Scheduled items.
 
@@ -51,7 +51,8 @@
 
 ## Minor closure (Tester findings of `936d2fa`)
 
-- Closed, with tests: refund over the `late_cleared` amount (`test_a_refund_over_the_late_cleared_amount_is_refused_and_writes_nothing`); no-write checks (`test_authorization_is_refused_without_funds_or_on_a_blocked_account`, `test_a_cleared_movement_cannot_be_cleared_again_or_reversed`, `test_a_partial_refund_or_a_refund_before_clearing_is_refused`); expiry evidence and elapsed time (`test_expiry_requires_evidence_and_elapsed_time_never_releases_the_hold`); the `ACCOUNT_CLOSED` branch of `authorize_card` (`test_authorization_on_a_closed_account_is_refused_and_writes_nothing`; its direct-SQL setup stays open under the Open decision above).
+- Closed, with tests: refund over the `late_cleared` amount (`test_a_refund_over_the_late_cleared_amount_is_refused_and_writes_nothing`); no-write checks (`test_authorization_is_refused_without_funds_or_on_a_blocked_account`, `test_a_cleared_movement_cannot_be_cleared_again_or_reversed`, `test_a_partial_refund_or_a_refund_before_clearing_is_refused`); expiry evidence and elapsed time (`test_expiry_requires_evidence_and_elapsed_time_never_releases_the_hold`); the authorization boundary at the available amount (`test_authorization_takes_exactly_the_available_amount_and_one_cent_more_is_refused`).
+- The `ACCOUNT_CLOSED` branch of `authorize_card` is covered by `test_authorization_on_a_closed_account_is_refused_and_writes_nothing`, but its direct-SQL setup stays open under the Open decision above, so it is not listed as closed.
 - Not a test, recorded separately: the restriction UPDATE statements in `tests/integration/test_cards.py` are scoped to `WHERE account_id = 'acct-1'` (Minor closure, head `b733389`).
 
 ## Earlier Verified record (superseded)
