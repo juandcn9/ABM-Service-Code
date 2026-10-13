@@ -6,7 +6,7 @@
 
 - Specs version and exact SHA: `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91` (the version this item was built against; the current Specs pointer is in `README.md`)
 - TASK and affected IDs: `TASK-12`; `INV-18`; `NFR-02`; `SEC-10`; `API-20`, `API-21` (the readiness computation only); `TEST-18`; `TEST-30` (direct-corruption half)
-- Decision, gap, or risk records: `DEC-0007`; no new decision or gap; DV-01 and DV-02 in `docs/governance/deviations.md`
+- Decision, gap, or risk records: `DEC-0007`; `DEC-0078` (approved option B: every object is compared by its stored definition, closes m1); `DEC-0082` (approved option A: available balance is derived and readiness checks each projection against the posted sum, closes the M1 wording); `DEC-0083` (confirms the two finalized-state predicates of M2); DV-01 and DV-02 in `docs/governance/deviations.md`
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required
 
 ## Scope
@@ -88,15 +88,15 @@
 
 ## Scheduled items
 
-- Available-balance identity (Tester Major M1): OPEN, blocked on a Specs decision (JDC). `specs/05` section 7 says available (posted minus active held) "must equal the corresponding account projection", while section 4 makes the projection equal to posted. Read literally, every active hold fails readiness. Enabling that check made 32 existing flow and restart tests fail (`test_fault_injection.py`, `test_cards.py` restart cases), so it is not in `readiness.py`. Needed: JDC records the intended identity through the DEC/GAP process; then the check and a corrupted-balance test are added.
+- Available-balance identity (Tester Major M1): resolved by DEC-0082 (option A, approved 2026-10-13). Available balance is derived and has no stored column; readiness checks each stored projection against the posted-balance sum, which the code already does. The literal equality of available and projection was not added: it would fail readiness on every active hold (32 existing flow and restart tests failed when tried). No code change is needed for M1.
 - Closure ordering (unchanged): the closure rule is in `readiness.py`, but effects are ordered by timestamp only (the shortcut comment there), so same-second effects are not ordered. Trigger: a stored ledger sequence at closure.
-- Finalized-state checks (Tester Major M2): two of the section 5 rules are implemented (see Tester findings below). The predicate is the Builder's reading of `specs/05` section 5, not a Specs-stated query; JDC confirms it through the Specs process. Owner: Builder. Trigger for the rest: TASK-32 (Constitution/Specs conformance and independent review, Draft in `specs/09-delivery-plan.md`).
+- Finalized-state checks (Tester Major M2): the two section 5 rules implemented here are confirmed by DEC-0083 (approved 2026-10-13) as the meaning of `specs/05` section 5 (see Tester findings below). The other section 5 rules are not implemented. Owner: Builder. Trigger for the rest: TASK-32 (Constitution/Specs conformance and independent review, Draft in `specs/09-delivery-plan.md`).
 
 ## Tester findings (branch `fix/task-12-majors`, report head 936d2fa)
 
-- M1 (available-balance identity): not fixed; see Scheduled items. The Specs conflict is recorded there.
+- M1 (available-balance identity): closed by DEC-0082 (wording); no code change. See Scheduled items.
 - M2 (finalized-state checks): fixed for two rules of `specs/05` section 5. Tests in `tests/integration/test_readiness.py`, direct-corruption cases: "hold-only rejection recorded as a ledger entry" (a ledger entry on a movement in a hold-only terminal state: reversed, expired, rejected, cancelled_before_submission) and "finalized hold citing evidence of another movement" (a finalized hold must cite evidence bound to its own movement). A permitted late clearing after an expired hold is ready: `test_a_late_clearing_after_an_expired_hold_is_ready`. The released-hold rule first flagged a legitimate late clearing, so it was narrowed to terminal movement states.
-- m1 (non-retained definition reference): provisional. The reference (migrated schema) follows DEC-0078 option B and GAP-0005's proposed reference. Both are awaiting JDC's decision; the reference is provisional until that decision is recorded.
+- m1 (non-retained definition reference): closed by DEC-0078 (option B, approved 2026-10-13). The reference is the migrated schema, compared by stored definition for every object; Specs `specs/07` section 4 and `specs/08` section 8 state it.
 - m2 (readiness after an additive upgrade): fixed. `test_an_additive_upgrade_from_an_older_schema_is_ready`.
 - m3 (mapping coverage): fixed. `test_each_storage_error_class_maps_to_the_documented_reason_at_the_open_step` (the `open_database` cause path) and `test_each_storage_error_class_maps_to_the_documented_reason_at_the_integrity_check` (a failing `PRAGMA integrity_check`), each over the nine SQLite classes.
 - m4 (non-migration exception escapes `start_database`): fixed. `start_database` returns `DATABASE_UNAVAILABLE` (or the storage class) and closes the connection. Test: `test_an_unexpected_migration_failure_is_a_controlled_result`.
