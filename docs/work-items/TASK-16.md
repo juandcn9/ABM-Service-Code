@@ -43,7 +43,7 @@
 
 - Status is Implemented. The Verified statement recorded for `0ce8071` does not cover the current head: PR #48 (merge `aeb3b2b`) changed `tests/integration/test_cards.py` after `0ce8071`, and no Tester pass covers that change.
 - The Specs repository still records TASK-16 as Verified (DEC-0038, and the TASK-16 status cell under DEC-0039). Changing that Specs status needs a new JDC decision; this file does not make it.
-- Restoring Verified needs an independent Tester pass on the head named in the record, with zero Blocker or Major findings, and a new JDC decision.
+- Reinstating Verified needs an independent Tester pass on the head named in the record, with zero Blocker or Major findings, and a new JDC decision.
 
 ## Open decision (owner JDC)
 
