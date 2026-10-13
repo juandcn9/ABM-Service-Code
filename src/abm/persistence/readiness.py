@@ -7,6 +7,7 @@ and never with paths, SQL text, counts, row data, or raw check output.
 from __future__ import annotations
 
 import functools
+import os
 import pathlib
 import sqlite3
 from collections.abc import Sequence
@@ -58,6 +59,17 @@ _INCONSISTENCIES: tuple[str, ...] = (
     (
         "SELECT 1 FROM holds h JOIN movements m ON m.movement_id = h.movement_id"
         " WHERE h.account_id <> m.account_id LIMIT 1"
+    ),
+    # specs/05 s5: hold-only reversal, expiry, rejection and cancellation are never ledger entries; a
+    # late clearing moves the movement on (late_cleared), so it is not flagged here
+    (
+        "SELECT 1 FROM ledger_entries l JOIN movements m ON m.movement_id = l.movement_id"
+        " WHERE m.state IN ('reversed', 'expired', 'rejected', 'cancelled_before_submission') LIMIT 1"
+    ),
+    # specs/05 s5: a finalized hold cites evidence bound to its own movement (one reference per movement)
+    (
+        "SELECT 1 FROM holds h WHERE h.state <> 'active' AND NOT EXISTS (SELECT 1 FROM movement_evidence e"
+        " WHERE e.evidence_reference = h.evidence_reference AND e.movement_id = h.movement_id) LIMIT 1"
     ),
     # a closed account has no active hold
     (
@@ -230,6 +242,9 @@ def start_database(
     Ready only if every step passes. On any failure the result carries safe reason codes and
     no usable connection; a fully committed migration is the only financial-adjacent change.
     """
+    # specs/07 section 3 step 2: the parent must be writable (SQLite needs its -wal and -shm files)
+    if not os.access(pathlib.Path(path).parent, os.W_OK):
+        return StartupResult(None, (DATABASE_UNAVAILABLE,))
     try:
         conn = open_database(path, busy_timeout_ms, check_same_thread)
     except DatabaseUnavailable as err:
@@ -244,6 +259,10 @@ def start_database(
             return StartupResult(None, (SCHEMA_UNSUPPORTED,))
         cause = err.__cause__
         reason = _storage_reason(cause) if isinstance(cause, sqlite3.Error) else None
+        return StartupResult(None, (reason or DATABASE_UNAVAILABLE,))
+    except Exception as err:  # noqa: BLE001 - any other failure is a controlled result, never an escape
+        conn.close()
+        reason = _storage_reason(err) if isinstance(err, sqlite3.Error) else None
         return StartupResult(None, (reason or DATABASE_UNAVAILABLE,))
     reasons = readiness_reasons(conn, migrations)
     if reasons:
