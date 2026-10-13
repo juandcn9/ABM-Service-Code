@@ -46,6 +46,6 @@ The delivery row says "Install Specs validation". The Code repository already va
 
 - Role and context: Tester, fresh-context agents that did not build `TASK-04`, 2026-10-09. The sanitized report is committed at [`docs/evidence/TASK-04-tester-report.md`](../evidence/TASK-04-tester-report.md).
 - Revision tested: Code PR #5 head `870ddb31e9dd6a5820c33f5914f4357c98194576`; the merged head `cc5e93a` (merge commit `4dacac2`) differs only by documentation wording responding to the review, and CI passed on it. Specs `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`.
-- Result: PASS with findings; zero Blocker, zero Major. The four findings of the first review (labeled M1 to M4 in the report) are resolved; the Observation that the validator's workflow check is a substring test stays open (see below).
+- Result: PASS with findings; zero Blocker, zero Major. The four findings of the first review (labeled M1 to M4 in the report) are resolved; the Observation that the validator's workflow check is a substring test stays open. Scheduled: owner Builder; trigger: the next change to `scripts/validate_governance.py`.
 - Scope of "Verified": the CI gates, SQL static scan, tracked-file secret scan, and the closure of the `TASK-02` Minor findings, on the pinned interpreter in CI. Gates 5, 6, 7, the non-procedural parts of Gate 8, and machine enforcement of the workflow's own structure are deferred and recorded in this work item.
 - Not verified: Python 3.12.15 locally (CI covers it); branch-protection settings (unavailable on this plan; the controls are procedural).

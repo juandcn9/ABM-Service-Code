@@ -43,8 +43,10 @@
 
 - JDC decided TASK-16 is Verified on merged head `0ce8071` (PR #43), on the Tester pass in `docs/evidence/TASK-16-tester-report-2.md` (PR #44). The decision is recorded in the Specs repository as DEC-0038.
 - The Minors recorded in the TASK-16 reviews stay open and scheduled, except those closed by PRs #41 and #47; they do not block this status.
-- Scheduled to close on the merge of Code PR #48 (open, awaiting review and approval): fingerprint replay and conflict for authorize, clear and refund; response balances after authorize, clear, reverse and refund; full counts in the reused-id test; the restriction UPDATE names its account.
+- Resolved by merged Code PR #48 (merge `aeb3b2b`; the PR changed only `tests/integration/test_cards.py`): fingerprint replay and conflict for authorize, clear and refund (`test_a_replayed_authorization_returns_the_stored_outcome_and_a_changed_one_conflicts`, `test_a_replayed_clearing_returns_the_stored_outcome_and_a_changed_one_conflicts`, `test_a_replayed_refund_returns_the_stored_outcome_and_a_changed_one_conflicts`); response balances (`test_response_balances_match_the_database_for_authorize_clear_reverse_and_refund`); full counts in the reused-id test (`test_a_reused_movement_id_is_invalid_transition_and_declared`).
+- Still open: the restriction UPDATEs in `tests/integration/test_cards.py` that do not name their account (the statements that set `outgoing_blocked` without a `WHERE account_id`). Owner Builder. Trigger: the next change to `tests/integration/test_cards.py`.
 - Scheduled (owner Builder, trigger TASK-21, closure): the closed-account card cases that set closure by direct SQL.
+- Status check (Stream D): not closed. TASK-21 is Verified and kept the direct-SQL refusal tests by design, so its trigger passed without closing this item. Still direct SQL: `test_authorization_on_a_closed_account_is_refused_and_writes_nothing` and related cases in `tests/integration/test_cards.py`. Owner Builder. Blocked on JDC decision: keep direct-SQL closure setup as the test pattern, or require the real closure command in these tests.
 
 ## Minor closure (Stream B)
 

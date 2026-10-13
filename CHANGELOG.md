@@ -4,6 +4,8 @@ All notable Code repository changes are recorded here.
 
 ## [Unreleased]
 
+- Minor closure, three streams: Stream A (PR #138), Stream B (PR #137) and Stream C (PR #139) closed the Tester Minor findings named in their work items, each with a regression test or a commit. Stream D (this change) makes the Minor records accurate: closed items cite their test or commit; open items are scheduled with an owner and a trigger, or blocked on a JDC decision. DV-02 (local Python 3.12.10) is closed by the TASK-27 container evidence. Still open: B8, C2, and the three JDC decisions listed in the Minor-closure plan.
+
 - TASK-05 is Implemented; the Ponytail v5.1.0 pin is verified against the pinned tree (`docs/evidence/TASK-05-ponytail-verification.md`). This supersedes the earlier "Blocked" wording.
 
 - Established `TASK-01` repository governance, templates, CI validation, and the immutable Specs `v1.0.1` pointer without runtime dependencies or service behavior.

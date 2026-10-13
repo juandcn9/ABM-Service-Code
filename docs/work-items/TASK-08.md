@@ -43,8 +43,9 @@
 - Role and context: Tester, fresh-context agents that did not build `TASK-08`, 2026-10-09. The sanitized report is committed at [`docs/evidence/TASK-08-tester-report.md`](../evidence/TASK-08-tester-report.md).
 - Revision tested: Code PR #9 head `0a7e2af3e96c63abe667770885e09ee5c53ec1b9` (merged as `9fb729a`). Specs `v1.0.1` / `5d1cd410399a6fb0154a0117728c409cc7f2ec91`.
 - Result: PASS on re-verification of the fix head; the first review's findings (m1, m2, m3, M2, conflict with `main`) are resolved; zero Blocker, zero Major.
-- Scope of "Verified": the domain value objects, typed results, fingerprint encoding, and clock port. `TEST-15`, `TEST-24`, and `TEST-36` are covered only on the domain side; the per-operation fingerprint field sets, the absent-versus-null rule, and field-change tests belong to `TASK-10` onward.
+- Scope of "Verified": the domain value objects, typed results, fingerprint encoding, and clock port. `TEST-15`, `TEST-24`, and `TEST-36` are covered only on the domain side; the per-operation fingerprint field sets, the absent-versus-null rule, and field-change tests belong to `TASK-10` onward. Tester Observation O3 (absent versus null) is closed: `test_an_absent_field_and_a_null_field_have_different_fingerprints` (see Minor closure (Stream B)).
 - Not verified: behavior on glibc locally (CI on Linux is the guard for the year-padding fix); Python 3.12.15 locally.
+- Scheduled item (Tester Observation O1): the year-padding regression test (`test_format_pads_years_below_1000_to_the_fixed_stored_length`, `tests/unit/test_identifiers.py`) cannot detect its own revert on Windows; CI on Linux is the guard. Owner Builder. Trigger: the next change to `format_instant`.
 
 ## Minor closure (Stream B)
 

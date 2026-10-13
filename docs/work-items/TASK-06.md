@@ -60,7 +60,7 @@ Implemented. Final head e461c90: fresh-context review of a244215 PASS with findi
 ## Tester record (e461c90)
 
 - Byte identity: `migrations/0001_initial.sql` SHA-256 equals `contracts/sqlite-schema.sql` at Specs tag `v1.0.1` (`dcf82d06...9d02`).
-- Local gates: pytest 275 passed; ruff check and format clean; mypy clean (28 files); validate_governance and validate_toolchain pass (Python 3.12.15 in toolchain check).
+- Local gates: pytest 275 passed; ruff check and format clean; mypy clean (28 files); validate_governance and validate_toolchain pass (Python 3.12.15 in toolchain check). Corrected on `main` (Tester Minor 4): pytest 300 passed, mypy 33 source files.
 - Probes on populated copies (no repo files changed): UPDATE of `movements` refused with no change; quoted `'schema_version'` in a trigger refused; two statements on one line both apply; a caller temp view named `schema_version` cannot make a pending migration look applied; DELETE of `ledger_entries` and `accounts` refused; an additive `CREATE TABLE` still applies.
 - CI on PR #8: push-event run on head `e461c90` passed on CPython 3.12.15 (quality-gates and validate-governance). The PR-event run tested the merge ref, not the head, and also passed.
 - Not covered: multi-process migration race (not in scope, see Scope); mutation results were produced by a scratch script that is not committed.
@@ -78,4 +78,4 @@ Implemented. Final head e461c90: fresh-context review of a244215 PASS with findi
   - Specs drift: Specs `contracts/sqlite-schema.sql` changed after the pinned `v1.0.1`. Owner Updater. Trigger: JDC decision on schema policy (Tester Minor 1).
   - Detection not wired: `retained_history_protected()` is not called by a startup or readiness path in this revision. Owner Builder. Trigger: TASK-12 wiring; confirm before closing (Tester Minor 2).
   - M09 timing-dependent kill of the deferred `BEGIN` mutant. Owner Builder. Trigger: TASK-18 concurrency barriers (Tester Minor 3).
-  - Record drift: the local counts in this work item (275 pytest, 28 mypy files) differ from the Tester's counts on `main`; the Tester report is authoritative for this revision (Tester Minor 4). Owner Builder.
+  - Record drift (Tester Minor 4): the counts recorded above (275 pytest, 28 mypy files) are the local run at the time. The Tester's counts on `main` (300 pytest passed, 33 source files in mypy; `docs/evidence/TASK-06-tester-report.md`) are the authoritative figures, recorded here as the correction. Owner Builder. Trigger: the next change to `docs/work-items/TASK-06.md`.

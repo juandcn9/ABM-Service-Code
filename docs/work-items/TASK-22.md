@@ -48,6 +48,7 @@
 
 - Resolved by TASK-23 PR #79: the late-event docstring names the cases in that module and points to `test_retention.py` for incoming return.
 - Minor: README on `main` states Specs `v1.9.0`, predating the current pins. Owner Builder. Trigger: a docs-only fix before the next release.
+  Resolved by commit `2cc5ae0` (chore: point the Code repository at Specs v1.9.16, DEC-0075): `README.md` now states `v1.9.16`.
 
 ## Process record
 

@@ -48,6 +48,7 @@
 ## Scheduled items
 
 - Closed-account restriction test pinning DEC-0042 (set and clear on a closed account). Owner Builder. Trigger: TASK-21 (closure).
+  Resolved by `test_a_clear_is_accepted_on_a_closed_account` (`tests/integration/test_risk_restriction.py`), which asserts the state and the trace row. The trigger (TASK-21) has passed; closed.
 - Resolved by TASK-23 PR #79: outgoing ACH settle and return remain permitted while the block is set.
 - Resolved by TASK-23 PR #79: the clear-path trace asserts its operation and decision reference.
 
@@ -61,7 +62,7 @@
 - Fix: `test_block_permits_clearing_of_authorized_card_movements_and_late_clearing` in `tests/integration/test_risk_restriction.py`. It authorizes one card movement and reverses another before the block, sets the block, then clears the authorized movement (`cleared`) and late-clears the reversed one (`late_cleared`). It asserts both are permitted, the balance is 400, and the block is still set.
 - Mutation: blocking `clear_card` with `OUTGOING_BLOCKED` makes the test fail; the source was then reverted to its committed form.
 - Checks on the fix head `5c9bfe4`: full suite 1020 passed; `ruff check`, `ruff format --check`, `mypy`, and `validate_governance.py` pass. Fresh Tester pass on `5c9bfe4`: PASS with findings, Blocker 0, Major 0 (`docs/evidence/TASK-20-remediation-tester-report.md` once committed in the record PR).
-- Scheduled item (Tester Minor 3): the new test does not assert hold release on clearing or the absence of a hold on late clearing (specs/02 lines 92-94). Owner Builder. Trigger: the next change to `tests/integration/test_risk_restriction.py`.
+- Scheduled item (Tester Minor 3): the new test does not assert hold release on clearing or the absence of a hold on late clearing (specs/02 lines 92-94). Owner Builder. Trigger: the next change to `tests/integration/test_risk_restriction.py`. Closed: see Minor closure (Stream B), test `test_block_permits_clearing_of_authorized_card_movements_and_late_clearing`.
 
 ## Verified record
 

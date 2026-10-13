@@ -43,6 +43,7 @@
 
 - Outgoing settlement evidence guard not distinguished by the TEST-36 races. Owner Builder. Trigger: TASK-18 follow-up.
 - M09 deferred-BEGIN mutant not named by the new tests (TASK-06 test is its only detector). Owner Builder. Trigger: TASK-18 follow-up.
+  Resolved by `test_a_second_writer_is_refused_while_a_write_transaction_is_open` (`tests/integration/test_concurrency.py`): a deferred `BEGIN` fails it, with no timing assertion.
 - Subprocess kill lands after the first balance update, not during COMMIT; faults are simulated. Owner Builder. Trigger: a later hardening task.
 - Test hygiene in the concurrency and fault files. Owner Builder.
 - TASK-07 item: `synchronous = FULL` is not discriminated by the tests (routed here by the Specs status file). Owner Builder. Trigger: TASK-18 follow-up.
