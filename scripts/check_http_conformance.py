@@ -198,9 +198,19 @@ def main(contract_path: pathlib.Path) -> int:
                 f"{label} [no context]",
             )
             # 403: every role outside the operation's matrix row is refused with FORBIDDEN_SCOPE
-            operation = Operation(_declared(contract, path, method)["x-api-id"])
-            admitted = {role for role, ops in PERMISSIONS.items() if operation in ops}
-            for role in sorted(set(PERMISSIONS) - admitted):
+            declared = _declared(contract, path, method)
+            operation = Operation(declared["x-api-id"])
+            granted = declared["x-authorized-role"]
+            admitted = {granted} if isinstance(granted, str) else set(granted)
+            code_admitted = {
+                role for role, ops in PERMISSIONS.items() if operation in ops
+            }
+            if code_admitted != admitted:
+                failures.append(
+                    f"{label}: code admits {sorted(code_admitted)} but the contract declares {sorted(admitted)}"
+                )
+            universe = set(PERMISSIONS) | admitted
+            for role in sorted(universe - admitted):
                 headers = {
                     "X-Caller-Id": f"c-{role}",
                     "X-Caller-Role": role,
