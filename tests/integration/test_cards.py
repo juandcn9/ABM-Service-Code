@@ -16,8 +16,10 @@ from abm.application.cards import (
     refund_card,
     reverse_card,
 )
+from abm.application.closure import close_account
 from abm.application.incoming_ach import create_incoming_ach, settle_incoming_ach
 from abm.application.registration import register_account
+from abm.application.transfers import internal_transfer
 from abm.domain.results import Failure, Result, Success
 from abm.persistence.migrations import load_migrations
 from abm.persistence.readiness import readiness_reasons, start_database
@@ -123,6 +125,41 @@ def balances(conn: sqlite3.Connection) -> tuple[int, int]:
         "SELECT COALESCE(SUM(amount_cents), 0) FROM holds WHERE state = 'active'"
     ).fetchone()[0]
     return current, held
+
+
+def account_balance(conn: sqlite3.Connection, account: str = "acct-1") -> int:
+    return conn.execute(
+        "SELECT current_balance_cents FROM accounts WHERE account_id = ?", (account,)
+    ).fetchone()[0]
+
+
+def close_through_commands(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    """Close acct-1 with the real commands: drain its balance to acct-2, then close it."""
+    other = {
+        "instruction_id": "ins-reg-2",
+        "account_id": "acct-2",
+        "customer_id": "cust-2",
+        "currency": "USD",
+        "eligibility_reference": "elig-2",
+    }
+    assert isinstance(
+        register_account(uow, clock, REGISTRAR, "key-reg-2", other), Success
+    )
+    drain = {
+        "instruction_id": "ins-drain",
+        "movement_id": "mv-drain",
+        "source_account_id": "acct-1",
+        "destination_account_id": "acct-2",
+        "amount_cents": account_balance(conn),
+        "currency": "USD",
+    }
+    assert isinstance(internal_transfer(uow, clock, PAYER, "k-drain", drain), Success)
+    closed = close_account(
+        uow, clock, REGISTRAR, "k-close", "acct-1", {"instruction_id": "ins-close"}
+    )
+    assert isinstance(closed, Success), closed
 
 
 def state_of(conn: sqlite3.Connection, movement: str = "mv-card") -> str:
@@ -300,12 +337,12 @@ def test_a_late_clearing_is_accepted_after_closure_and_never_reopens_the_account
     funded(uow, clock)
     authorize(uow, clock)
     simple(expire_card, uow, clock, ref="ev-e")
-    conn.execute(
-        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-1'",
-        (NOW,),
-    )
+    close_through_commands(uow, conn, clock)
+    clock.advance(60)
     assert data_of(step(clear_card, uow, clock, cents=400))["state"] == "late_cleared"
-    assert conn.execute("SELECT status FROM accounts").fetchone() == ("closed",)
+    assert conn.execute(
+        "SELECT status FROM accounts WHERE account_id = 'acct-1'"
+    ).fetchone() == ("closed",)
 
 
 def test_a_cleared_movement_cannot_be_cleared_again_or_reversed(
@@ -464,14 +501,14 @@ def test_a_card_refund_is_accepted_on_a_closed_account(
     authorize(uow, clock, cents=card_cents)
     cleared = step(clear_card, uow, clock, cents=card_cents)
     assert data_of(cleared)["state"] == "cleared"
-    conn.execute(
-        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-1'",
-        (NOW,),
-    )
+    close_through_commands(uow, conn, clock)
+    clock.advance(60)
     refunded = data_of(step(refund_card, uow, clock, ref="ev-f", cents=card_cents))
     assert refunded["state"] == "refunded"
-    # the refund returns exactly the clearing debit, so the balance is back to the funded amount
-    assert balances(conn) == (funded_cents, 0)
+    # closure drained the 600 left after clearing to acct-2; the refund credits exactly the clearing debit back
+    assert account_balance(conn) == card_cents
+    assert account_balance(conn, "acct-2") == funded_cents - card_cents
+    assert balances(conn)[1] == 0
 
 
 def test_clearing_and_late_clearing_are_not_blocked_by_outgoing_blocked(
@@ -531,10 +568,7 @@ def test_authorization_on_a_closed_account_is_refused_and_writes_nothing(
     uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
 ) -> None:
     funded(uow, clock)
-    conn.execute(
-        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-1'",
-        (NOW,),
-    )
+    close_through_commands(uow, conn, clock)
     before = (counts(conn), balances(conn))
     closed = authorize(uow, clock)
     assert isinstance(closed, Failure) and closed.error.code == "ACCOUNT_CLOSED"
