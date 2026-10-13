@@ -43,7 +43,7 @@ Tester PASS on the merged revision `d45e766` (PR #100): `docs/evidence/TASK-26-t
 
 ## Limits (recorded)
 
-- `token` is a salted SHA-256 with a fixed salt. A small identifier space can be brute-forced by someone holding the logs. Upgrade to a deployment secret with TASK-27 (shortcut in the code).
+- `token` is a salted SHA-256 with a fixed salt. A small identifier space can be brute-forced by someone holding the logs. Upgrade to a salt from deployment configuration is scheduled below (shortcut in the code).
 - The middleware buffers each response body to observe it. Acceptable for the demonstration sizes (history and trace pages are bounded by TASK-24).
 - Metrics are bounded event fields, not counters and not an aggregated metrics endpoint (DEC-0062). Aggregation is the log consumer's job.
 - The scan runs only when an operator or test runs the script (DEC-0063). No scheduler; scheduled runs are TASK-27.
@@ -62,3 +62,4 @@ Tester PASS on the merged revision `d45e766` (PR #100): `docs/evidence/TASK-26-t
 - Manifest revision check (`--spec-commit`, `--code-commit` format and HEAD match; Tester F10 and T2-5): owner Builder; trigger TASK-27 (container and CI run of the scan).
 - Silent `container_digest()` when the pin has no `@` (T2-6): covered by `scripts/validate_toolchain.py` for the pinned file; no code change.
 - No log line without a sink (T2-7): intended under F2; operators need the sink configured. Owner Builder; trigger TASK-27 (container logging wiring).
+- Fixed token salt (TASK-26 F9; `_TOKEN_SALT` in `src/abm/observability/events.py`): the salt must come from deployment configuration, not from the code. Owner Builder; trigger TASK-34 (the evidence bundle, not yet passed): the salt is configured before the bundle is accepted, and the TASK-35 exit gate checks it.

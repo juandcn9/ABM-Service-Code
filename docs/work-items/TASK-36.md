@@ -49,7 +49,7 @@ Tester PASS on the merged revision `bf965d8` (PR #108; PR head `7559519`): `docs
 
 ## Scheduled items
 
-- Tester F2 (Minor): the state-change failure paths (a denied call that changes state) are not exercised by a test; the test runs only against the unmutated app. Owner Builder; trigger: the next change to `scripts/smoke_container.py`.
+- Tester F2 (Minor): the state-change failure paths (a denied call that changes state) are not exercised by a test; the test runs only against the unmutated app. Owner Builder; trigger: the next change to `scripts/smoke_container.py`. Closed on `fix/minors-c`: `test_a_denied_call_that_moves_money_is_reported` (m1) and `test_a_denied_call_that_creates_an_account_is_reported` (m4).
 - Tester F3 (Note): the history credit check matches the amount only, not direction or effect kind. Owner Builder; trigger: the same change.
 
 ## Completion

@@ -36,8 +36,8 @@
 - The evidence bundle facet of `TEST-26` belongs to `TASK-34`.
 - The lock serializes requests in one process. No concurrency or throughput claim (DEC-0055).
 - Framework responses for unknown routes (404) and wrong methods (405) are `{"detail": ...}`, not the envelope. The contract does not declare them (Tester Minor 3 on `a81b3c6`, recorded as a limit).
-- The conformance script's role probe accepts any declared status, so it does not assert 403 itself. pytest asserts the role matrix (Tester Minor 4, recorded as a limit).
-- Unknown-account 404 is probed only for `GET /v1/accounts/{account_id}`. The other operations that declare 404 have no such probe; each would need a valid body per operation (Tester M2 on head 6018166, recorded as a limit).
+- The conformance script's role probe asserts 403 FORBIDDEN_SCOPE for every role outside each operation's matrix row (Tester Minor 4, closed on `fix/minors-c`).
+- Unknown-account 404 is probed for every account-scoped operation that declares 404, with the success-flow body of each (Tester M2 on head 6018166, closed on `fix/minors-c`).
 
 ## Scheduled items
 

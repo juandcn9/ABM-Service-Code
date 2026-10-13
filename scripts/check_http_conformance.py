@@ -12,6 +12,7 @@ the Specs publish; no third-party parser is used.
 
 from __future__ import annotations
 
+import itertools
 import json
 import pathlib
 import sys
@@ -27,6 +28,7 @@ sys.path.insert(0, str(ROOT))
 from schema_lite import check  # type: ignore[import-not-found]
 from starlette.testclient import TestClient
 
+from abm.application.authorization import PERMISSIONS, Operation
 from abm.main import create_app
 from abm.persistence.readiness import readiness_reasons, start_database
 from abm.persistence.sqlite_store import SqliteUnitOfWork
@@ -99,6 +101,48 @@ def _check_response(
         failures.append(f"{label}: {error}")
 
 
+_KEYS = itertools.count()  # a fresh Idempotency-Key per probe
+
+
+def _unknown_account(
+    client: TestClient,
+    contract: dict[str, Any],
+    method: str,
+    template: str,
+    body: Any,
+    headers: dict[str, str],
+    failures: list[str],
+    probed: set[tuple[str, str]],
+) -> None:
+    """An authorized call on an account that does not exist: 404 with a stored-as-unknown account code."""
+    concrete = template.replace("{account_id}", "acct-zz").replace(
+        "{movement_id}", "mv-x"
+    )
+    request_headers = dict(headers)
+    if method == "POST":
+        request_headers["Idempotency-Key"] = f"k-unknown-{next(_KEYS)}"
+    response = client.request(method, concrete, json=body, headers=request_headers)
+    probed.add((method, template))
+    code = response.json().get("error", {}).get("code")
+    label = f"{method} {template} [unknown account]"
+    if response.status_code != 404 or code not in (
+        "ACCOUNT_NOT_FOUND",
+        "MOVEMENT_NOT_FOUND",
+    ):
+        failures.append(
+            f"{label}: expected 404 for an unknown account, got {response.status_code} {code}"
+        )
+    _check_response(
+        contract,
+        template,
+        method.lower(),
+        response.status_code,
+        response.json(),
+        failures,
+        label,
+    )
+
+
 def main(contract_path: pathlib.Path) -> int:
     contract = json.loads(contract_path.read_text(encoding="utf-8"))
     started = start_database(
@@ -153,16 +197,29 @@ def main(contract_path: pathlib.Path) -> int:
                 failures,
                 f"{label} [no context]",
             )
-            # 403: a role outside the matrix (reader on a command, payer on a read)
-            if method == "post" or "transactions" in path:
-                role_headers = PAYER if method == "post" else READER
+            # 403: every role outside the operation's matrix row is refused with FORBIDDEN_SCOPE
+            operation = Operation(_declared(contract, path, method)["x-api-id"])
+            admitted = {role for role, ops in PERMISSIONS.items() if operation in ops}
+            for role in sorted(set(PERMISSIONS) - admitted):
+                headers = {
+                    "X-Caller-Id": f"c-{role}",
+                    "X-Caller-Role": role,
+                    "X-Correlation-Id": "corr-m",
+                    "X-Account-Scope": "acct-a",
+                    "Idempotency-Key": f"k-role-{role}",
+                }
                 response = client.request(
                     method.upper(),
                     probe,
                     json={} if method == "post" else None,
-                    headers={**role_headers, "Idempotency-Key": "k-conf"},
+                    headers=headers,
                 )
                 checked += 1
+                code = response.json().get("error", {}).get("code")
+                if response.status_code != 403 or code != "FORBIDDEN_SCOPE":
+                    failures.append(
+                        f"{label} [role {role}]: expected 403 FORBIDDEN_SCOPE, got {response.status_code} {code}"
+                    )
                 _check_response(
                     contract,
                     path,
@@ -170,7 +227,7 @@ def main(contract_path: pathlib.Path) -> int:
                     response.status_code,
                     response.json(),
                     failures,
-                    f"{label} [role]",
+                    f"{label} [role {role}]",
                 )
     # 400: a malformed JSON body with caller context, refused by schema before the context check
     # 404: an unknown account in the path, with a scope that matches it
@@ -197,17 +254,26 @@ def main(contract_path: pathlib.Path) -> int:
                     failures,
                     f"POST {path} [malformed body]",
                 )
-    unknown = {**READER, "X-Account-Scope": "acct-zz"}
-    response = client.get("/v1/accounts/acct-zz", headers=unknown)
-    checked += 1
-    _check_response(
+    probed: set[tuple[str, str]] = set()
+    _unknown_account(
+        client,
         contract,
+        "GET",
         "/v1/accounts/{account_id}",
-        "get",
-        response.status_code,
-        response.json(),
+        None,
+        {**READER, "X-Account-Scope": "acct-zz"},
         failures,
-        "GET /v1/accounts/{account_id} [unknown account]",
+        probed,
+    )
+    _unknown_account(
+        client,
+        contract,
+        "GET",
+        "/v1/accounts/{account_id}/transactions",
+        None,
+        {**READER, "X-Account-Scope": "acct-zz"},
+        failures,
+        probed,
     )
     # success bodies that the contract defines and the probes above can reach
     ok_cases = [
@@ -259,7 +325,21 @@ def main(contract_path: pathlib.Path) -> int:
             failures,
             f"{method.upper()} {path} [success]",
         )
-    checked += _success_flows(client, contract, failures)
+    checked += _success_flows(client, contract, failures, probed)
+    # every account-scoped operation that declares 404 must have had an unknown-account probe
+    for path, methods in contract["paths"].items():
+        if "{account_id}" not in path:
+            continue
+        for method, operation in methods.items():
+            declares_404 = "404" in operation.get("responses", {})
+            if (
+                method.upper() in ("GET", "POST")
+                and declares_404
+                and (method.upper(), path) not in probed
+            ):
+                failures.append(
+                    f"{method.upper()} {path} declares 404 but has no unknown-account probe"
+                )
     print(f"probed {checked} responses across {len(contract['paths'])} paths")
     for failure in failures:
         print("DEVIATION", failure)
@@ -290,7 +370,10 @@ CORRECTOR = {
 
 
 def _success_flows(
-    client: TestClient, contract: dict[str, Any], failures: list[str]
+    client: TestClient,
+    contract: dict[str, Any],
+    failures: list[str],
+    probed: set[tuple[str, str]],
 ) -> int:
     """Success probes for the operations not covered above, through real business flows (TEST-46).
 
@@ -300,12 +383,14 @@ def _success_flows(
     """
     count = 0
     counter = [0]
+    recorded: list[tuple[str, str, Any, dict[str, str]]] = []
 
     def step(
         method: str, template: str, concrete: str, body: Any, headers: dict[str, str]
     ) -> None:
         nonlocal count
         counter[0] += 1
+        recorded.append((method, template, body, headers))
         key = "k-flow-" + str(counter[0])
         response = client.request(
             method, concrete, json=body, headers={**headers, "Idempotency-Key": key}
@@ -595,6 +680,11 @@ def _success_flows(
         {"instruction_id": "ins-f-close"},
         REGISTRAR,
     )
+    for method, template, body, headers in recorded:
+        if "{account_id}" in template:
+            _unknown_account(
+                client, contract, method, template, body, headers, failures, probed
+            )
     return count
 
 

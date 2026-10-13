@@ -288,7 +288,7 @@ def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp
             "--code-commit",
             "abc1234000000000000000000000000000000000",
             "--test-summary",
-            "945 passed, 1 warning",
+            "1261 passed, 1 warning",
         ]
     )
     assert code == 0
@@ -303,7 +303,7 @@ def test_the_manifest_records_exact_revisions_migrations_and_the_scan_result(tmp
     )
     # TEST-35: the image digest is the toolchain pin; the test summary is the one supplied
     assert data["image_digest"] == pinned_digest()
-    assert data["test_summary"] == "945 passed, 1 warning"
+    assert data["test_summary"] == "1261 passed, 1 warning"
 
 
 @pytest.mark.parametrize(

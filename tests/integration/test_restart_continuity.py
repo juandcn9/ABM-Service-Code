@@ -62,7 +62,10 @@ def fresh_prefix(
     return snapshot(db)
 
 
-EXPECTED_ACCOUNTS = [("acct-a", "none", 460), ("acct-b", "outgoing_blocked", 50)]
+EXPECTED_ACCOUNTS = [
+    ("acct-a", "open", "none", 460),
+    ("acct-b", "open", "outgoing_blocked", 50),
+]
 EXPECTED_MOVEMENTS = [
     ("cor-1", "completed", 10),
     ("mv-c1", "cleared", 300),
@@ -77,16 +80,24 @@ def test_a_graceful_restart_on_the_same_file_preserves_state_and_replays_exactly
 ):
     db = tmp_path / "graceful.sqlite3"
     set_env(monkeypatch, db)
-    first = TestClient(app_from_environment())
+    first_app = app_from_environment()
+    first = TestClient(first_app)
     run_steps(first, STEPS)
     original = first.request(
         "POST", "/v1/accounts/registrations", json=STEPS[0][3], headers=STEPS[0][4]
     )
     first.close()
+    # the first application's connection is closed before the file is reopened (TASK-28 F-03)
+    first_conn = first_app.state.connection
+    first_conn.close()
+    with pytest.raises(sqlite3.ProgrammingError):
+        first_conn.execute(
+            "SELECT 1"
+        )  # a live handle would answer; a closed one refuses
 
     before = snapshot(db)
     # the expected end state is fixed by the business rules, not only by comparing the file to itself
-    assert [(a, r, b) for a, _status, r, b in before["accounts"]] == EXPECTED_ACCOUNTS
+    assert before["accounts"] == EXPECTED_ACCOUNTS
     assert before["movements"] == EXPECTED_MOVEMENTS
 
     second = TestClient(app_from_environment())
