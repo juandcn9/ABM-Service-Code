@@ -46,4 +46,5 @@ The independent Tester verifies, on the merged revision, what a Windows machine 
 - Code commit/PR: PRs #153 and #154 merged (`df14a95`, `169f373`).
 - Clean Windows run by JDC and the Tester pass on `169f373`: recorded in `docs/evidence/TASK-38-tester-report.md` and `TASK-38-tester-report-2.md`.
 - Verified on `d11db54` (merge of PR #158): fresh-context Tester reproduction of the final gates, PASS, Blocker 0, Major 0, Minor documentation findings fixed. Report: [`docs/evidence/TASK-38-final-gates-tester-report.md`](../evidence/TASK-38-final-gates-tester-report.md). The first Tester pass (`TASK-38-tester-report-2.md`, `169f373`) and JDC's clean Windows run (`TASK-38-tester-report.md`) are the runbook evidence. Hosted CI did not run (DV-05; JDC accepted the risk).
-- Next safe action: JDC's approval of the exact Code SHA and the Specs status record, then the tag `handover-v0.1` and the final `docs/handover/HANDOVER.md`.
+- Handover record final: `docs/handover/HANDOVER.md` (Status Verified). JDC approved Code `46feb9d` on 2026-10-13; the tag `handover-v0.1` is on the merge commit of the pull request that adds the final record. Specs record: DEC-0087 in Specs release `v1.9.19` (Specs PR #78). Hosted CI never ran (DV-05; JDC accepted the risk).
+- Next safe action: none for this item. When GitHub Actions runs again, a green run on `main` closes DV-05.
