@@ -787,6 +787,7 @@ def ledger_effect(
     state: str,
     effect: str,
     direction: str,
+    created_at: str = NOW,
 ) -> list[tuple[str, tuple[object, ...]]]:
     """A ledger entry with its movement, its successful trace and outcome, and the projection it moves."""
     delta = 500 if direction == "credit" else -500
@@ -798,7 +799,7 @@ def ledger_effect(
                 " amount_cents, authorized_caller_id, authorized_role, created_at)"
                 " VALUES (?, 'acct-1', 'm-late', ?, ?, 500, 'c', 'r', ?)"
             ),
-            (entry, effect, direction, NOW),
+            (entry, effect, direction, created_at),
         ),
         (
             (
@@ -864,6 +865,8 @@ def test_a_forbidden_effect_recorded_before_closure_in_the_same_second_stays_rea
     conn = registered(path)
     tamper(
         conn,
+        # recorded before the closure trace, but its timestamp is one second after closed_at: only the
+        # trace sequence puts it before the closure, so a timestamp-only rule would flag it
         ledger_effect(
             "l-pre",
             "ins-pre",
@@ -871,6 +874,7 @@ def test_a_forbidden_effect_recorded_before_closure_in_the_same_second_stays_rea
             "settled",
             "incoming_settlement",
             "credit",
+            created_at="2026-10-09T12:00:01Z",
         )
         + [
             (
