@@ -4,6 +4,7 @@ All notable Code repository changes are recorded here.
 
 ## [Unreleased]
 
+- `TASK-38` handover record final: `docs/handover/HANDOVER.md` is finalised (Verified) for the tag `handover-v0.1`, naming the approved commit lineage, Specs `v1.9.18` implemented and the status-record-only `v1.9.19`, the evidence, the stated limits and the DV-05 caveat. No change under `src/`.
 - `TASK-38` Verified: records the Tester reproduction of the final gates on `d11db54` (`docs/evidence/TASK-38-final-gates-tester-report.md`, PASS), fixes its Minor documentation findings in `HANDOVER.md`, the work item and the evidence, and sets the work item to Verified. No change under `src/`.
 - `TASK-38` final gates: records the full local gate run on `9f1d74e` (`docs/evidence/TASK-38-final-gates.md`): validators, ruff, format, mypy, 1325 tests, HTTP conformance, container check and smoke all passed. Author evidence under DV-05; the Tester reproduction is pending. No change under `src/`.
 - `TASK-38` CI billing block: records deviation DV-05 (GitHub Actions starts no job; JDC accepted the risk of proceeding without hosted CI verification; a local run of the CI gates plus the container and smoke checks on the exact commit, reproduced by the Tester, stands in), rewords the `HANDOVER.md`, work item and report wording to match, and fills the Docker Desktop version and WSL2 facts in the clean-run report. No change under `src/`.
