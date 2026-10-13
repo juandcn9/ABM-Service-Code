@@ -42,6 +42,7 @@ _FIELDS = frozenset(
     }
 )
 _DIRECTIONS = frozenset({"credit", "debit"})
+_ABSENT = object()  # internal marker for an omitted optional field, never a JSON value
 
 
 def create_correction(
@@ -55,9 +56,9 @@ def create_correction(
     denied = authorize(caller, Operation.CORRECTION)
     if denied is not None:
         return denied
-    # corrected_entry_reference is optional in the contract; absent means null
+    # corrected_entry_reference is optional: absent means no entry; an explicit null is refused
     if type(body) is dict and "corrected_entry_reference" not in body:
-        body = {**body, "corrected_entry_reference": None}
+        body = {**body, "corrected_entry_reference": _ABSENT}
     try:
         target = opaque_id(account_id)
         parsed = to_fields(body, _FIELDS)
@@ -69,11 +70,8 @@ def create_correction(
         cents = to_cents(parsed["amount_cents"])
         require_usd(parsed["currency"])
         decision = opaque_id(parsed["decision_reference"])
-        corrected = (
-            None
-            if parsed["corrected_entry_reference"] is None
-            else opaque_id(parsed["corrected_entry_reference"])
-        )
+        corrected_raw = parsed["corrected_entry_reference"]
+        corrected = None if corrected_raw is _ABSENT else opaque_id(corrected_raw)
         key = opaque_id(idempotency_key)
     except InvalidValue:
         return failure("VALIDATION_ERROR", "The request is not valid.")

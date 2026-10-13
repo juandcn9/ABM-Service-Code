@@ -59,3 +59,8 @@
   - Safe rejected-request security evidence is not emitted for deterministic rejections (`specs/04` API-01). Owner Builder. Trigger: TASK-25 (API edge). Tester Minor 1.
   - Unexpected exceptions from the instruction propagate out of `run_idempotent` without a safe `INTERNAL_ERROR` mapping. Owner Builder. Trigger: TASK-25 (API edge). Tester Minor 2.
   - "Failure only before writes" is a convention, not enforced, for storable rejections. Owner Builder. Trigger: the first task that adds a storable rejection after a write. Tester Minor 3.
+
+## Minor closure (Stream B)
+
+- Absent versus null in the fingerprint (TASK-08 O3, TASK-10): the rule in `src/abm/domain/fingerprint.py` is that an absent field and a null field produce different fingerprints, and each operation passes a fixed field set. Test: `test_an_absent_field_and_a_null_field_have_different_fingerprints` in `tests/unit/test_results_and_fingerprint.py`. The Specs do not state this rule; it is the code's rule, recorded here.
+- Registration has no optional nullable field, so no registration fingerprint changed.

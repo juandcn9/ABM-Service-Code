@@ -73,3 +73,9 @@
 - Independent Tester PASS with findings on `442bcb5` (PR #129, merged as `84294b7`). The only changes between the tested head and the merge are TASK-05's documentation changes merged in between; this task's files are identical. Blocker 0, Major 0. Report: `docs/evidence/TASK-13-remediation-tester-report.md`.
 - The Tester Majors were closed: the Authority section cites DEC-0014 and DEC-0015 and the current pin; the cross-account settlement and return test is confirmed by mutation.
 - The five Minors (F3 to F7) stay as scheduled items above, each with an owner and a trigger.
+
+## Minor closure (Stream B)
+
+- F3 (return-side evidence reuse): closed. Test `test_a_return_evidence_reference_cannot_be_reused_for_another_movement` in `tests/integration/test_incoming_ach.py`; the M14 mutant fails it.
+- F5 (INV-10 negative-balance return): closed. Test `test_a_return_of_settled_incoming_ach_may_take_the_balance_negative` in `tests/integration/test_incoming_ach.py`, built on the TASK-14 outgoing create, submit and settle path.
+- F7 (credit beyond the cents bound): blocked. A credit that takes the balance past 2^53-1 is refused by the account CHECK constraint and becomes `INTERNAL_ERROR`. The Specs declare no code for a balance overflow (only the amount bound, which already gives `VALIDATION_ERROR`). Reported for a Specs decision; no code changed.

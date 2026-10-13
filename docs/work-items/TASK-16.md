@@ -45,3 +45,7 @@
 - The Minors recorded in the TASK-16 reviews stay open and scheduled, except those closed by PRs #41 and #47; they do not block this status.
 - Scheduled to close on the merge of Code PR #48 (open, awaiting review and approval): fingerprint replay and conflict for authorize, clear and refund; response balances after authorize, clear, reverse and refund; full counts in the reused-id test; the restriction UPDATE names its account.
 - Scheduled (owner Builder, trigger TASK-21, closure): the closed-account card cases that set closure by direct SQL.
+
+## Minor closure (Stream B)
+
+- The closed-account card refund test derives its expected balance from the setup amounts (funded, authorized and refunded cents) instead of the literal 1000. Test: `test_a_card_refund_is_accepted_on_a_closed_account` in `tests/integration/test_cards.py`.

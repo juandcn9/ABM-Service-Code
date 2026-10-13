@@ -56,3 +56,7 @@
 - Closed: `test_a_closed_source_account_takes_no_transfer_and_nothing_is_written` in `tests/integration/test_transfers.py` closes the source account and asserts ACCOUNT_CLOSED with no write. The mutant that drops the source status check fails it. Code commit `43ffbfb`.
 
 - Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`.
+
+## Minor closure (Stream B)
+
+- Minor 4 (currency mismatch not tested for transfers): closed. Test `test_a_currency_mismatched_transfer_is_a_validation_error_and_writes_nothing` in `tests/integration/test_transfers.py`; the mutant that removes `require_usd` fails it. Cards were not added: the Specs list currency mismatch for transfers only.
