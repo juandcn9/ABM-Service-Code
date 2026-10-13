@@ -44,8 +44,8 @@ Tester PASS on the merged revision `48d7c13` (PR #112; implementation PR #111 me
 
 ## Scheduled items
 
-- Tester F-03 (Minor): the graceful test reopens the file while the first app connection is still open; a stricter test would close that connection first. Owner Builder; trigger: the next change to `tests/integration/test_restart_continuity.py`.
-- Tester N-02 (Note): the graceful expected-account check omits the account status column. Owner Builder; trigger: the same change.
+- Tester F-03 (Minor): the graceful test reopens the file while the first app connection is still open; a stricter test would close that connection first. Owner Builder; trigger: the next change to `tests/integration/test_restart_continuity.py`. Closed on `fix/minors-c`: the graceful test closes the first connection and asserts it is closed before the reopen.
+- Tester N-02 (Note): the graceful expected-account check omits the account status column. Owner Builder; trigger: the same change. Closed on `fix/minors-c`: the expected-accounts check asserts the status column.
 
 ## Completion
 

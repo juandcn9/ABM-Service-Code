@@ -462,9 +462,13 @@ def app_from_environment() -> FastAPI:
         reasons = list(started.reasons) or ["DATABASE_UNAVAILABLE"]
         return create_app(UnavailableUnitOfWork(), clock, lambda: reasons)
     conn = started.connection
-    return create_app(
+    app = create_app(
         SqliteUnitOfWork(conn),
         clock,
         lambda: readiness_reasons(conn, migrations),
         events=EventSink(sys.stdout),
     )
+    app.state.connection = (
+        conn  # so a caller can close the database handle (TASK-28 F-03)
+    )
+    return app

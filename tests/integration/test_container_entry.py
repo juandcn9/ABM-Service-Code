@@ -82,3 +82,76 @@ def test_a_bad_setting_refuses_to_start_and_names_only_the_setting(
     message = str(info.value)
     assert message == "CONFIG_INVALID: ABM_MODE"
     assert "not-a-mode-value" not in message
+
+
+def test_reads_answer_service_unready_while_the_database_is_unusable(
+    tmp_path, monkeypatch
+):
+    # TASK-27 F3: the same safe refusal on reads as on writes, with no data and no database access
+    set_env(monkeypatch, tmp_path / "missing-dir" / "abm.sqlite3")
+    client = TestClient(app_from_environment())
+    reader = {
+        "X-Caller-Id": "rd-1",
+        "X-Caller-Role": "account_reader",
+        "X-Correlation-Id": "corr-r",
+        "X-Account-Scope": "acct-u",
+    }
+    recon = {
+        "X-Caller-Id": "recon-1",
+        "X-Caller-Role": "reconciliation_reader",
+        "X-Correlation-Id": "corr-t",
+    }
+    for path, headers in [
+        ("/v1/accounts/acct-u", reader),
+        ("/v1/accounts/acct-u/transactions", reader),
+        ("/v1/reconciliation/trace", recon),
+    ]:
+        response = client.get(path, headers=headers)
+        assert response.status_code == 503, path
+        assert response.json()["error"]["code"] == "SERVICE_UNREADY", path
+        assert "data" not in response.json(), path
+
+
+def _reasons_after(tmp_path, monkeypatch, tamper) -> list[str]:
+    import sqlite3
+
+    set_env(monkeypatch, tmp_path / "abm.sqlite3")
+    TestClient(app_from_environment()).close()
+    conn = sqlite3.connect(tmp_path / "abm.sqlite3")
+    tamper(conn)
+    conn.commit()
+    conn.close()
+    response = TestClient(app_from_environment()).get("/health/ready")
+    assert response.status_code == 503
+    return response.json()["reason_codes"]
+
+
+def test_a_foreign_table_on_the_volume_starts_unready_as_integrity_failed(
+    tmp_path, monkeypatch
+):
+    reasons = _reasons_after(
+        tmp_path,
+        monkeypatch,
+        lambda conn: conn.execute("CREATE TABLE rogue (x INTEGER)"),
+    )
+    assert reasons == ["INTEGRITY_FAILED"]
+
+
+def _alter_history(conn) -> None:
+    # the history table is immutable by trigger; an operator who drops the guard can still edit it
+    for (name,) in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'schema_version'"
+    ).fetchall():
+        conn.execute(f'DROP TRIGGER "{name}"')
+    conn.execute("UPDATE schema_version SET checksum = ?", ("0" * 64,))
+
+
+def test_a_changed_migration_checksum_starts_unready_as_schema_unsupported(
+    tmp_path, monkeypatch
+):
+    reasons = _reasons_after(
+        tmp_path,
+        monkeypatch,
+        _alter_history,
+    )
+    assert reasons == ["SCHEMA_UNSUPPORTED"]
