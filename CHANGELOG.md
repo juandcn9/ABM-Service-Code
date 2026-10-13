@@ -4,6 +4,7 @@ All notable Code repository changes are recorded here.
 
 ## [Unreleased]
 
+- `TASK-38` final gates: records the full local gate run on `9f1d74e` (`docs/evidence/TASK-38-final-gates.md`): validators, ruff, format, mypy, 1325 tests, HTTP conformance, container check and smoke all passed. Author evidence under DV-05; the Tester reproduction is pending. No change under `src/`.
 - `TASK-38` CI billing block: records deviation DV-05 (GitHub Actions starts no job; JDC accepted the risk of proceeding without hosted CI verification; a local run of the CI gates plus the container and smoke checks on the exact commit, reproduced by the Tester, stands in), rewords the `HANDOVER.md`, work item and report wording to match, and fills the Docker Desktop version and WSL2 facts in the clean-run report. No change under `src/`.
 - `TASK-38` handover record: adds a Draft `docs/handover/HANDOVER.md` (version, evidence, stated limits, conditions before the tag `handover-v0.1`) and corrects the README line that said the container check was not verified locally. No change under `src/`.
 - `TASK-38` Tester pass: records the independent Tester report on `169f373` (`docs/evidence/TASK-38-tester-report-2.md`), states the Tester scope and its limits in the work item, and applies the Tester's Minor runbook fixes (Docker-stopped text, busy-port text, WSL2 wording). No change under `src/`.
