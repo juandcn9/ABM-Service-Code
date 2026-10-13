@@ -48,7 +48,7 @@ Check that it is ready:
 Invoke-RestMethod http://127.0.0.1:8000/health/ready
 ```
 
-Expected: `status` is `ready`. Until the database is checked, the reply is HTTP 503 with `reason_codes` (for example `DATABASE_UNAVAILABLE` or `INTEGRITY_FAILED`). `GET /health/live` only says the process is up.
+If the connection is reset right after `docker run`, wait a few seconds and try again. Expected: `status` is `ready`. Until the database is checked, the reply is HTTP 503 with `reason_codes` (for example `DATABASE_UNAVAILABLE` or `INTEGRITY_FAILED`). `GET /health/live` only says the process is up.
 
 ## 4. Operate it
 
@@ -85,16 +85,16 @@ Use the left column for this guide. The service refuses to start on an invalid c
 
 ## 6. Calling the API
 
-The contract is `contracts/openapi.yaml` in the ABM Service Specs repository at release `v1.9.18` (https://github.com/juandcn9/ABM-Service-Specs). Every call carries caller context headers: `X-Caller-Id`, `X-Caller-Role`, `X-Correlation-Id`, plus `X-Account-Scope` for account reads and `Idempotency-Key` for changes. Register an account, then read it:
+The contract is the OpenAPI file for Specs release `v1.9.18`. The owner supplies it separately. Every call carries caller context headers: `X-Caller-Id`, `X-Caller-Role`, `X-Correlation-Id`, plus `X-Account-Scope` for account reads and `Idempotency-Key` for changes. Register an account, then read it:
 
 ```powershell
 $base = 'http://127.0.0.1:8000'
 $reg = @{ 'X-Caller-Id'='demo-registrar'; 'X-Caller-Role'='account_registrar'; 'X-Correlation-Id'='demo-1'; 'Idempotency-Key'='demo-key-1' }
 $body = @{ instruction_id='demo-reg-1'; account_id='acct-demo'; customer_id='cust-demo'; currency='USD'; eligibility_reference='elig-demo' } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "$base/v1/accounts/registrations" -Headers $reg -ContentType 'application/json' -Body $body
+Invoke-RestMethod -Method Post -Uri "$base/v1/accounts/registrations" -Headers $reg -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 5
 
 $read = @{ 'X-Caller-Id'='demo-reader'; 'X-Caller-Role'='account_reader'; 'X-Correlation-Id'='demo-2'; 'X-Account-Scope'='acct-demo' }
-Invoke-RestMethod -Uri "$base/v1/accounts/acct-demo" -Headers $read
+Invoke-RestMethod -Uri "$base/v1/accounts/acct-demo" -Headers $read | ConvertTo-Json -Depth 5
 ```
 
 A call without caller context returns HTTP 401. The same instruction with the same `Idempotency-Key` replays the stored result.
@@ -103,7 +103,7 @@ A call without caller context returns HTTP 401. The same instruction with the sa
 
 | Symptom | Cause and fix |
 |---|---|
-| `docker: error during connect` | Docker Desktop is not running. Start it. |
+| `failed to connect to the docker API ... dockerDesktopLinuxEngine` | Docker Desktop is not running. Start it and wait until it says it is running. Quitting it stops `abm`; run `docker start abm` (the data is kept). |
 | `port is already allocated` | Something uses port 8000. Stop it, or map another host port (`-p 127.0.0.1:8001:8000`) and use that port in the URLs. |
 | `The container name "/abm" is already in use` | `docker rm abm`, then run again. |
 | Container exits at start | `docker logs abm` names the invalid `ABM_*` setting. |
