@@ -13,7 +13,7 @@ A local, single-computer run of the ABM service (Account Balances Management Ser
 | Item | Value |
 |---|---|
 | Code tag | `handover-v0.1`, not created yet. Created only after JDC approves the exact commit. |
-| Code commit | To be set at tagging. Candidate head at drafting: `5d149d86e0387730bc4800630ec7765c6af837ff` (the evidence is for earlier commits, see below). |
+| Code commit | To be set at tagging. Gated by the author on `9f1d74e739712842b4d05b1d0da8236ea012e3fb`; reproduced by the Tester on the current head `d11db540e3ef5ca057249bd98a18ba729cfa65b8`, which differs from it by documentation only. The record that names the tagged commit is written after JDC approves it. |
 | Specs release | `v1.9.18`, commit `507719611c79425fdcfd63d0f5897aed66655db7` (also in `SPEC_VERSION`) |
 | OpenAPI contract | `contracts/openapi.yaml` of that Specs release. The owner sends it separately; the Specs repository is private. |
 | Image | Built locally with `docker build -t abm:local .`. The image identifier differs between builds of the same commit (observed: cached build, cold build, and the Tester's build gave different values), so it is recorded per run, not as a fixed value. Cold build by JDC: `sha256:d52e2ce0b0fe760cc59a1dbc999e89caab7a9f37f1ab2a77198066a2d5c90ab8`. Tester build: `sha256:213909ce356790e776c9b0647c82f1ce85ba9983548cf7d028c5934ef8c35349`. The base image is pinned by digest in the Dockerfile. |
@@ -26,8 +26,10 @@ A local, single-computer run of the ABM service (Account Balances Management Ser
 | Clean Windows run by JDC, outside OneDrive ([`TASK-38-tester-report.md`](../evidence/TASK-38-tester-report.md)) | `df14a95` | Build (cached and `--no-cache`), start, readiness, register, read, replay, 401, restart and removal on the same volume, wrong ingress, busy port, Docker Desktop quit and restart: all as the runbook says |
 | Local gate run by the author while CI was blocked (same report) | PR #154 head `cbf6beb` | Governance, ruff, format, mypy, 1325 tests, HTTP conformance (225 responses), container check, smoke: passed |
 | Independent Tester pass ([`TASK-38-tester-report-2.md`](../evidence/TASK-38-tester-report-2.md)) | `169f373` | Runbook sections 1 to 4 and 6 and all local gates passed; verdict "pass within the stated scope" |
+| Final gate run by the author, the DV-05 substitute ([`TASK-38-final-gates.md`](../evidence/TASK-38-final-gates.md)) | `9f1d74e` | Governance and toolchain validators, ruff, format, mypy, 1325 tests, HTTP conformance, container check, smoke: all passed |
+| Independent reproduction of the final gates ([`TASK-38-final-gates-tester-report.md`](../evidence/TASK-38-final-gates-tester-report.md)) | `d11db54` | Every gate passed again; documentation verdict pass with Minor findings, now fixed |
 
-Changes after `169f373` are documentation only (the Tester report, the Tester scope, three runbook wording fixes, and this record).
+Changes after `169f373` are documentation only: the Tester report and scope, the runbook wording fixes, deviation DV-05, the final-gates evidence and its Tester reproduction, and this record. The gated revision `9f1d74e` and the tested head `d11db54` differ by documentation only.
 
 ## Stated limits
 
@@ -40,10 +42,10 @@ Changes after `169f373` are documentation only (the Tester report, the Tester sc
 
 ## Conditions before the tag
 
-1. CI evidence on the exact commit to be tagged. GitHub Actions has not run since 2026-10-13 (billing block). JDC accepted the risk of tagging without hosted CI verification; deviation DV-05 (`docs/governance/deviations.md`) records it. The substitute is a local run of the CI gates on that commit (validators, ruff, format, mypy, full pytest, HTTP conformance), plus the container check and smoke check, reproduced by a fresh-context Tester. When GitHub Actions runs again, a green run on `main` closes DV-05.
-2. `check_container.py` and `smoke_container.py` pass on that commit with a stable Docker engine.
-3. TASK-38 is set to Verified, with the Specs status record updated.
-4. JDC approves the exact commit, and the tag `handover-v0.1` is created on it. This record is then updated with the commit, the CI run and the date.
+1. Done (substitute): hosted CI evidence does not exist (GitHub Actions has not run since 2026-10-13, billing block). JDC accepted the risk of tagging without it; deviation DV-05 (`docs/governance/deviations.md`) records it. The substitute, a local run of the CI gates plus the container and smoke checks reproduced by a fresh-context Tester, passed on `d11db54`. When GitHub Actions runs again, a green run on `main` closes DV-05.
+2. Done: `check_container.py` and `smoke_container.py` passed on `9f1d74e` (author) and `d11db54` (Tester) with a stable Docker engine.
+3. Code: TASK-38 is Verified in its work item. Open: the Specs status record, which needs JDC's approval of the Specs SHA.
+4. Open: JDC approves the exact commit, and the tag `handover-v0.1` is created on it. This record is then updated with the commit and the date, and its status becomes Final.
 
 ## Release notes (v0)
 
