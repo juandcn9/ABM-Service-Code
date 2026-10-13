@@ -1,6 +1,6 @@
 # Work item: TASK-12 — startup migration, integrity, and fail-closed readiness
 
-**Status:** Verified
+**Status:** Implemented
 
 ## Authority
 
@@ -42,8 +42,9 @@
 - Review findings/resolution: fresh-context review of ce8b25d (FAIL: three Majors, all fixed in eb1a4e8); focused re-review of eb1a4e8 PASS with findings (no Blocker or Major); independent Tester pass of eb1a4e8 PASS (CI green on CPython 3.12.15). Gate 8 ponytail-review of the remediation diff returned Ship, with no Must-fix or Should-fix finding; the Ponytail deviation DV-01 is closed by DEC-0020.
 - Residual risks: a very large database makes `PRAGMA integrity_check` slow at startup (acceptable for the single-writer demonstration, `RISK-0001`); the inconsistency queries encode the Builder's reading of `specs/05` section 7 and need a Tester pass against the Specs; readiness is computed on demand, so caching or rate limiting for the health route is a `TASK-25`/`TASK-26` decision.
 - Verified on merged head `0ba2fc4` (PR #148, merge of branch head `0cf87ee`; the merge added no `src/` change beyond the TASK-12 commits). Fresh-context Tester on `0cf87ee`: PASS, Blocker 0, Major 0, Minor 0. Report: [`docs/evidence/TASK-12-tester-report-2.md`](../evidence/TASK-12-tester-report-2.md).
-- Verified is not closed. Two scheduled items remain (see Scheduled items): closure ordering of same-second effects (Builder; trigger: a stored ledger sequence at closure) and the section 5 finalized-state rules beyond the two confirmed by DEC-0083 (Builder; trigger: TASK-32).
-- Next safe action: none for this item until a scheduled trigger fires.
+- Status is Implemented on this branch: the closure-ordering change in `readiness.py` is new code, so Verified returns only after an independent Tester pass on the new head with zero findings, then a record commit. The Verified record of `0ba2fc4` stays as history.
+- Scheduled items: none remain open in code. The section 5 remainder closes with DEC-0085, which needs JDC approval.
+- Next safe action: an independent Tester pass on the branch head naming zero findings.
 
 ## Wiring added before merge
 
@@ -91,8 +92,9 @@
 ## Scheduled items
 
 - Available-balance identity (Tester Major M1): resolved by DEC-0082 (option A, approved 2026-10-13). Available balance is derived and has no stored column; readiness checks each stored projection against the posted-balance sum, which the code already does. The literal equality of available and projection was not added: it would fail readiness on every active hold (32 existing flow and restart tests failed when tried). No code change is needed for M1.
-- Closure ordering (unchanged): the closure rule is in `readiness.py`, but effects are ordered by timestamp only (the shortcut comment there), so same-second effects are not ordered. Trigger: a stored ledger sequence at closure.
-- Finalized-state checks (Tester Major M2): the two section 5 rules implemented here are confirmed by DEC-0083 (approved 2026-10-13) as the meaning of `specs/05` section 5 (see Tester findings below). The other section 5 rules are not implemented. Owner: Builder. Trigger for the rest: TASK-32 (Constitution/Specs conformance and independent review, Draft in `specs/09-delivery-plan.md`).
+- Closure ordering: closed on this branch. The closure rule in `readiness.py` orders a post-closure effect by its `audit_trace` sequence against the `close_account` trace row, not by timestamp, so same-second effects are ordered. An effect without a trace row, or a closure without one, is flagged when it is at or after `closed_at` (fail closed). Tests in `tests/integration/test_readiness.py`: a same-second forbidden effect after closure is `INTEGRITY_FAILED` (the timestamp-only rule fails this test); a permitted late clearing in the closure second stays ready; a forbidden effect recorded before closure in the same second stays ready. No schema change.
+- Section 5 remainder: closed on this branch as schema-enforced. `UNIQUE (movement_id, effect_kind)`, the `effect_kind` allowlist and direction `CHECK`s, and the `movement_evidence` primary key refuse the duplicate, wrong-direction, unknown-kind and reused-evidence cases. Test `test_section_5_effect_and_evidence_rules_are_refused_by_the_schema`. Readiness does not repeat these; tampering with a constraint is caught by the stored-definition comparison (DEC-0078). The closing decision is DEC-0085, pending JDC approval.
+- Finalized-state checks (Tester Major M2): the two section 5 rules implemented here are confirmed by DEC-0083 (approved 2026-10-13) as the meaning of `specs/05` section 5 (see Tester findings below).
 
 ## Tester findings (branch `fix/task-12-majors`, report head 936d2fa)
 
