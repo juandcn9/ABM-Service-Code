@@ -144,6 +144,20 @@ def counts(conn: sqlite3.Connection) -> tuple[int, ...]:
     )
 
 
+def snapshot(conn: sqlite3.Connection) -> tuple[object, ...]:
+    """Everything a refused command must leave unchanged: counts, balances, holds, movement states."""
+    return (
+        counts(conn),
+        balances(conn),
+        conn.execute(
+            "SELECT movement_id, state FROM movements ORDER BY movement_id"
+        ).fetchall(),
+        conn.execute(
+            "SELECT movement_id, state FROM holds ORDER BY movement_id"
+        ).fetchall(),
+    )
+
+
 def test_authorization_holds_the_funds_and_stores_the_merchant_reference(
     uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
 ) -> None:
@@ -163,15 +177,19 @@ def test_authorization_is_refused_without_funds_or_on_a_blocked_account(
     uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
 ) -> None:
     funded(uow, clock)
+    before = snapshot(conn)
     short = authorize(
         uow, clock, cents=1500, key="kb", instruction="ib", movement="mv-x"
     )
     assert isinstance(short, Failure) and short.error.code == "INSUFFICIENT_FUNDS"
+    assert snapshot(conn) == before
     conn.execute(
-        "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1'"
+        "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1' WHERE account_id = 'acct-1'"
     )
+    before = snapshot(conn)
     blocked = authorize(uow, clock, movement="mv-y", key="kc", instruction="ic")
     assert isinstance(blocked, Failure) and blocked.error.code == "OUTGOING_BLOCKED"
+    assert snapshot(conn) == before
 
 
 def test_a_reused_movement_id_is_invalid_transition_and_declared(
@@ -239,6 +257,27 @@ def test_expiry_releases_the_hold_without_posting(
     assert balances(conn) == (1000, 0)
 
 
+def test_expiry_requires_evidence_and_elapsed_time_never_releases_the_hold(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    """Specs: specs/04-api.md line 84 (API-23 requires evidence; elapsed time alone cannot
+    release the hold), specs/08-verification.md line 68 (TEST-43), specs/02-domain-and-invariants.md
+    line 39 (INV-12: elapsed time never releases a hold)."""
+    funded(uow, clock)
+    authorize(uow, clock)
+    before = snapshot(conn)
+    no_evidence = {"instruction_id": "i-noev"}
+    refused = expire_card(uow, clock, CARD, "k-noev", "acct-1", "mv-card", no_evidence)
+    assert isinstance(refused, Failure) and refused.error.code == "VALIDATION_ERROR"
+    assert snapshot(conn) == before
+    clock.advance(30 * 24 * 60 * 60)
+    later = expire_card(uow, clock, CARD, "k-later", "acct-1", "mv-card", no_evidence)
+    assert isinstance(later, Failure) and later.error.code == "VALIDATION_ERROR"
+    assert state_of(conn) == "authorized_with_hold"
+    assert balances(conn) == (1000, 400)
+    assert snapshot(conn) == before
+
+
 def test_a_late_clearing_after_reversal_posts_one_debit_without_a_hold(
     uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
 ) -> None:
@@ -261,7 +300,10 @@ def test_a_late_clearing_is_accepted_after_closure_and_never_reopens_the_account
     funded(uow, clock)
     authorize(uow, clock)
     simple(expire_card, uow, clock, ref="ev-e")
-    conn.execute("UPDATE accounts SET status = 'closed', closed_at = ?", (NOW,))
+    conn.execute(
+        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-1'",
+        (NOW,),
+    )
     assert data_of(step(clear_card, uow, clock, cents=400))["state"] == "late_cleared"
     assert conn.execute("SELECT status FROM accounts").fetchone() == ("closed",)
 
@@ -272,13 +314,16 @@ def test_a_cleared_movement_cannot_be_cleared_again_or_reversed(
     funded(uow, clock)
     authorize(uow, clock)
     step(clear_card, uow, clock, cents=400)
+    before = snapshot(conn)
     again = step(clear_card, uow, clock, cents=400, ref="ev-2")
     assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
+    assert snapshot(conn) == before
     reversed_now = simple(reverse_card, uow, clock, ref="ev-3")
     assert (
         isinstance(reversed_now, Failure)
         and reversed_now.error.code == "INVALID_TRANSITION"
     )
+    assert snapshot(conn) == before
 
 
 def test_a_full_refund_after_clearing_posts_one_credit(
@@ -302,11 +347,15 @@ def test_a_partial_refund_or_a_refund_before_clearing_is_refused(
 ) -> None:
     funded(uow, clock)
     authorize(uow, clock)
+    before = snapshot(conn)
     early = step(refund_card, uow, clock, cents=400, ref="ev-early")
     assert isinstance(early, Failure) and early.error.code == "INVALID_TRANSITION"
+    assert snapshot(conn) == before
     step(clear_card, uow, clock, cents=400)
+    before = snapshot(conn)
     partial = step(refund_card, uow, clock, cents=300, ref="ev-p")
     assert isinstance(partial, Failure) and partial.error.code == "AMOUNT_MISMATCH"
+    assert snapshot(conn) == before
     assert balances(conn) == (600, 0)
 
 
@@ -415,7 +464,10 @@ def test_a_card_refund_is_accepted_on_a_closed_account(
     authorize(uow, clock, cents=card_cents)
     cleared = step(clear_card, uow, clock, cents=card_cents)
     assert data_of(cleared)["state"] == "cleared"
-    conn.execute("UPDATE accounts SET status = 'closed', closed_at = ?", (NOW,))
+    conn.execute(
+        "UPDATE accounts SET status = 'closed', closed_at = ? WHERE account_id = 'acct-1'",
+        (NOW,),
+    )
     refunded = data_of(step(refund_card, uow, clock, ref="ev-f", cents=card_cents))
     assert refunded["state"] == "refunded"
     # the refund returns exactly the clearing debit, so the balance is back to the funded amount
@@ -431,7 +483,7 @@ def test_clearing_and_late_clearing_are_not_blocked_by_outgoing_blocked(
     authorize(uow, clock, movement="mv-late", key="ka-late", instruction="ia-late")
     simple(reverse_card, uow, clock, movement="mv-late", ref="ev-rl", key="kr-late")
     conn.execute(
-        "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1'"
+        "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1' WHERE account_id = 'acct-1'"
     )
     assert data_of(step(clear_card, uow, clock, cents=400))["state"] == "cleared"
     late = step(clear_card, uow, clock, movement="mv-late", cents=400, ref="ev-cl")
@@ -555,6 +607,20 @@ def test_a_refund_from_a_late_cleared_movement_posts_one_full_credit(
     assert isinstance(step(refund_card, uow, clock, cents=400, ref="ev-f"), Success)
     assert state_of(conn) == "refunded"
     assert balances(conn) == (1000, 0)
+
+
+def test_a_refund_over_the_late_cleared_amount_is_refused_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    # Specs: specs/04-api.md line 84 (full refund rejects any amount other than the posted amount)
+    funded(uow, clock)
+    authorize(uow, clock)
+    simple(reverse_card, uow, clock, ref="ev-r")
+    assert isinstance(step(clear_card, uow, clock, cents=400, ref="ev-c"), Success)
+    before = snapshot(conn)
+    over = step(refund_card, uow, clock, cents=500, ref="ev-over")
+    assert isinstance(over, Failure) and over.error.code == "AMOUNT_MISMATCH"
+    assert snapshot(conn) == before
 
 
 def test_a_second_clearing_of_a_late_cleared_movement_is_refused_and_writes_nothing(
