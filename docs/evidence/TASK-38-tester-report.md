@@ -9,8 +9,8 @@
 | Windows | 11, version 26H2 (as reported by JDC) |
 | Docker engine | 29.8.2 (build 7fc2dff), Compose v5.6.0 |
 | Docker context | Docker Desktop, storage driver `overlayfs` |
-| Docker Desktop app version | Not captured |
-| WSL2 backend | Not captured (`docker info` does not name it) |
+| Docker Desktop app version | 4.95.0 (read afterwards from the installed app) |
+| WSL2 backend | `docker-desktop` WSL distro, version 2; WSL 3.0.3.0 (read afterwards with `wsl -l -v` and `wsl --version`) |
 | Port 8000 free check (`Get-NetTCPConnection`) | Not captured |
 
 ## Results
@@ -56,7 +56,7 @@ GitHub Actions did not start any job on this PR's head `cbf6beb`: the annotation
 | container-check | `check_container.py` (focused tests: 66 passed) | PASSED: non-root, read-only app layer, writable data volume, ready, restart |
 | container-check | `smoke_container.py` | PASSED |
 
-Tag `handover-v0.1` still needs green CI on its exact SHA.
+Tag `handover-v0.1` has no hosted CI result; JDC accepted that risk (DV-05), with local gates and a Tester reproduction as the substitute.
 
 ## Not covered
 
