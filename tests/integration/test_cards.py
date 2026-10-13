@@ -133,7 +133,9 @@ def account_balance(conn: sqlite3.Connection, account: str = "acct-1") -> int:
     ).fetchone()[0]
 
 
-def close_through_commands(uow, conn, clock) -> None:
+def close_through_commands(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
     """Close acct-1 with the real commands: drain its balance to acct-2, then close it."""
     other = {
         "instruction_id": "ins-reg-2",
