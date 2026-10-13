@@ -47,8 +47,7 @@
 ## Scheduled items
 
 - Resolved by TASK-23 PR #79: the late-event docstring names the cases in that module and points to `test_retention.py` for incoming return.
-- Resolved: README now states the current pin `v1.9.16` (commit `2cc5ae0`); the Minor is closed.
-  Resolved by commit `2cc5ae0` (chore: point the Code repository at Specs v1.9.16, DEC-0075): `README.md` now states `v1.9.16`.
+- Resolved by commit `2cc5ae0` (chore: point the Code repository at Specs v1.9.16, DEC-0075): `README.md` now states `v1.9.16`; the Minor is closed.
 
 ## Process record
 
@@ -58,4 +57,4 @@
 ## Verified record
 
 - Tester PASS on the merged head `caacace`, merged as `9811a61` (PR #74): `docs/evidence/TASK-22-tester-report.md`. Pass 1 (`07d12eb`) found two Majors, resolved before the final pass; see Process record for the review-timing gap.
-- Scheduled items above stay open as listed (README pin Minor, Builder, docs-only fix before the next release).
+- All Scheduled items above are resolved; none remains open in this file.

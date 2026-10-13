@@ -69,10 +69,9 @@
 ## Remediation of the Tester Major (2026-10-10)
 
 - Gap closed: readiness now checks that stored idempotency responses are valid JSON (specs/05 s7) before `integrity_check`, and reports `INTEGRITY_FAILED`, not `DATABASE_UNAVAILABLE`. Regression test: `tests/integration/test_readiness.py` (malformed-row case); the test fails without the check. Code commit `43ffbfb` on branch `fix/majors-task-12-13-15`.
-- Resolved: the unsupported-schema branch of `readiness_reasons` is tested by `test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported` (`tests/integration/test_readiness.py`).
-- Resolved: `test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported` (`tests/integration/test_readiness.py`) covers the unsupported-schema branch on a live connection. The trigger (TASK-25) has passed; the item is closed.
+- Resolved: the unsupported-schema branch of `readiness_reasons` is tested by `test_readiness_on_a_live_connection_reports_a_newer_schema_as_unsupported` (`tests/integration/test_readiness.py`). The trigger (TASK-25) has passed; the item is closed.
 
-- Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`. Scheduled Minors listed above remain open.
+- Verified on merged head `b6d9fc0` (PR #37): fresh-context Tester PASS, no open Blocker or Major; report `docs/evidence/TASK-12-13-15-remediation-tester-report.md`. All Scheduled items above are resolved; none remains open in this file.
 
 ## Stream A Minor closure (Tester findings of the TASK-12 report)
 
