@@ -37,7 +37,7 @@
 - Commands/checks and results: as recorded at the verified head `0ce8071` (local pytest, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; see Acceptance evidence). At head `b733389`: 1293 tests collected (`pytest --collect-only -q -p no:cacheprovider`, 2026-10-13).
 - Review findings/resolution: fresh-context review of the final head `8827002` found one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest and ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. Minor findings are under the Minor closure section. The committed report is [`docs/evidence/TASK-16-tester-report.md`](../evidence/TASK-16-tester-report.md).
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
-- Next safe action: an independent Tester pass on the current head `b733389` naming zero findings; then a new JDC decision on the Verified status (see Status decision). The open decision is under Open decision; the scheduled items are under Scheduled items.
+- Next safe action: an independent Tester pass on the current head `b733389` naming zero findings; then a new JDC decision on the Verified status (see Status decision). The open decision is under Open decision; there are no open scheduled items (see Scheduled items).
 
 ## Status decision (2026-10-12, owner JDC)
 
@@ -52,7 +52,7 @@
 ## Minor closure (Tester findings of `936d2fa`)
 
 - Closed, with tests: refund over the `late_cleared` amount (`test_a_refund_over_the_late_cleared_amount_is_refused_and_writes_nothing`); no-write checks (`test_authorization_is_refused_without_funds_or_on_a_blocked_account`, `test_a_cleared_movement_cannot_be_cleared_again_or_reversed`, `test_a_partial_refund_or_a_refund_before_clearing_is_refused`); expiry evidence and elapsed time (`test_expiry_requires_evidence_and_elapsed_time_never_releases_the_hold`); the authorization boundary at the available amount (`test_authorization_takes_exactly_the_available_amount_and_one_cent_more_is_refused`).
-- The `ACCOUNT_CLOSED` branch of `authorize_card` is covered by `test_authorization_on_a_closed_account_is_refused_and_writes_nothing`, but its direct-SQL setup stays open under the Open decision above, so it is not listed as closed.
+- Not closed: the `ACCOUNT_CLOSED` branch of `authorize_card`. Its test (`test_authorization_on_a_closed_account_is_refused_and_writes_nothing`) uses direct-SQL setup, which the Open decision above keeps open.
 - Not a test, recorded separately: the restriction UPDATE statements in `tests/integration/test_cards.py` are scoped to `WHERE account_id = 'acct-1'` (Minor closure, head `b733389`).
 
 ## Earlier Verified record (superseded)
@@ -64,7 +64,9 @@
 
 - Resolved by merged Code PR #48 (merge `aeb3b2b`; the PR changed only `tests/integration/test_cards.py`): fingerprint replay and conflict for authorize, clear and refund (`test_a_replayed_authorization_returns_the_stored_outcome_and_a_changed_one_conflicts`, `test_a_replayed_clearing_returns_the_stored_outcome_and_a_changed_one_conflicts`, `test_a_replayed_refund_returns_the_stored_outcome_and_a_changed_one_conflicts`); response balances (`test_response_balances_match_the_database_for_authorize_clear_reverse_and_refund`); full counts in the reused-id test (`test_a_reused_movement_id_is_invalid_transition_and_declared`). No Tester pass covers this change yet (see Status decision). Owner: Builder (closed).
 - Resolved by merged Code PRs #41 (merge `1458974`, which closed part of the TASK-16 Minors, including card test additions), #47 (merge `e20fafb`, refund, reuse, boundary and rejection Minors) and #48 (above). Specs DEC-0038 says "the Minors of Code PR #41 remain open and scheduled"; that Specs sentence is not changed here and is part of the JDC decision. Owner: Builder (closed).
-- Minor closure (Stream B): the closed-account card refund test derives its expected balance from the setup amounts (funded, authorized and refunded cents) instead of the literal 1000. Test: `test_a_card_refund_is_accepted_on_a_closed_account` in `tests/integration/test_cards.py`; commit `8ed896b`. Owner: Builder (closed). Its setup is direct SQL; the Open decision above keeps that open, so this entry is not a closed test.
+- Not closed (direct-SQL setup, under the Open decision): the closed-account card refund test derives its expected balance from the setup amounts (funded, authorized and refunded cents) instead of the literal 1000. Test: `test_a_card_refund_is_accepted_on_a_closed_account` in `tests/integration/test_cards.py`; commit `8ed896b`. Owner: Builder. Its setup is direct SQL; the Open decision above keeps this open.
 
 ## Scheduled items
+
+None open. The open decision is under Open decision above.
 
