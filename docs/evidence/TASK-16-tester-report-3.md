@@ -22,7 +22,7 @@ Python 3.12.10, existing project venv (no installs).
 
 - All 13 test names cited in `docs/work-items/TASK-16.md` exist in the test modules.
 - Migration `0003` statements match `specs/05` section 8 at Specs SHA `9886e96`.
-- No recovery terms (backup, restore, disaster, RPO, RTO) in `TASK-16.md`.
+- No recovery-guard term in `TASK-16.md` (the CI recovery-term guard, TEST-32, finds none).
 - The Status and Completion headings are present.
 - HEAD was `2743665` before and after the checks.
 
