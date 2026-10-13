@@ -32,7 +32,7 @@ Python 3.12.10, existing project venv (no installs).
 
 - In a Tester-owned copy: the `ACCOUNT_CLOSED` line in `src/abm/application/cards.py` was replaced with `pass`.
 - Result: 1 failed, 36 passed in `tests/integration/test_cards.py`. The failing test is `test_authorization_on_a_closed_account_is_refused_and_writes_nothing`.
-- The source file was restored from a saved copy; its SHA-256 matched the original before and after.
+- The source file was reverted from a saved copy; its SHA-256 matched the original before and after.
 
 ## Findings
 
