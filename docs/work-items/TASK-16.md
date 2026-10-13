@@ -35,7 +35,7 @@
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
 - Commands/checks and results: as recorded at the verified head `0ce8071` (local pytest, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; see Acceptance evidence). At head `32d9678`: 1291 tests collected (`pytest --collect-only -q -p no:cacheprovider`, 2026-10-12).
-- Review findings/resolution: fresh-context review of the final head `8827002`: no Blocker or Major. Its one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest and ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. Minor findings are under Scheduled items. The committed report is [`docs/evidence/TASK-16-tester-report.md`](../evidence/TASK-16-tester-report.md).
+- Review findings/resolution: fresh-context review of the final head `8827002` found one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest and ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. Minor findings are under Scheduled items. The committed report is [`docs/evidence/TASK-16-tester-report.md`](../evidence/TASK-16-tester-report.md).
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
 - Next safe action: an independent Tester pass on the current head `32d9678` naming zero findings; then a new JDC decision on the Verified status (see Status decision). The open decision is under Open decision; the scheduled items are under Scheduled items.
 

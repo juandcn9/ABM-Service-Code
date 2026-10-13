@@ -41,7 +41,7 @@
 
 ## Implementation and evidence
 
-- Code PR #74, merged to `main` as `9811a61` (head `caacace`; JDC approved the exact head in the session, 2026-10-10). Tester record: [`docs/evidence/TASK-22-tester-report.md`](../evidence/TASK-22-tester-report.md). Pass 1 on `07d12eb` found two Majors, both fixed; pass 2 on `caacace` PASS. Collected test count at head `32d9678`: 1291 tests (`pytest --collect-only -q -p no:cacheprovider`, checked 2026-10-12; no `src`, `tests` or `scripts` change since `b122e10`). The legal-hold refusal rule is DEC-0047 (Specs v1.9.4).
+- Code PR #74, merged to `main` as `9811a61` (head `caacace`; JDC approved the exact head in the session, 2026-10-10). Tester record: [`docs/evidence/TASK-22-tester-report.md`](../evidence/TASK-22-tester-report.md). Pass 1 and pass 2 are described in the Verified record below. Collected test count at head `32d9678`: 1291 tests (`pytest --collect-only -q -p no:cacheprovider`, checked 2026-10-12; no `src`, `tests` or `scripts` change since `b122e10`). The legal-hold refusal rule is DEC-0047 (Specs v1.9.4).
 
 ## Resolved items
 
@@ -59,5 +59,5 @@
 
 ## Verified record (current status)
 
-- Tester PASS on the merged head `caacace`, merged as `9811a61` (PR #74): `docs/evidence/TASK-22-tester-report.md`. Pass 1 (`07d12eb`) found two Majors, resolved before the final pass; see Process record for the review-timing gap.
+- Tester PASS on the merged head `caacace`, merged as `9811a61` (PR #74): `docs/evidence/TASK-22-tester-report.md`. Pass 1 is in the Process record; the review-timing gap is recorded there too.
 - The Verified status is recorded in Specs DEC-0072 (status cell only, under DEC-0039).
