@@ -8,7 +8,7 @@
 - TASK and affected IDs: `TASK-22`; `FR-16`; `INV-12`; `DATA-07`; `DEC-0008`, `DEC-0010`, `DEC-0012`; `BT-08`; `TEST-19` (retention row starts with null timestamps; closure and later final resolution set and advance both; seven-year predicate; legal hold always blocks eligibility), `TEST-37` (legal-hold and retention evaluation are not public HTTP and cannot delete anything), `TEST-45` (legal-hold set and clear accept only `retention_controller` through the non-public port, with record target checks, fingerprint conflict without mutation, exact replay, atomic commit). Governing trace: `specs/08-verification.md` section 9.1 (TASK-22 row) and `specs/09-delivery-plan.md` TASK-22.
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required.
 - Dependencies: `TASK-21` merged and recorded Implemented (true on `main` at `6653ce1`).
-- Decisions in force at the pin this task was built against: DEC-0008 (evaluate retention and legal hold; no deletion; no automatic deletion), DEC-0010 (`retention_controller` owns legal-hold decisions through a non-public port), DEC-0012 (one account-level hold covering all dependent records; timestamps null until closure or latest resolution), DEC-0046 (the retention row stores its dates; closure sets them; each permitted late event advances both in its own transaction; seven calendar years; February 29 maps to February 28 in a non-leap year), DEC-0047 (legal-hold refusal rules), DEC-0050 (implementation choices of this task where the Specs were silent).
+- Decisions in force at Specs v1.9.4 or later: DEC-0008 (evaluate retention and legal hold; no deletion; no automatic deletion), DEC-0010 (`retention_controller` owns legal-hold decisions through a non-public port), DEC-0012 (one account-level hold covering all dependent records; timestamps null until closure or latest resolution), DEC-0046 (the retention row stores its dates; closure sets them; each permitted late event advances both in its own transaction; seven calendar years; February 29 maps to February 28 in a non-leap year), DEC-0047 (legal-hold refusal rules), DEC-0050 (implementation choices of this task where the Specs were silent).
 
 ## Acceptance (paraphrased from the Specs)
 
@@ -41,7 +41,7 @@
 
 ## Implementation and evidence
 
-- Code PR #74, merged to `main` as `9811a61` (head `caacace`; JDC approved the exact head in the session, 2026-10-10). Tester record: [`docs/evidence/TASK-22-tester-report.md`](../evidence/TASK-22-tester-report.md). Pass 1 and pass 2 are described in the Process record below. Collected test count at head `32d9678`: 1291 tests (`pytest --collect-only -q -p no:cacheprovider`, checked 2026-10-12; no `src`, `tests` or `scripts` change since `b122e10`). The legal-hold refusal rule is DEC-0047 (Specs v1.9.4).
+- Code PR #74, merged to `main` as `9811a61` (head `caacace`; JDC approved the exact head in the session, 2026-10-10). Tester record: [`docs/evidence/TASK-22-tester-report.md`](../evidence/TASK-22-tester-report.md). Pass 1 is described in the Process record below; pass 2 is in the Verified record below. Collected test count at head `32d9678`: 1291 tests (`pytest --collect-only -q -p no:cacheprovider`, checked 2026-10-12; no `src`, `tests` or `scripts` change since `b122e10`). The legal-hold refusal rule is DEC-0047 (Specs v1.9.4).
 
 ## Resolved items
 
@@ -50,12 +50,12 @@
 
 ## Scheduled items
 
-- None open. Every item recorded for this task is under Resolved items.
+- None open. Every product item is under Resolved items; the process findings below are recorded with an owner and need no product change.
 
 ## Process record
 
-- Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here as a process finding; it does not change the Verified status below.
-- TASK-22 pass 1 (`07d12eb`) is recorded in `docs/evidence/TASK-22-tester-report-1.md`. Its DEC-0047 check was not made against the Specs text by the reviewer; the pass-2 record states this.
+- Independent review evidence was not stated in the Code PR description before merge, and the evidence file was committed after the merge. This does not meet the merge rule in `docs/governance/repository-policy.md` ("Approval and merge authority"). Found in the TASK-22 review on 2026-10-10. Recorded here as a process finding; it does not change the Verified status below. Owner: Builder (process).
+- TASK-22 pass 1 (`07d12eb`) is recorded in `docs/evidence/TASK-22-tester-report-1.md`. Its DEC-0047 check was not made against the Specs text by the reviewer; the pass-2 record states this. Owner: Builder (process); no product change.
 
 ## Verified record (current status)
 
