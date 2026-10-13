@@ -1,6 +1,6 @@
 # Work item: TASK-07 — SQLite connection, transaction unit, and error mapping
 
-**Status:** Verified
+**Status:** Implemented
 
 ## Authority
 
@@ -56,3 +56,12 @@
 - Scheduled items, each with an owner and a trigger:
   - Stale test count in this work item (337 locally; 420 passed at the verified merge). Owner Builder. Trigger: the next change to this work item.
   - `synchronous = FULL` is not discriminated by the tests, because the build default is already FULL. Owner Builder. Trigger: TASK-18 concurrency and durability tests.
+
+## Stream A Minor closure (synchronous = FULL)
+
+- Closed: `synchronous = FULL` was not discriminated by the tests. Test `test_a_file_database_is_opened_with_synchronous_full` (`tests/integration/test_database.py`) opens a file database, reads `PRAGMA synchronous` (2, FULL), and asserts that the statement `PRAGMA synchronous = FULL` was issued by `open_database`. The value alone cannot show that, because the SQLite default on this build is already FULL; the issued statement is recorded through a recording connection factory.
+- Mutation evidence (SHA-256-verified copy, put back after each run): removing the PRAGMA fails this test; setting `NORMAL` fails it (the read-back check in `open_database` rejects the connection).
+
+## Status note (Stream A)
+
+- Set to Implemented: the Stream A Minor closure changed this task's code on `18fc4e3`. Verified returns only after an independent Tester pass names the new head and reports zero findings.

@@ -282,7 +282,9 @@ def test_a_storage_fault_on_the_destination_rolls_everything_back(
 
     monkeypatch.setattr(sqlite_store.SqliteWriteTransaction, "apply_balance", fault)
     result = transfer(uow, clock)
+    # a driver error without a SQLite result code maps to INTERNAL_ERROR (database.to_failure)
     assert isinstance(result, Failure)
+    assert result.error.code == "INTERNAL_ERROR"
     assert counts(conn) == before and balances(conn) == balances_before
 
 
