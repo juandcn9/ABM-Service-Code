@@ -743,6 +743,26 @@ def test_section_5_effect_and_evidence_rules_are_refused_by_the_schema(
         conn.execute(evidence, ("rejection", NOW))
 
 
+def test_without_a_closure_trace_an_effect_at_or_after_closed_at_is_flagged(
+    path: pathlib.Path,
+) -> None:
+    """No close_account trace row: the closure cannot be ordered, so the effect fails closed."""
+    conn = registered(path)
+    tamper(
+        conn,
+        [("UPDATE accounts SET status = 'closed', closed_at = ?", (NOW,))]
+        + ledger_effect(
+            "l-untraced",
+            "ins-untraced",
+            "incoming_ach",
+            "settled",
+            "incoming_settlement",
+            "credit",
+        ),
+    )
+    assert reasons(conn) == [INTEGRITY_FAILED]
+
+
 CLOSER = CallerContext("registrar-1", "account_registrar", "corr-2")
 
 
