@@ -39,7 +39,7 @@
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
 - Next safe action: JDC decision on the Specs record for TASK-16 (DEC-0038) and on the open decision under Open decision.
 
-## Status decision (2026-10-12, owner JDC; Verified restored 2026-10-13)
+## Status decision (2026-10-12, owner JDC; Verified reinstated 2026-10-13)
 
 - Verified on merged head `e500e70` (PR #142, merge of branch head `2743665`; the merged tree equals the tree the Tester passed). Fresh-context Tester on `2743665`: PASS, Blocker 0, Major 0, Minor 0 (targeted pytest 62 passed, collect 1293, validate_governance, ruff, mypy passed; full suite not run on the review host).
 - The earlier Verified statement for `0ce8071` did not cover PR #48 (merge `aeb3b2b`), which changed `tests/integration/test_cards.py`; this record covers that change.
