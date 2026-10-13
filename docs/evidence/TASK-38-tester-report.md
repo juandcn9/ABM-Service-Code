@@ -43,6 +43,21 @@
 
 Cold-build image identifier (`docker image inspect abm:local --format '{{.Id}}'`): `sha256:d52e2ce0b0fe760cc59a1dbc999e89caab7a9f37f1ab2a77198066a2d5c90ab8`.
 
+## Local gate run for PR #154 (CI blocked)
+
+GitHub Actions did not start any job on this PR's head `cbf6beb`: the annotation reads "The job was not started because recent account payments have failed or your spending limit needs to be increased". No job ran a step, so this is a billing block, not a test failure. JDC chose to run the CI gates locally instead. This is author evidence on Windows with Python 3.12.10 (CI pins 3.12.15 on Linux). It does not replace CI and is not the independent Tester pass.
+
+| CI job | Local command | Result |
+|---|---|---|
+| validate-governance | `scripts/validate_governance.py` | passed |
+| quality-gates | `validate_toolchain.py`, `ruff check .`, `ruff format --check .` (193 files), `mypy src harness tests scripts` (102 files) | passed |
+| quality-gates | `pytest -q` | 1325 passed, 1 warning |
+| http-conformance | `check_http_conformance.py` on the contract at Specs `507719611c79425fdcfd63d0f5897aed66655db7` | PASS, 225 responses, 24 paths |
+| container-check | `check_container.py` (focused tests: 66 passed) | PASSED: non-root, read-only app layer, writable data volume, ready, restart |
+| container-check | `smoke_container.py` | PASSED |
+
+Tag `handover-v0.1` still needs green CI on its exact SHA.
+
 ## Not covered
 
 The independent Tester pass; Docker Desktop app version; WSL2 backend proof; the port-free precheck. Synthetic data only; no production, backup, restore or recovery claim.
