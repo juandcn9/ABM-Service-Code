@@ -1,6 +1,6 @@
 # Work item: TASK-38 — Local Service Handover v0 (Windows, Docker Desktop)
 
-**Status:** Draft
+**Status:** Verified
 
 ## Authority
 
@@ -33,7 +33,7 @@ The independent Tester verifies, on the merged revision, what a Windows machine 
 
 - In scope: the runbook sections 1 to 4 and 6 run verbatim from a fresh clone; the failure cases that need no change to Docker Desktop (wrong `ABM_TRUSTED_INGRESS`, port 8000 busy, name in use); persistence across stop, start and container removal; the local gates (ruff, format, mypy, full pytest, both validators); the scope and non-claims review of the TASK-38 diff.
 - Out of scope, so not a pass criterion, and each stated as a limit in the evidence and in `HANDOVER.md`: the WSL2 backend and the Docker Desktop app version (not shown by `docker info`); the Docker-stopped case and persistence across a Docker Desktop restart (need Docker Desktop to be quit; JDC ran them, see `TASK-38-tester-report.md`); a cold no-cache build (JDC ran one); Python 3.12.15 on Linux (local runs use 3.12.10 on Windows); any GitHub Actions result while CI is billing-blocked.
-- Container scripts: `check_container.py` and `smoke_container.py` need a stable Docker engine for several minutes. They passed in the author's local run on the PR #154 head, which differs from the merged revision only by an evidence commit. They stay unverified by the Tester unless run, and the verdict must say so.
+- Container scripts: `check_container.py` and `smoke_container.py` need a stable Docker engine for several minutes. They passed in the author's local runs and, in the final Tester reproduction on `d11db54`, in the Tester's own run (`docs/evidence/TASK-38-final-gates-tester-report.md`). The first Tester pass could not run them because Docker Desktop had stopped.
 - The verdict is therefore "pass within the stated scope", never an unqualified pass. GitHub CI is billing-blocked; JDC accepted the risk of tagging `handover-v0.1` without hosted CI verification (DV-05), with the local gates and the Tester reproduction as the substitute.
 
 ## Non-claims
@@ -45,4 +45,5 @@ The independent Tester verifies, on the merged revision, what a Windows machine 
 
 - Code commit/PR: PRs #153 and #154 merged (`df14a95`, `169f373`).
 - Clean Windows run by JDC and the Tester pass on `169f373`: recorded in `docs/evidence/TASK-38-tester-report.md` and `TASK-38-tester-report-2.md`.
-- Next safe action: run the full gate set locally on the tag candidate and have the Tester reproduce it, write the results into `docs/handover/HANDOVER.md`, set this task to Verified, then tag on JDC's approval.
+- Verified on `d11db54` (merge of PR #158): fresh-context Tester reproduction of the final gates, PASS, Blocker 0, Major 0, Minor documentation findings fixed. Report: [`docs/evidence/TASK-38-final-gates-tester-report.md`](../evidence/TASK-38-final-gates-tester-report.md). The first Tester pass (`TASK-38-tester-report-2.md`, `169f373`) and JDC's clean Windows run (`TASK-38-tester-report.md`) are the runbook evidence. Hosted CI did not run (DV-05; JDC accepted the risk).
+- Next safe action: JDC's approval of the exact Code SHA and the Specs status record, then the tag `handover-v0.1` and the final `docs/handover/HANDOVER.md`.

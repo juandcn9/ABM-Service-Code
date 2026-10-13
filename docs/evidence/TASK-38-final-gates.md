@@ -1,6 +1,6 @@
 # TASK-38 final gate run on the tag-candidate revision (author run, DV-05 substitute)
 
-**Task:** TASK-38 local handover (DEC-0086). **Revision gated:** `9f1d74e739712842b4d05b1d0da8236ea012e3fb` (`main` after PR #157), checked out detached in a fresh clone, tree clean (0 changes). **Specs:** `v1.9.18` / `507719611c79425fdcfd63d0f5897aed66655db7`. **Date:** 2026-10-13, 20:17:02Z to 20:24:21Z. **Run by:** Claude Code (author), at JDC's request. **Status:** author evidence; the fresh-context Tester reproduction is separate and still pending.
+**Task:** TASK-38 local handover (DEC-0086). **Revision gated:** `9f1d74e739712842b4d05b1d0da8236ea012e3fb` (`main` after PR #157), checked out detached in a fresh clone, tree clean (0 changes). **Specs:** `v1.9.18` / `507719611c79425fdcfd63d0f5897aed66655db7`. **Date:** 2026-10-13, 20:17:02Z to 20:24:21Z. **Run by:** Claude Code (author), at JDC's request. **Status:** author evidence; the fresh-context Tester reproduction on `d11db54` passed ([`TASK-38-final-gates-tester-report.md`](TASK-38-final-gates-tester-report.md)).
 
 GitHub Actions has started no job since 2026-10-13 18:03Z (billing block). JDC accepted the risk of proceeding without hosted CI verification; deviation DV-05 (`docs/governance/deviations.md`) records it, and this run is the local substitute it describes.
 
@@ -20,7 +20,7 @@ GitHub Actions has started no job since 2026-10-13 18:03Z (billing block). JDC a
 | validate-governance | `scripts/validate_governance.py` | PASS |
 | quality-gates | `scripts/validate_toolchain.py` | PASS |
 | quality-gates | `ruff check .` | PASS |
-| quality-gates | `ruff format --check .` | PASS, 195 files |
+| quality-gates | `ruff format --check .` | PASS, 195 files (the `.py` and `.md` files ruff checks; 196 at `d11db54`, which adds this file) |
 | quality-gates | `mypy src harness tests scripts` | PASS, 102 source files |
 | quality-gates | `pytest -q -p no:cacheprovider` | PASS, 1325 passed, 1 warning, 403.68 s |
 | http-conformance | `scripts/check_http_conformance.py` on the pinned contract | PASS |
