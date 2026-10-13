@@ -135,6 +135,20 @@ def counts(conn: sqlite3.Connection) -> tuple[int, ...]:
     )
 
 
+def state(conn: sqlite3.Connection) -> tuple[object, ...]:
+    """What a refused call must leave unchanged: balances, holds, movement state, row counts."""
+    return (
+        balances(conn),
+        counts(conn),
+        conn.execute(
+            "SELECT state FROM movements WHERE movement_id = 'mv-out'"
+        ).fetchone(),
+        conn.execute(
+            "SELECT movement_id, state FROM holds ORDER BY movement_id"
+        ).fetchall(),
+    )
+
+
 def test_acceptance_creates_one_active_hold_and_keeps_the_balance(
     uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
 ) -> None:
@@ -189,23 +203,29 @@ def test_a_restricted_or_closed_account_takes_no_new_outgoing_movement(
     conn.execute(
         "UPDATE accounts SET restriction = 'outgoing_blocked', restriction_decision_reference = 'dec-1'"
     )
+    before = state(conn)
     blocked = create(uow, clock, movement="mv-b", key="key-b", instruction="ins-b")
     assert isinstance(blocked, Failure) and blocked.error.code == "OUTGOING_BLOCKED"
+    assert state(conn) == before
     conn.execute(
         "UPDATE accounts SET restriction = 'none', restriction_decision_reference = NULL"
     )
     conn.execute("UPDATE accounts SET status = 'closed', closed_at = ?", (NOW,))
+    before = state(conn)
     closed = create(uow, clock, movement="mv-c", key="key-cl", instruction="ins-cl")
     assert isinstance(closed, Failure) and closed.error.code == "ACCOUNT_CLOSED"
+    assert state(conn) == before
 
 
 def test_a_duplicate_movement_id_under_a_new_key_is_invalid_transition(
-    uow: SqliteUnitOfWork, clock: ControllableClock
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
 ) -> None:
     funded(uow, clock)
     create(uow, clock)
+    before = state(conn)
     again = create(uow, clock, key="key-dup", instruction="ins-dup")
     assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
+    assert state(conn) == before
 
 
 def test_submission_keeps_the_hold_active(
@@ -243,9 +263,10 @@ def test_settlement_before_submission_is_refused(
 ) -> None:
     funded(uow, clock)
     create(uow, clock)
+    before = state(conn)
     early = evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
     assert isinstance(early, Failure) and early.error.code == "INVALID_TRANSITION"
-    assert balances(conn) == (1000, 400)
+    assert state(conn) == before
 
 
 def test_rejection_releases_the_hold_without_a_debit(
@@ -282,9 +303,10 @@ def test_a_cancellation_after_submission_is_refused(
     funded(uow, clock)
     create(uow, clock)
     evidence(submit_outgoing_ach, uow, clock)
+    before = state(conn)
     late = evidence(cancel_outgoing_ach, uow, clock, ref="ev-c")
     assert isinstance(late, Failure) and late.error.code == "INVALID_TRANSITION"
-    assert balances(conn) == (1000, 400)
+    assert state(conn) == before
 
 
 def test_return_posts_one_full_credit_after_settlement(
@@ -303,12 +325,16 @@ def test_a_return_must_equal_the_settled_amount_and_follow_settlement(
 ) -> None:
     funded(uow, clock)
     create(uow, clock)
+    before = state(conn)
     early = give_back(uow, clock)
     assert isinstance(early, Failure) and early.error.code == "INVALID_TRANSITION"
+    assert state(conn) == before
     evidence(submit_outgoing_ach, uow, clock)
     evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
+    before = state(conn)
     wrong = give_back(uow, clock, amount=399, key="key-r2")
     assert isinstance(wrong, Failure) and wrong.error.code == "AMOUNT_MISMATCH"
+    assert state(conn) == before
     assert balances(conn) == (600, 0)
 
 
@@ -321,6 +347,83 @@ def test_create_replays_the_stored_outcome_without_a_second_hold(
     second = create(uow, clock)
     assert isinstance(second, Success) and second.replayed is True
     assert second.value == first.value and counts(conn) == before
+
+
+def test_settling_twice_is_refused_and_changes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    create(uow, clock)
+    evidence(submit_outgoing_ach, uow, clock)
+    evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
+    before = state(conn)
+    again = evidence(settle_outgoing_ach, uow, clock, ref="ev-s2")
+    assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
+    assert state(conn) == before
+
+
+def test_rejecting_after_settlement_is_refused_and_changes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    create(uow, clock)
+    evidence(submit_outgoing_ach, uow, clock)
+    evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
+    before = state(conn)
+    late = evidence(reject_outgoing_ach, uow, clock, ref="ev-x")
+    assert isinstance(late, Failure) and late.error.code == "INVALID_TRANSITION"
+    assert state(conn) == before
+
+
+def test_cancelling_after_settlement_is_refused_and_changes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    create(uow, clock)
+    evidence(submit_outgoing_ach, uow, clock)
+    evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
+    before = state(conn)
+    late = evidence(cancel_outgoing_ach, uow, clock, ref="ev-c")
+    assert isinstance(late, Failure) and late.error.code == "INVALID_TRANSITION"
+    assert state(conn) == before
+
+
+def test_rejecting_before_submission_is_refused_and_changes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    create(uow, clock)
+    before = state(conn)
+    early = evidence(reject_outgoing_ach, uow, clock, ref="ev-x")
+    assert isinstance(early, Failure) and early.error.code == "INVALID_TRANSITION"
+    assert state(conn) == before
+
+
+def test_a_second_return_is_invalid_transition_with_no_write(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    create(uow, clock)
+    evidence(submit_outgoing_ach, uow, clock)
+    evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
+    assert data_of(give_back(uow, clock))["state"] == "returned"
+    before = state(conn)
+    again = give_back(uow, clock, ref="ev-r2", key="key-r2")
+    assert isinstance(again, Failure) and again.error.code == "INVALID_TRANSITION"
+    assert state(conn) == before
+
+
+def test_a_return_after_rejection_is_refused_and_changes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    funded(uow, clock)
+    create(uow, clock)
+    evidence(submit_outgoing_ach, uow, clock)
+    evidence(reject_outgoing_ach, uow, clock, ref="ev-x")
+    before = state(conn)
+    late = give_back(uow, clock)
+    assert isinstance(late, Failure) and late.error.code == "INVALID_TRANSITION"
+    assert state(conn) == before
 
 
 def test_a_storage_fault_during_settlement_rolls_everything_back(
@@ -411,7 +514,7 @@ def test_a_closing_transition_without_an_active_hold_moves_no_money(
     create(uow, clock)
     evidence(submit_outgoing_ach, uow, clock)
     conn.execute("UPDATE holds SET state = 'released', finalized_at = ?", (NOW,))
-    before = balances(conn)
+    before = state(conn)
     refused = evidence(settle_outgoing_ach, uow, clock, ref="ev-s")
     assert isinstance(refused, Failure) and refused.error.code == "INVALID_TRANSITION"
-    assert balances(conn) == before
+    assert state(conn) == before
