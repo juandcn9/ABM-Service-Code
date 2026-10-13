@@ -30,8 +30,8 @@
 
 ## Scheduled items
 
-- Minor (PR 86): the cross-seed test name is narrower than what it checks. Owner Builder. Trigger: next TASK-24 change.
-- Minor (PR 86): a broken ledger write in settle or return fails with a generic error, not a clear invariant message. Owner Builder. Trigger: a later hardening task.
+- Minor (PR 86): the cross-seed test name is narrower than what it checks. Owner Builder. Blocked on JDC: a rename is a code change and no future task names it; JDC decides whether the name is changed.
+- Minor (PR 86): a broken ledger write in settle or return fails with a generic error, not a clear invariant message. Owner Builder. Blocked on JDC: no future task names this hardening; a Specs decision is needed on the error a broken ledger write must return.
 - Runtime: the lifecycle file takes about 70 to 85 seconds. Owner Builder. Trigger: when the suite becomes a CI bottleneck.
 
 - Outgoing ACH in the model sequence: Owner Builder. Trigger: this task, before Implemented.

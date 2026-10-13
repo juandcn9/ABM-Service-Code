@@ -50,4 +50,7 @@
   - F2: `validate_toolchain.py` compares against its own constants and a whole-file digest and does not cross-check the locks against `pyproject.toml` — to be reviewed in `TASK-04`.
   - F3: `validate_governance.py` skips `.venv` and cache directories in its secret scan; they are git-ignored — to be reviewed in `TASK-04`.
 - Scope of "Verified": it covers the `TASK-02` acceptance evidence listed above only. The `TEST-27` required-secret-startup half remains open for the first task that introduces application configuration.
-- Observations: the development lock was generated on Windows (`colorama` unconditional); `.gitignore` omits `venv/` and `env/`; no image build exists yet; there is no `.gitattributes`, so a Windows checkout with `core.autocrlf=true` produces CRLF lock files (the validators normalize them, the committed blobs are LF).
+- Observations, with their status:
+  - F4 (Tester Observation): the development lock was generated on Windows (`colorama` is unconditional); Linux regeneration was not tested. Scheduled. Owner Builder. Trigger: the next change to `requirements-dev.lock`.
+  - F5 (Tester Observation): `.gitignore` omits `venv/` and `env/`. Resolved by TASK-04 (commit `24cbc43`; `.gitignore` lines 17-18 on `main`).
+  - Other observations, since resolved: `.gitattributes` (LF normalization) was added by TASK-04; the 'no image build exists yet' observation is closed by TASK-27 (container build and run in CI).

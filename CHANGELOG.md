@@ -4,6 +4,8 @@ All notable Code repository changes are recorded here.
 
 ## [Unreleased]
 
+- Minor closure, three streams: Stream A (PR #138), Stream B (PR #137) and Stream C (PR #139) closed the Tester Minor findings named in their work items, each with a regression test or a commit. Stream D (this change) makes the Minor records accurate: closed items cite their test or commit; open items are scheduled with an owner and a trigger, or blocked on a JDC decision. DV-02 (local Python 3.12.10) is closed by the TASK-27 container evidence. Still open, each blocked on a Specs or JDC decision: B8 (TASK-13 F7): a credit that pushes a balance past the safe integer limit returns INTERNAL_ERROR, because the Specs declare no error code for balance overflow; C2 (TASK-25 Minor 3): framework 404 and 405 responses are not in the error envelope, because the Specs declare no code for them; and three decisions drafted in Specs PR #70: DEC-0077 (two audit-trace rows per transfer, TASK-15 Minor 2), DEC-0078 (comparison of non-retained table definitions, TASK-12 Minor 5), and DEC-0079 (the framework deprecation warning, TASK-30 N-1). GAP-0005 records the stored-definition reference question.
+
 - TASK-05 is Implemented; the Ponytail v5.1.0 pin is verified against the pinned tree (`docs/evidence/TASK-05-ponytail-verification.md`). This supersedes the earlier "Blocked" wording.
 
 - Established `TASK-01` repository governance, templates, CI validation, and the immutable Specs `v1.0.1` pointer without runtime dependencies or service behavior.

@@ -65,3 +65,7 @@ Recommendation: option 1.
 - Independent Tester PASS on the merged revision `e333cdf` (PR #128, merged as `9757d88`; merged content identical to the tested head): `docs/evidence/TASK-05-remediation-tester-report.md`. Blocker 0, Major 0, Minor 0.
 - Earlier findings closed: the DEC-0020 counts (42 byte-for-byte, 157 CRLF-normalized, total 199) in `docs/evidence/TASK-05-ponytail-verification.md` and the stale "Blocked" wording (fixed in `c8360f7` and `e333cdf`).
 - The historical options text in the Decision section (`Blocked` as the status of a rejected option) is kept as history.
+
+## Scheduled items
+
+- Tester Observation 3 (`docs/evidence/TASK-05-remediation-tester-report.md`): the evidence header and the README cite DEC-0020, while the Resolved line cites DEC-0013 only. Traceability wording, not a status claim. Owner Builder. Trigger: the next Ponytail doc change.

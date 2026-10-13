@@ -62,7 +62,7 @@ Structured safe security evidence for rejected commands is an observability arti
 - Independent exact-head review: fresh-context Tester PASS, recorded in `docs/evidence/TASK-23-tester-report.md` and in the PR #79 body before merge. Ponytail review run on the same head: Ship.
 - Verified status: set by DEC-0052 (JDC, 2026-10-10) in Specs; the `specs/09` status cell is Verified.
 - Scheduled items, each with an owner and a trigger:
-  - Unexpected errors are not logged (the broad mapping in `sqlite_store.py`). Owner Builder. Trigger TASK-26 (structured logs).
+  - Unexpected errors are not logged (the broad mapping in `sqlite_store.py`). Partly closed by TASK-26 (structured logs exist in the service); the broad mapping in `sqlite_store.py` still logs nothing. Owner Builder. Trigger: the next change to `src/abm/persistence/sqlite_store.py`.
   - TEST-27 baseline cites TASK-02 evidence rather than re-proving it. Owner Builder. Trigger: the first task that introduces a required secret must add the missing-secret branch (DEC-0051).
-  - TEST-20 no-verb scan is module-local and covers only listed verbs. Owner Builder. Trigger TASK-25 (HTTP route check).
+  - TEST-20 no-verb scan is module-local and covers only listed verbs. The HTTP half is closed by TASK-25 (the HTTP forms of TEST-20, PR #92); the module-local limit remains. Owner Builder. Trigger: the next change to `tests/security/test_unsupported_and_substitution.py`.
   - TEST-29, the HTTP parts of TEST-20 and TEST-28, and the evidence-bundle facet of TEST-26 are owned by TASK-26, TASK-25 and TASK-34 under DEC-0051.
