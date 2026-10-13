@@ -1,6 +1,6 @@
 # Work item: TASK-12 — startup migration, integrity, and fail-closed readiness
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -41,7 +41,9 @@
 - Commands/checks and results: `pytest --collect-only -q -p no:cacheprovider` collects 1291 tests at head `32d9678` (checked 2026-10-12; no `src`, `tests` or `scripts` change since `b122e10`); `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and both validators as recorded at completion.
 - Review findings/resolution: fresh-context review of ce8b25d (FAIL: three Majors, all fixed in eb1a4e8); focused re-review of eb1a4e8 PASS with findings (no Blocker or Major); independent Tester pass of eb1a4e8 PASS (CI green on CPython 3.12.15). Gate 8 ponytail-review of the remediation diff returned Ship, with no Must-fix or Should-fix finding; the Ponytail deviation DV-01 is closed by DEC-0020.
 - Residual risks: a very large database makes `PRAGMA integrity_check` slow at startup (acceptable for the single-writer demonstration, `RISK-0001`); the inconsistency queries encode the Builder's reading of `specs/05` section 7 and need a Tester pass against the Specs; readiness is computed on demand, so caching or rate limiting for the health route is a `TASK-25`/`TASK-26` decision.
-- Next safe action: an independent Tester pass on the current code head naming zero findings. Until then the status stays Implemented (see Status note). The open item is under Scheduled items.
+- Verified on merged head `0ba2fc4` (PR #148, merge of branch head `0cf87ee`; the merge added no `src/` change beyond the TASK-12 commits). Fresh-context Tester on `0cf87ee`: PASS, Blocker 0, Major 0, Minor 0. Report: [`docs/evidence/TASK-12-tester-report-2.md`](../evidence/TASK-12-tester-report-2.md).
+- Verified is not closed. Two scheduled items remain (see Scheduled items): closure ordering of same-second effects (Builder; trigger: a stored ledger sequence at closure) and the section 5 finalized-state rules beyond the two confirmed by DEC-0083 (Builder; trigger: TASK-32).
+- Next safe action: none for this item until a scheduled trigger fires.
 
 ## Wiring added before merge
 
@@ -82,9 +84,9 @@
 - Mutation evidence (sources put back from SHA-256-verified saved copies): each of five mutants was caught by at least one test: the integrity-code set without 11, the startup cause mapping reverted, the readiness fallback to `DATABASE_UNAVAILABLE`, the cross-account query removed (`test_a_hold_reserving_another_accounts_movement_is_integrity_failed`), and the name-only object comparison (`test_a_non_retained_table_definition_changed_out_of_band_is_integrity_failed`). Per-mutant test counts are not restated, because they were not tied to a head SHA.
 - Not in this closure: Minor 2 (the unsupported-schema readiness test) is recorded once, under Remediation above (Resolved, closed by Code PR #41), and is not changed here.
 
-## Status note (Stream A)
+## Status note
 
-- Set to Implemented: the Stream A Minor closure changed this task's code on `18fc4e3`. Verified returns only after an independent Tester pass names the new head and reports zero findings.
+- Set to Implemented after the Stream A Minor closure on `18fc4e3`. Set to Verified on 2026-10-13 on the Tester PASS of `0cf87ee` (merged `0ba2fc4`), recorded in `docs/evidence/TASK-12-tester-report-2.md`, with DEC-0078, DEC-0082 and DEC-0083 applied.
 
 ## Scheduled items
 
