@@ -13,24 +13,16 @@ Implementation repository for SuperCool Finances' Account Balances Management Se
 
 ## Current scope
 
-TASK-01 through TASK-22 establish the governed toolchain, modular-monolith boundaries, SQLite schema and transaction model, monetary domain, application commands and reads, readiness, lifecycle rules, corrections, restrictions, closure, and retention controls. TASK-23 supplies the application/persistence security-negative evidence defined by DEC-0051. HTTP, observability, container, infrastructure, and release evidence remain later tasks. Work-item and independent Tester records are under `docs/work-items/` and `docs/evidence/`. The repository uses only synthetic demonstration data and contains no API route, built container, cloud resource, credential, or real customer data.
+ABM is a runnable HTTP service (FastAPI, SQLite) with all application commands, reads, lifecycle rules, readiness, structured logs, and a non-root container image with one writable data volume. TASK-01 through TASK-30, TASK-36 and TASK-37 are Verified; the full demonstration release (TASK-31 through TASK-35) is not complete. The repository uses only synthetic demonstration data and contains no credential or real customer data. Work-item and independent Tester records are under `docs/work-items/` and `docs/evidence/`.
+
+To run it locally on Windows with Docker Desktop, follow [`docs/handover/local-windows-runbook.md`](docs/handover/local-windows-runbook.md) (TASK-38, DEC-0086).
 
 ## Repository map
 
 - [`docs/governance/repository-policy.md`](docs/governance/repository-policy.md): branch, review, evidence, and merge rules.
 - [`docs/governance/dependencies.md`](docs/governance/dependencies.md): exact dependency, image, installation, and update controls.
-- [`docs/work-items/TASK-01.md`](docs/work-items/TASK-01.md): repository-governance work item and trace.
-- [`docs/work-items/TASK-02.md`](docs/work-items/TASK-02.md): reproducible-toolchain work item and evidence contract.
-- [`docs/work-items/TASK-03.md`](docs/work-items/TASK-03.md): package-layout and import-boundary work item.
-- [`docs/work-items/TASK-04.md`](docs/work-items/TASK-04.md): CI quality-gate work item.
-- [`docs/work-items/TASK-06.md`](docs/work-items/TASK-06.md): migrations work item; [`migrations/`](migrations) holds the immutable schema migrations.
-- [`docs/work-items/TASK-07.md`](docs/work-items/TASK-07.md): SQLite connection and transaction-unit work item.
-- [`docs/work-items/TASK-08.md`](docs/work-items/TASK-08.md): domain value objects, results, fingerprint, and clock port work item.
-- [`docs/work-items/TASK-09.md`](docs/work-items/TASK-09.md): caller context, authorization, and transport validation work item.
-- [`docs/work-items/TASK-05.md`](docs/work-items/TASK-05.md): Ponytail configuration work item (Implemented; the DEC-0020 pin verification is recorded in the evidence file).
-- [`docs/work-items/TASK-10.md`](docs/work-items/TASK-10.md): idempotency foundation and registration work item.
-- [`docs/work-items/TASK-12.md`](docs/work-items/TASK-12.md): startup and readiness work item.
-- [`docs/work-items/TASK-23.md`](docs/work-items/TASK-23.md): application/persistence security-negative evidence and exact later-facet ownership.
+- [`docs/work-items/`](docs/work-items): one work item per TASK (scope, trace, evidence); [`docs/evidence/`](docs/evidence) holds the independent Tester reports; [`migrations/`](migrations) holds the immutable schema migrations.
+- [`docs/handover/local-windows-runbook.md`](docs/handover/local-windows-runbook.md): Windows and Docker Desktop local-run guide.
 - [`src/abm/`](src/abm), [`harness/`](harness), [`tests/`](tests): target layout; [`tests/unit/test_import_boundaries.py`](tests/unit/test_import_boundaries.py) enforces dependency rules.
 - [`toolchain.toml`](toolchain.toml): exact Python, lock generator, container digest, and install commands.
 - [`.github/pull_request_template.md`](.github/pull_request_template.md): required Code PR evidence.
