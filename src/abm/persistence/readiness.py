@@ -76,15 +76,20 @@ _INCONSISTENCIES: tuple[str, ...] = (
         "SELECT 1 FROM holds h JOIN accounts a ON a.account_id = h.account_id"
         " WHERE a.status = 'closed' AND h.state = 'active' LIMIT 1"
     ),
-    # after closure only permitted late evidence is posted (INV-16). shortcut: same-second
-    # effects are not ordered against closed_at; upgrade by storing a ledger sequence at closure
+    # after closure only permitted late evidence is posted (INV-16). Order by audit_trace sequence
+    # when the entry and the closure both have a trace row; otherwise an entry at or after closed_at
+    # is flagged (fail closed), so same-second effects are not missed
     (
         "SELECT 1 FROM ledger_entries e JOIN accounts a ON a.account_id = e.account_id"
         " LEFT JOIN movements m ON m.movement_id = e.movement_id"
-        " WHERE a.status = 'closed' AND e.created_at > a.closed_at AND (e.effect_kind IN"
+        " LEFT JOIN audit_trace t ON t.ledger_entry_id = e.entry_id"
+        " LEFT JOIN audit_trace c ON c.account_id = a.account_id AND c.operation = 'close_account'"
+        " WHERE a.status = 'closed' AND (e.effect_kind IN"
         " ('incoming_settlement','outgoing_settlement','transfer_source_debit',"
         "'transfer_destination_credit') OR (e.effect_kind = 'card_clearing'"
-        " AND m.state NOT IN ('late_cleared','refunded'))) LIMIT 1"
+        " AND m.state NOT IN ('late_cleared','refunded')))"
+        " AND ((t.sequence > c.sequence)"
+        " OR ((t.sequence IS NULL OR c.sequence IS NULL) AND e.created_at >= a.closed_at)) LIMIT 1"
     ),
     # a transfer's source debits equal its destination credits
     (

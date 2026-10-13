@@ -11,6 +11,7 @@ from typing import Any, cast
 import pytest
 
 from abm.application.caller import CallerContext
+from abm.application.closure import close_account
 from abm.application.registration import register_account
 from abm.domain.results import Success
 from abm.persistence.database import DatabaseUnavailable, open_database
@@ -702,3 +703,240 @@ def test_a_late_clearing_after_an_expired_hold_is_ready(path: pathlib.Path) -> N
     assert (
         reasons(conn) == []
     )  # permitted late evidence (INV-16) is not a finalized-state violation
+
+
+def test_section_5_effect_and_evidence_rules_are_refused_by_the_schema(
+    path: pathlib.Path,
+) -> None:
+    """specs/05 s5 is enforced by UNIQUE and CHECK constraints, so readiness does not repeat them."""
+    conn = registered(path)
+    conn.execute(MOVEMENT, ("m5", "incoming_ach", "settled", NOW, NOW))
+    entry = (
+        "INSERT INTO ledger_entries (entry_id, account_id, movement_id, effect_kind, direction,"
+        " amount_cents, authorized_caller_id, authorized_role, created_at)"
+        " VALUES (?, 'acct-1', 'm5', ?, ?, 500, 'c', 'r', ?)"
+    )
+    conn.execute(entry, ("l5a", "incoming_settlement", "credit", NOW))
+    refused = [
+        (
+            "second effect of the same kind on one movement",
+            ("l5b", "incoming_settlement", "credit", NOW),
+        ),
+        (
+            "effect kind with the wrong direction",
+            ("l5c", "incoming_settlement", "debit", NOW),
+        ),
+        ("effect kind outside the allowlist", ("l5d", "hold_release", "credit", NOW)),
+    ]
+    for label, params in refused:
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(entry, params)
+        assert conn.execute("SELECT COUNT(*) FROM ledger_entries").fetchone()[0] == 1, (
+            label
+        )
+    evidence = (
+        "INSERT INTO movement_evidence (evidence_reference, movement_id, evidence_kind, occurred_at)"
+        " VALUES ('e5', 'm5', ?, ?)"
+    )
+    conn.execute(evidence, ("settlement", NOW))
+    with pytest.raises(sqlite3.IntegrityError):  # an evidence reference is unique
+        conn.execute(evidence, ("rejection", NOW))
+
+
+def test_without_a_closure_trace_an_effect_at_or_after_closed_at_is_flagged(
+    path: pathlib.Path,
+) -> None:
+    """No close_account trace row: the closure cannot be ordered, so the effect fails closed."""
+    conn = registered(path)
+    tamper(
+        conn,
+        [("UPDATE accounts SET status = 'closed', closed_at = ?", (NOW,))]
+        + ledger_effect(
+            "l-untraced",
+            "ins-untraced",
+            "incoming_ach",
+            "settled",
+            "incoming_settlement",
+            "credit",
+        ),
+    )
+    assert reasons(conn) == [INTEGRITY_FAILED]
+
+
+def test_a_second_trace_row_for_one_entry_does_not_change_the_closure_result(
+    path: pathlib.Path,
+) -> None:
+    """The trace joins may return several rows per entry; a flagged entry stays flagged, once or many."""
+    conn = registered(path)
+    closed_by_command(conn)
+    tamper(
+        conn,
+        ledger_effect(
+            "l-late",
+            "ins-late",
+            "incoming_ach",
+            "settled",
+            "incoming_settlement",
+            "credit",
+        )
+        + [
+            (
+                (
+                    "INSERT INTO idempotency_outcomes (scope, idempotency_key, fingerprint, instruction_id,"
+                    " outcome_class, http_status, response_json, created_at)"
+                    " VALUES ('scope-dup', 'k', ?, 'ins-dup', 'success', 200, '{\"ok\":true}', ?)"
+                ),
+                ("f" * 64, NOW),
+            ),
+            (
+                (
+                    "INSERT INTO audit_trace (instruction_id, account_id, movement_id, ledger_entry_id,"
+                    " movement_state, operation, outcome, caller_id, caller_role, correlation_id, occurred_at)"
+                    " VALUES ('ins-dup', 'acct-1', 'm-late', 'l-late', 'settled', 'post', 'accepted',"
+                    " 'c', 'r', 'corr', ?)"
+                ),
+                (NOW,),
+            ),
+        ],
+    )
+    assert reasons(conn) == [INTEGRITY_FAILED]
+
+
+CLOSER = CallerContext("registrar-1", "account_registrar", "corr-2")
+
+
+def closed_by_command(conn: sqlite3.Connection) -> None:
+    """Close acct-1 through the real closure command, at the same second as registration."""
+    clock = ControllableClock(datetime(2026, 10, 9, 12, 0, 0, tzinfo=UTC))
+    result = close_account(
+        SqliteUnitOfWork(conn),
+        clock,
+        CLOSER,
+        "key-close",
+        "acct-1",
+        {"instruction_id": "ins-close"},
+    )
+    assert isinstance(result, Success)
+
+
+def ledger_effect(
+    entry: str,
+    instruction: str,
+    movement_type: str,
+    state: str,
+    effect: str,
+    direction: str,
+    created_at: str = NOW,
+) -> list[tuple[str, tuple[object, ...]]]:
+    """A ledger entry with its movement, its successful trace and outcome, and the projection it moves."""
+    delta = 500 if direction == "credit" else -500
+    return [
+        (MOVEMENT, ("m-late", movement_type, state, NOW, NOW)),
+        (
+            (
+                "INSERT INTO ledger_entries (entry_id, account_id, movement_id, effect_kind, direction,"
+                " amount_cents, authorized_caller_id, authorized_role, created_at)"
+                " VALUES (?, 'acct-1', 'm-late', ?, ?, 500, 'c', 'r', ?)"
+            ),
+            (entry, effect, direction, created_at),
+        ),
+        (
+            (
+                "INSERT INTO idempotency_outcomes (scope, idempotency_key, fingerprint, instruction_id,"
+                " outcome_class, http_status, response_json, created_at)"
+                " VALUES (?, 'k', ?, ?, 'success', 200, '{\"ok\":true}', ?)"
+            ),
+            (f"scope-{instruction}", "f" * 64, instruction, NOW),
+        ),
+        (
+            (
+                "INSERT INTO audit_trace (instruction_id, account_id, movement_id, ledger_entry_id,"
+                " movement_state, operation, outcome, caller_id, caller_role, correlation_id, occurred_at)"
+                " VALUES (?, 'acct-1', 'm-late', ?, ?, 'post', 'accepted', 'c', 'r', 'corr', ?)"
+            ),
+            (instruction, entry, state, NOW),
+        ),
+        (
+            "UPDATE accounts SET current_balance_cents = current_balance_cents + ?",
+            (delta,),
+        ),
+    ]
+
+
+def test_a_same_second_forbidden_effect_after_closure_is_integrity_failed(
+    path: pathlib.Path,
+) -> None:
+    """Same second as closed_at: only the trace sequence orders it after the closure (specs/05 s7, INV-16)."""
+    conn = registered(path)
+    closed_by_command(conn)
+    assert reasons(conn) == []
+    tamper(
+        conn,
+        ledger_effect(
+            "l-late",
+            "ins-late",
+            "incoming_ach",
+            "settled",
+            "incoming_settlement",
+            "credit",
+        ),
+    )
+    assert reasons(conn) == [INTEGRITY_FAILED]
+
+
+def test_a_permitted_late_clearing_in_the_closure_second_stays_ready(
+    path: pathlib.Path,
+) -> None:
+    conn = registered(path)
+    closed_by_command(conn)
+    tamper(
+        conn,
+        ledger_effect(
+            "l-late", "ins-late", "card", "late_cleared", "card_clearing", "debit"
+        ),
+    )
+    assert reasons(conn) == []
+
+
+def test_a_forbidden_effect_recorded_before_closure_in_the_same_second_stays_ready(
+    path: pathlib.Path,
+) -> None:
+    conn = registered(path)
+    tamper(
+        conn,
+        # recorded before the closure trace, but its timestamp is one second after closed_at: only the
+        # trace sequence puts it before the closure, so a timestamp-only rule would flag it
+        ledger_effect(
+            "l-pre",
+            "ins-pre",
+            "incoming_ach",
+            "settled",
+            "incoming_settlement",
+            "credit",
+            created_at="2026-10-09T12:00:01Z",
+        )
+        + [
+            (
+                "UPDATE accounts SET status = 'closed', closed_at = ?",
+                (NOW,),
+            ),
+            (
+                (
+                    "INSERT INTO idempotency_outcomes (scope, idempotency_key, fingerprint, instruction_id,"
+                    " outcome_class, http_status, response_json, created_at)"
+                    " VALUES ('scope-close', 'k', ?, 'ins-close', 'success', 200, '{\"ok\":true}', ?)"
+                ),
+                ("f" * 64, NOW),
+            ),
+            (
+                (
+                    "INSERT INTO audit_trace (instruction_id, account_id, operation, outcome, caller_id,"
+                    " caller_role, correlation_id, occurred_at)"
+                    " VALUES ('ins-close', 'acct-1', 'close_account', 'accepted', 'registrar-1',"
+                    " 'account_registrar', 'corr-2', ?)"
+                ),
+                (NOW,),
+            ),
+        ],
+    )
+    assert reasons(conn) == []
