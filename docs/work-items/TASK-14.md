@@ -1,6 +1,6 @@
 # Work item: TASK-14 — outgoing ACH hold, submission, settlement, rejection, cancellation, and return
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -58,3 +58,11 @@
 
 - Revision: merge `a893cc3`. Report: [`docs/evidence/TASK-14-tester-report.md`](../evidence/TASK-14-tester-report.md).
 - Result: PASS with findings: 0 Blocker, 1 Major (pin v1.2.0 lacks DEC-0023 and DEC-0024), 4 Minor. Resolution of the Major: the pin was advanced to `v1.6.0`, which contains DEC-0023 and DEC-0024 and declares API-07 `INVALID_TRANSITION`. No code change was needed. Status stays Implemented; the Minor items and the final-head Tester decision remain open.
+
+## Verified record
+
+- Independent Tester PASS on the merged revision `39af8c1` (PR #134, merged as `e89453e`; the merge adds only `39af8c1`'s tests to `main`). Blocker 0, Major 0, Minor 0. Report: `docs/evidence/TASK-14-remediation-tester-report.md`.
+- Findings closed in order: the pin citation (Major, work item cites `v1.9.14 / 0cca28b`, which contains DEC-0023 and DEC-0024), then the four Minors (M1 hold-terminal refusal tests, M2 no-write checks, M3 second-return 409 test, M4 authority pin), then N1 (two balance-only checks now compare full state).
+- Each new test was checked for non-vacuity by a deliberate break, reverted from a SHA-256-verified copy.
+- Post-merge change from TASK-22 (`finalize(...)` call on the outgoing path): the Tester confirmed it changes no TASK-14 behavior and is covered by the outgoing ACH tests.
+- Residual, recorded as the Tester's Observations: the 409 is checked at code level (`INVALID_TRANSITION`), not as HTTP status (TASK-25); concurrency is covered by TASK-18.
