@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sqlite3
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 
 from abm.application.caller import CallerContext
 from abm.application.registration import register_account
 from abm.domain.results import Success
-from abm.persistence.database import open_database
+from abm.persistence.database import DatabaseUnavailable, open_database
 from abm.persistence.migrations import (
     Migration,
     MigrationError,
+    apply_migrations,
     checksum,
     load_migrations,
 )
@@ -278,6 +281,60 @@ HOLD = (
             [INTEGRITY_FAILED],
         ),
         (
+            "hold-only rejection recorded as a ledger entry (specs/05 s5)",
+            [
+                (MOVEMENT, ("m1", "outgoing_ach", "rejected", NOW, NOW)),
+                (
+                    (
+                        "INSERT INTO movement_evidence (evidence_reference, movement_id, evidence_kind,"
+                        " occurred_at) VALUES ('e1', 'm1', 'rejection', ?)"
+                    ),
+                    (NOW,),
+                ),
+                (
+                    (
+                        "INSERT INTO holds (hold_id, movement_id, account_id, amount_cents, state,"
+                        " evidence_reference, created_at, finalized_at) VALUES ('h1', 'm1', 'acct-1', 500,"
+                        " 'released', 'e1', ?, ?)"
+                    ),
+                    (NOW, NOW),
+                ),
+                (
+                    (
+                        "INSERT INTO ledger_entries (entry_id, account_id, movement_id, effect_kind,"
+                        " direction, amount_cents, authorized_caller_id, authorized_role, created_at)"
+                        " VALUES ('l1', 'acct-1', 'm1', 'outgoing_settlement', 'debit', 500, 'c', 'r', ?)"
+                    ),
+                    (NOW,),
+                ),
+                ("UPDATE accounts SET current_balance_cents = -500", ()),
+            ],
+            [INTEGRITY_FAILED],
+        ),
+        (
+            "finalized hold citing evidence of another movement (specs/05 s5)",
+            [
+                (MOVEMENT, ("m1", "card", "cleared", NOW, NOW)),
+                (MOVEMENT, ("m2", "card", "cleared", NOW, NOW)),
+                (
+                    (
+                        "INSERT INTO movement_evidence (evidence_reference, movement_id, evidence_kind,"
+                        " occurred_at) VALUES ('e2', 'm2', 'clearing', ?)"
+                    ),
+                    (NOW,),
+                ),
+                (
+                    (
+                        "INSERT INTO holds (hold_id, movement_id, account_id, amount_cents, state,"
+                        " evidence_reference, created_at, finalized_at) VALUES ('h1', 'm1', 'acct-1', 500,"
+                        " 'posted', 'e2', ?, ?)"
+                    ),
+                    (NOW, NOW),
+                ),
+            ],
+            [INTEGRITY_FAILED],
+        ),
+        (
             "row referencing a missing account",
             [
                 (
@@ -532,3 +589,116 @@ def test_a_corrupt_database_file_at_startup_is_integrity_failed(
     path.write_bytes(bytes(data))
     result = start_database(path, MIGRATIONS, NOW)
     assert result.reasons == (INTEGRITY_FAILED,) and result.connection is None
+
+
+def test_an_additive_upgrade_from_an_older_schema_is_ready(path: pathlib.Path) -> None:
+    conn = open_database(path)
+    apply_migrations(
+        conn, MIGRATIONS[:1], NOW
+    )  # an older release applied only the first migration
+    conn.close()
+    upgraded = start_database(path, MIGRATIONS, "2026-10-10T00:00:00Z")
+    assert upgraded.ready and upgraded.reasons == ()
+    assert upgraded.connection is not None
+    assert upgraded.connection.execute(
+        "SELECT version FROM schema_version"
+    ).fetchall() == [(m.version,) for m in MIGRATIONS]
+
+
+@pytest.mark.parametrize(("code", "expected"), STORAGE_CLASSES)
+def test_each_storage_error_class_maps_to_the_documented_reason_at_the_open_step(
+    path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, code: int, expected: str
+) -> None:
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise DatabaseUnavailable("simulated") from _CodedError(code)
+
+    monkeypatch.setattr("abm.persistence.readiness.open_database", fail)
+    result = start_database(path, MIGRATIONS, NOW)
+    assert result.reasons == (expected,) and result.connection is None
+
+
+class _FailingExecute:
+    """Delegates to a real connection, but raises the given error for statements starting with marker."""
+
+    def __init__(self, conn: sqlite3.Connection, marker: str, error: Exception) -> None:
+        self._conn, self._marker, self._error = conn, marker, error
+
+    def execute(self, sql: str, params: object = ()) -> sqlite3.Cursor:
+        if sql.startswith(self._marker):
+            raise self._error
+        return self._conn.execute(sql, cast(Any, params))
+
+
+@pytest.mark.parametrize(("code", "expected"), STORAGE_CLASSES)
+def test_each_storage_error_class_maps_to_the_documented_reason_at_the_integrity_check(
+    path: pathlib.Path, code: int, expected: str
+) -> None:
+    conn = registered(path)
+    failing = _FailingExecute(conn, "PRAGMA integrity_check", _CodedError(code))
+    assert readiness_reasons(cast(sqlite3.Connection, failing), MIGRATIONS) == [
+        expected
+    ]
+
+
+def test_an_unexpected_migration_failure_is_a_controlled_result(
+    path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail(_conn: sqlite3.Connection, _migrations: object, _applied_at: str) -> None:
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr("abm.persistence.readiness.apply_migrations", fail)
+    result = start_database(path, MIGRATIONS, NOW)
+    assert result.reasons == (DATABASE_UNAVAILABLE,) and result.connection is None
+
+
+def test_a_read_only_parent_is_unavailable_before_the_database_is_opened(
+    path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_access = os.access
+
+    def parent_is_read_only(target: object, mode: int) -> bool:
+        if pathlib.Path(str(target)) == path.parent:
+            return False
+        return real_access(target, mode)  # type: ignore[arg-type]
+
+    monkeypatch.setattr("abm.persistence.readiness.os.access", parent_is_read_only)
+    result = start_database(path, MIGRATIONS, NOW)
+    assert result.reasons == (DATABASE_UNAVAILABLE,) and result.connection is None
+    assert not path.exists()  # the check ran before any file was created
+
+
+def test_a_late_clearing_after_an_expired_hold_is_ready(path: pathlib.Path) -> None:
+    conn = registered(path)
+    tamper(
+        conn,
+        [
+            (MOVEMENT, ("m1", "card", "late_cleared", NOW, NOW)),
+            (
+                (
+                    "INSERT INTO movement_evidence (evidence_reference, movement_id, evidence_kind,"
+                    " occurred_at) VALUES ('e1', 'm1', 'expiration', ?)"
+                ),
+                (NOW,),
+            ),
+            (
+                (
+                    "INSERT INTO holds (hold_id, movement_id, account_id, amount_cents, state,"
+                    " evidence_reference, created_at, finalized_at) VALUES ('h1', 'm1', 'acct-1', 500,"
+                    " 'released', 'e1', ?, ?)"
+                ),
+                (NOW, NOW),
+            ),
+            (
+                (
+                    "INSERT INTO ledger_entries (entry_id, account_id, movement_id, effect_kind,"
+                    " direction, amount_cents, authorized_caller_id, authorized_role, created_at)"
+                    " VALUES ('l1', 'acct-1', 'm1', 'card_clearing', 'debit', 500, 'c', 'r', ?)"
+                ),
+                (NOW,),
+            ),
+            ("UPDATE accounts SET current_balance_cents = -500", ()),
+        ],
+    )
+    assert (
+        reasons(conn) == []
+    )  # permitted late evidence (INV-16) is not a finalized-state violation
