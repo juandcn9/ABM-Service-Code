@@ -1,13 +1,13 @@
 # Work item: TASK-16 — card authorization, clearing, reversal, expiry, late clearing, and refund
 
-**Status:** Verified
+**Status:** Implemented
 
 ## Authority
 
 - Specs version and exact SHA: `v1.5.0` / `9886e96060560ae8a168a80c2d91d1f4c15105bb` (the version this item was built against; the current Specs pointer is in `README.md`)
 - TASK and affected IDs: `TASK-16`; `FR-07`, `FR-08`; `API-13`, `API-14`, `API-15`, `API-23`, `API-24`; `INV-07`, `INV-10`; `DATA-02`, `DATA-04`
-- Decision, gap, or risk records: `DEC-0026` (reused movement id is `INVALID_TRANSITION`, declared on API-13), `DEC-0027` (`merchant_reference` column, migration `0003`)
-- Owner role: Builder (Claude Code); independent Tester verification of the final head is required
+- Decision, gap, or risk records: `DEC-0026` (reused movement id is `INVALID_TRANSITION`, declared on API-13), `DEC-0027` (`merchant_reference` column, migration `0003`), `DEC-0038` (Specs; the Verified status it records is superseded for the current head, see Status decision)
+- Owner role: Builder (Claude Code); independent Tester verification of the final head is required. Status decisions: JDC.
 
 ## Scope
 
@@ -19,9 +19,9 @@
 ## Acceptance evidence
 
 - Focused tests (`pytest tests/integration/test_cards.py`, real SQLite): authorization holds the funds and stores the merchant reference; insufficient funds and a blocked account are refused; a reused movement id is `INVALID_TRANSITION`; clearing at the authorized amount releases the hold and posts one debit; clearing may differ from the authorized amount and may leave the balance negative, and the database reopens ready; reversal and expiry release the hold without posting; a late clearing after reversal posts one debit with no hold; a late clearing is accepted after closure and does not reopen the account; a cleared movement cannot be cleared again or reversed; a full refund posts one credit; a partial refund and a refund before clearing are refused; a caller without the role is refused before any write; a replay returns the stored outcome; a storage fault during clearing rolls back everything.
-- Mutation checks (scratch, exact text): removing the reversal's hold release fails 3 tests; removing the refund amount check fails 1 test.
+- Mutation checks (scratch, exact text): removing the reversal's hold release and removing the refund amount check were each killed by the focused tests at the verified head `0ce8071` (DEC-0038: all four mutants killed). Per-mutant counts are not restated, because they were not tied to a head SHA.
 - Migration `0003`: its statements match `specs/05` s8 exactly; the shipped-migration list includes it.
-- Required gates at the verified head `0ce8071`: local pytest, ruff check and format, mypy `src harness tests scripts`, `validate_governance.py`; `quality-gates` and `validate-governance` on the PR head. Test count at head `b122e10`: 1291 tests collected (`pytest --collect-only`, checked 2026-10-12).
+- Required gates at the verified head `0ce8071`: local pytest, ruff check and format, mypy `src harness tests scripts`, `validate_governance.py`; `quality-gates` and `validate-governance` on the PR head (recorded in DEC-0038). At the current head `32d9678` (which includes PR #48): `pytest --collect-only -q -p no:cacheprovider` collects 1291 tests (2026-10-12). The full pytest run was not executed on the review host; the head-level gates for `32d9678` are not claimed beyond the collection and the checks listed under Completion.
 
 ## Implementation notes
 
@@ -34,25 +34,33 @@
 ## Completion
 
 - Code commit/PR: the exact reviewed branch head and PR are the GitHub record.
-- Commands/checks and results: as recorded at the verified head `0ce8071`, local pytest, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass. Test count at head `b122e10`: 1291 tests collected (`pytest --collect-only`, checked 2026-10-12).
+- Commands/checks and results: as recorded at the verified head `0ce8071` (local pytest, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; see Acceptance evidence). At head `32d9678`: 1291 tests collected (`pytest --collect-only -q -p no:cacheprovider`, 2026-10-12).
 - Review findings/resolution: fresh-context review of the final head `8827002`: no Blocker or Major. Its one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest and ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. Minor findings are under Scheduled items. The committed report is [`docs/evidence/TASK-16-tester-report.md`](../evidence/TASK-16-tester-report.md).
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
-- Next safe action: the JDC decision on the open Verification note (owner JDC, see Verification). The scheduled items are under Scheduled items.
+- Next safe action: an independent Tester pass on the current head `32d9678` naming zero findings; then a new JDC decision on the Verified status (see Status decision). The open decision is under Open decision; the scheduled items are under Scheduled items.
 
-## Verification (2026-10-10, JDC decision, recorded as DEC-0038 in Specs)
+## Status decision (2026-10-12, owner JDC)
 
-- JDC decided TASK-16 is Verified on merged head `0ce8071` (PR #43), on the Tester pass in `docs/evidence/TASK-16-tester-report-2.md` (PR #44). The decision is recorded in the Specs repository as DEC-0038.
-- Change after the verified head: PR #48 (merge `aeb3b2b`) changed `tests/integration/test_cards.py` after `0ce8071`. No Tester pass yet covers that change.
-- Open decision (owner JDC): needs a fresh Tester pass on the current head before the Verified statement can stand. Decision for JDC: keep Verified with this note, or set Implemented until re-verified.
-- The Minors recorded in the TASK-16 reviews stay open and scheduled, except those closed by PRs #41, #47 and #48; they do not block this status. Their open list is under Scheduled items.
-- Resolved by merged Code PR #48 (merge `aeb3b2b`; the PR changed only `tests/integration/test_cards.py`): fingerprint replay and conflict for authorize, clear and refund (`test_a_replayed_authorization_returns_the_stored_outcome_and_a_changed_one_conflicts`, `test_a_replayed_clearing_returns_the_stored_outcome_and_a_changed_one_conflicts`, `test_a_replayed_refund_returns_the_stored_outcome_and_a_changed_one_conflicts`); response balances (`test_response_balances_match_the_database_for_authorize_clear_reverse_and_refund`); full counts in the reused-id test (`test_a_reused_movement_id_is_invalid_transition_and_declared`). Owner: Builder (closed).
-- Blocked on a JDC decision (owner JDC): TASK-21 kept the closed-account card tests that set closure by direct SQL, by design, so the trigger passed without closing this item. Still direct SQL: `test_authorization_on_a_closed_account_is_refused_and_writes_nothing` and related cases in `tests/integration/test_cards.py`. Decide whether direct-SQL closure setup stays the test pattern, or the tests must use the real closure command.
+- Status is Implemented. The Verified statement recorded for `0ce8071` does not cover the current head: PR #48 (merge `aeb3b2b`) changed `tests/integration/test_cards.py` after `0ce8071`, and no Tester pass covers that change.
+- The Specs repository still records TASK-16 as Verified (DEC-0038, and the TASK-16 status cell under DEC-0039). Changing that Specs status needs a new JDC decision; this file does not make it.
+- Restoring Verified needs an independent Tester pass on the head named in the record, with zero Blocker or Major findings, and a new JDC decision.
 
-## Minor closure (Stream B)
+## Open decision (owner JDC)
 
-- The closed-account card refund test derives its expected balance from the setup amounts (funded, authorized and refunded cents) instead of the literal 1000. Test: `test_a_card_refund_is_accepted_on_a_closed_account` in `tests/integration/test_cards.py`; commit `8ed896b`. Owner: Builder (closed).
+- Closed-account card tests: TASK-21 kept the closed-account card tests that set closure by direct SQL, by design, so the trigger passed without closing this item. Still direct SQL: `test_authorization_on_a_closed_account_is_refused_and_writes_nothing` and related cases in `tests/integration/test_cards.py`. DEC-0039 schedules these to TASK-21 (closure) and does not close them. Decide whether direct-SQL closure setup stays the test pattern, or the tests must use the real closure command. Trigger: this JDC decision.
+
+## Earlier Verified record (superseded)
+
+- JDC decided on 2026-10-10 that TASK-16 is Verified on merged head `0ce8071` (PR #43), on the Tester pass in `docs/evidence/TASK-16-tester-report-2.md` (PR #44). Recorded in the Specs repository as DEC-0038.
+- Superseded for the current head by the Status decision above. Kept as history; it is not the current status.
+
+## Resolved items
+
+- Resolved by merged Code PR #48 (merge `aeb3b2b`; the PR changed only `tests/integration/test_cards.py`): fingerprint replay and conflict for authorize, clear and refund (`test_a_replayed_authorization_returns_the_stored_outcome_and_a_changed_one_conflicts`, `test_a_replayed_clearing_returns_the_stored_outcome_and_a_changed_one_conflicts`, `test_a_replayed_refund_returns_the_stored_outcome_and_a_changed_one_conflicts`); response balances (`test_response_balances_match_the_database_for_authorize_clear_reverse_and_refund`); full counts in the reused-id test (`test_a_reused_movement_id_is_invalid_transition_and_declared`). No Tester pass covers this change yet (see Status decision). Owner: Builder (closed).
+- Resolved by merged Code PRs #41 (merge `1458974`, which closed part of the TASK-16 Minors, including card test additions), #47 (merge `e20fafb`, refund, reuse, boundary and rejection Minors) and #48 (above). Specs DEC-0038 says "the Minors of Code PR #41 remain open and scheduled"; that Specs sentence is not changed here and is part of the JDC decision. Owner: Builder (closed).
+- Minor closure (Stream B): the closed-account card refund test derives its expected balance from the setup amounts (funded, authorized and refunded cents) instead of the literal 1000. Test: `test_a_card_refund_is_accepted_on_a_closed_account` in `tests/integration/test_cards.py`; commit `8ed896b`. Owner: Builder (closed).
 
 ## Scheduled items
 
-- Open Minors from the TASK-16 reviews, not closed by PRs #41, #47 or #48: refund from `late_cleared` and over-amount refund (m-3), the `ACCOUNT_CLOSED` branch of `authorize_card` (m-1), zero-side-effect checks on rejected clear and reverse, the authorization boundary, and the restriction test that asserts state only. The m-2 closure-setup point is covered by the JDC decision above. Source: `docs/evidence/TASK-16-tester-report.md` and `docs/evidence/TASK-16-tester-report-2.md`. Owner: Builder. Trigger: TASK-32 (Constitution/Specs conformance and independent review, Draft in `specs/09-delivery-plan.md`).
+- Open Minors from the TASK-16 reviews, not closed by PRs #41, #47 or #48: refund from `late_cleared` and over-amount refund (m-3), the `ACCOUNT_CLOSED` branch of `authorize_card` (m-1), zero-side-effect checks on rejected clear and reverse, the authorization boundary, and the restriction test that asserts state only. The m-2 closure-setup point is covered by the Open decision above. Source: `docs/evidence/TASK-16-tester-report.md` and `docs/evidence/TASK-16-tester-report-2.md`. Owner: Builder. Trigger: TASK-32 (Constitution/Specs conformance and independent review, Draft in `specs/09-delivery-plan.md`).
 - Restriction UPDATEs in `tests/integration/test_cards.py` that do not name their account (the statements that set `outgoing_blocked` without a `WHERE account_id`). Owner: Builder. Trigger: TASK-32 (Constitution/Specs conformance and independent review, Draft in `specs/09-delivery-plan.md`).
