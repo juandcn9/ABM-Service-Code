@@ -67,8 +67,8 @@ jobs:
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           GIT_SSH_COMMAND="ssh -i ~/.ssh/specs_read -o IdentitiesOnly=yes -l git" \
             git clone --quiet github.com:juandcn9/ABM-Service-Specs.git specs-repo
-          git -C specs-repo checkout --quiet --detach 06abe400afa881b8cb52099b8c864e7bec68352d
-          test "$(git -C specs-repo rev-parse HEAD)" = "06abe400afa881b8cb52099b8c864e7bec68352d"
+          git -C specs-repo checkout --quiet --detach b0633079c8126fc648d1a4beff30f27046f8e88e
+          test "$(git -C specs-repo rev-parse HEAD)" = "b0633079c8126fc648d1a4beff30f27046f8e88e"
           rm -f ~/.ssh/specs_read
       - name: Set up the pinned Python
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
