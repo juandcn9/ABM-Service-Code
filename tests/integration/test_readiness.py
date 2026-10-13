@@ -763,6 +763,45 @@ def test_without_a_closure_trace_an_effect_at_or_after_closed_at_is_flagged(
     assert reasons(conn) == [INTEGRITY_FAILED]
 
 
+def test_a_second_trace_row_for_one_entry_does_not_change_the_closure_result(
+    path: pathlib.Path,
+) -> None:
+    """The trace joins may return several rows per entry; a flagged entry stays flagged, once or many."""
+    conn = registered(path)
+    closed_by_command(conn)
+    tamper(
+        conn,
+        ledger_effect(
+            "l-late",
+            "ins-late",
+            "incoming_ach",
+            "settled",
+            "incoming_settlement",
+            "credit",
+        )
+        + [
+            (
+                (
+                    "INSERT INTO idempotency_outcomes (scope, idempotency_key, fingerprint, instruction_id,"
+                    " outcome_class, http_status, response_json, created_at)"
+                    " VALUES ('scope-dup', 'k', ?, 'ins-dup', 'success', 200, '{\"ok\":true}', ?)"
+                ),
+                ("f" * 64, NOW),
+            ),
+            (
+                (
+                    "INSERT INTO audit_trace (instruction_id, account_id, movement_id, ledger_entry_id,"
+                    " movement_state, operation, outcome, caller_id, caller_role, correlation_id, occurred_at)"
+                    " VALUES ('ins-dup', 'acct-1', 'm-late', 'l-late', 'settled', 'post', 'accepted',"
+                    " 'c', 'r', 'corr', ?)"
+                ),
+                (NOW,),
+            ),
+        ],
+    )
+    assert reasons(conn) == [INTEGRITY_FAILED]
+
+
 CLOSER = CallerContext("registrar-1", "account_registrar", "corr-2")
 
 
