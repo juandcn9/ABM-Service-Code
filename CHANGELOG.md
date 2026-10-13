@@ -4,6 +4,7 @@ All notable Code repository changes are recorded here.
 
 ## [Unreleased]
 
+- `TASK-38` CI billing block: records deviation DV-05 (GitHub Actions starts no job; local gates and an attested local CI run stand in, with the Tester reproducing them), rewords the `HANDOVER.md` tag condition to match, and fills the Docker Desktop version and WSL2 facts in the clean-run report. No change under `src/`.
 - `TASK-38` handover record: adds a Draft `docs/handover/HANDOVER.md` (version, evidence, stated limits, conditions before the tag `handover-v0.1`) and corrects the README line that said the container check was not verified locally. No change under `src/`.
 - `TASK-38` Tester pass: records the independent Tester report on `169f373` (`docs/evidence/TASK-38-tester-report-2.md`), states the Tester scope and its limits in the work item, and applies the Tester's Minor runbook fixes (Docker-stopped text, busy-port text, WSL2 wording). No change under `src/`.
 - `TASK-38` clean-run follow-up: the runbook no longer links the private Specs repository (the owner supplies the contract), shows full response bodies in the API examples, states the real Docker-stopped error, and notes the first-call retry. Adds the clean-run record `docs/evidence/TASK-38-tester-report.md`. No change under `src/`.

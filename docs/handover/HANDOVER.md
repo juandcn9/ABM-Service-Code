@@ -34,13 +34,13 @@ Changes after `169f373` are documentation only (the Tester report, the Tester sc
 - Synthetic data only; one service process and one SQLite volume; no production identity or public ingress; no live partner connection. Not production ready.
 - Restart against the intact volume is the only recovery covered. There is no backup, restore, disaster recovery, RPO or RTO claim.
 - The service trusts caller headers from a trusted ingress. Never expose it to untrusted callers or the internet.
-- Not verified by the Tester (see the Tester scope in [`TASK-38.md`](../work-items/TASK-38.md)): the WSL2 backend and the Docker Desktop app version; a cold build, the Docker-stopped case and restart persistence (run by JDC only); Python 3.12.15 on Linux (local runs used 3.12.10 on Windows); `check_container.py` and `smoke_container.py` on the merged revision (they passed in the author's run, not the Tester's).
+- Not verified by the Tester (see the Tester scope in [`TASK-38.md`](../work-items/TASK-38.md)): the WSL2 backend and the Docker Desktop app version (read afterwards from the author's machine, not by the Tester: Docker Desktop 4.95.0, WSL distro `docker-desktop` version 2); a cold build, the Docker-stopped case and restart persistence (run by JDC only); Python 3.12.15 on Linux (local runs used 3.12.10 on Windows); `check_container.py` and `smoke_container.py` on the merged revision (they passed in the author's run, not the Tester's).
 - First request right after `docker run` can be reset for under a few seconds while the service starts. Wait and retry; the runbook says so.
 - The runbook commands are not run by CI on Windows.
 
 ## Conditions before the tag
 
-1. GitHub Actions runs again and is green on the exact commit to be tagged. Until the billing block is fixed, CI has no result for any commit after the merge exception on PR #154.
+1. Green GitHub Actions on the exact commit to be tagged. While deviation DV-05 (`docs/governance/deviations.md`) is open, the accepted substitute is an attested local CI run of that commit (`scripts/ci_local.py`, not written yet) in the pinned Linux container, reproduced by the Tester. This record then states which of the two applies.
 2. `check_container.py` and `smoke_container.py` pass on that commit with a stable Docker engine.
 3. TASK-38 is set to Verified, with the Specs status record updated.
 4. JDC approves the exact commit, and the tag `handover-v0.1` is created on it. This record is then updated with the commit, the CI run and the date.
