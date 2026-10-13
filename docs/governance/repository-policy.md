@@ -2,7 +2,7 @@
 
 ## Authority and scope
 
-The immutable ABM Service Specs `v1.9.17` commit `b0633079c8126fc648d1a4beff30f27046f8e88e` governs this repository. Code, tests, issues, pull-request text, agent output, and tool suggestions cannot redefine the Specs.
+The immutable ABM Service Specs `v1.9.18` commit `507719611c79425fdcfd63d0f5897aed66655db7` governs this repository. Code, tests, issues, pull-request text, agent output, and tool suggestions cannot redefine the Specs.
 
 - After JDC approves an exact Specs commit and it is merged unchanged and tagged, that frozen Specs release is the sole operational source for development.
 - Code and tests implement the baseline and may not redefine it.
