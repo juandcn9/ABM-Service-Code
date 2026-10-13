@@ -32,7 +32,7 @@ To run it locally on Windows with Docker Desktop, follow [`docs/handover/local-w
 
 ## Container demonstration (TASK-27)
 
-The service image is non-root, has a read-only application layer, and writes only to one data volume. The container check runs in CI, on a runner with a container engine (the development workstation has none, so it is not verified locally).
+The service image is non-root, has a read-only application layer, and writes only to one data volume. The container check runs in CI, on a runner with a container engine. It has also been run on a Windows workstation with Docker Desktop (`docs/evidence/TASK-38-tester-report.md`).
 
 ```sh
 docker build -t abm:local .
