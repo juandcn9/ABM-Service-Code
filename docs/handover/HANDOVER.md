@@ -40,7 +40,7 @@ Changes after `169f373` are documentation only (the Tester report, the Tester sc
 
 ## Conditions before the tag
 
-1. Green GitHub Actions on the exact commit to be tagged. While deviation DV-05 (`docs/governance/deviations.md`) is open, the accepted substitute is an attested local CI run of that commit (`scripts/ci_local.py`, not written yet) in the pinned Linux container, reproduced by the Tester. This record then states which of the two applies.
+1. CI evidence on the exact commit to be tagged. GitHub Actions has not run since 2026-10-13 (billing block). JDC accepted the risk of tagging without hosted CI verification; deviation DV-05 (`docs/governance/deviations.md`) records it. The substitute is a local run of the CI gates on that commit (validators, ruff, format, mypy, full pytest, HTTP conformance), plus the container check and smoke check, reproduced by a fresh-context Tester. When GitHub Actions runs again, a green run on `main` closes DV-05.
 2. `check_container.py` and `smoke_container.py` pass on that commit with a stable Docker engine.
 3. TASK-38 is set to Verified, with the Specs status record updated.
 4. JDC approves the exact commit, and the tag `handover-v0.1` is created on it. This record is then updated with the commit, the CI run and the date.

@@ -56,7 +56,7 @@ GitHub Actions did not start any job on this PR's head `cbf6beb`: the annotation
 | container-check | `check_container.py` (focused tests: 66 passed) | PASSED: non-root, read-only app layer, writable data volume, ready, restart |
 | container-check | `smoke_container.py` | PASSED |
 
-Tag `handover-v0.1` still needs green CI on its exact SHA.
+Tag `handover-v0.1` has no hosted CI result; JDC accepted that risk (DV-05), with local gates and a Tester reproduction as the substitute.
 
 ## Not covered
 
