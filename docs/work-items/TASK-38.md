@@ -27,6 +27,15 @@
 - Required broader gates: both validators, ruff check and format, `mypy src harness tests scripts`, full pytest, CI on the exact PR head.
 - Manual (JDC, Windows with Docker Desktop): the runbook run verbatim from a fresh clone, recorded in `docs/evidence/TASK-38-tester-report.md`.
 
+## Tester scope (approved by JDC, 2026-10-13)
+
+The independent Tester verifies, on the merged revision, what a Windows machine with Docker Desktop can show without quitting or reconfiguring it:
+
+- In scope: the runbook sections 1 to 4 and 6 run verbatim from a fresh clone; the failure cases that need no change to Docker Desktop (wrong `ABM_TRUSTED_INGRESS`, port 8000 busy, name in use); persistence across stop, start and container removal; the local gates (ruff, format, mypy, full pytest, both validators); the scope and non-claims review of the TASK-38 diff.
+- Out of scope, so not a pass criterion, and each stated as a limit in the evidence and in `HANDOVER.md`: the WSL2 backend and the Docker Desktop app version (not shown by `docker info`); the Docker-stopped case and persistence across a Docker Desktop restart (need Docker Desktop to be quit; JDC ran them, see `TASK-38-tester-report.md`); a cold no-cache build (JDC ran one); Python 3.12.15 on Linux (local runs use 3.12.10 on Windows); any GitHub Actions result while CI is billing-blocked.
+- Container scripts: `check_container.py` and `smoke_container.py` need a stable Docker engine for several minutes. They passed in the author's local run on the PR #154 head, which differs from the merged revision only by an evidence commit. They stay unverified by the Tester unless run, and the verdict must say so.
+- The verdict is therefore "pass within the stated scope", never an unqualified pass. Tag `handover-v0.1` still needs green CI on its exact SHA.
+
 ## Non-claims
 
 - Synthetic data only; one process and one SQLite volume; no production identity or public ingress; no live partner; no backup, restore, disaster recovery, RPO, or RTO.
@@ -34,5 +43,6 @@
 
 ## Completion
 
-- Code commit/PR: branch `task-38-local-handover`; PR not yet opened.
-- Next safe action: open the Code PR, then the clean Windows run, then the Tester pass.
+- Code commit/PR: PRs #153 and #154 merged (`df14a95`, `169f373`).
+- Clean Windows run by JDC and the Tester pass on `169f373`: recorded in `docs/evidence/TASK-38-tester-report.md` and `TASK-38-tester-report-2.md`.
+- Next safe action: fix GitHub billing and get green CI, write `docs/handover/HANDOVER.md`, set this task to Verified, then tag on JDC's approval.

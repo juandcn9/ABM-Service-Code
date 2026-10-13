@@ -7,7 +7,7 @@ ABM (Account Balances Management Service) is a small HTTP service that keeps acc
 ## 1. Prerequisites
 
 - Windows 10 or 11 with virtualization enabled.
-- Docker Desktop with the WSL2 backend, started. Check from PowerShell:
+- Docker Desktop, started (its default WSL2 backend is expected; the checks below do not depend on it). Check from PowerShell:
 
 ```powershell
 docker --version
@@ -103,8 +103,8 @@ A call without caller context returns HTTP 401. The same instruction with the sa
 
 | Symptom | Cause and fix |
 |---|---|
-| `failed to connect to the docker API ... dockerDesktopLinuxEngine` | Docker Desktop is not running. Start it and wait until it says it is running. Quitting it stops `abm`; run `docker start abm` (the data is kept). |
-| `port is already allocated` | Something uses port 8000. Stop it, or map another host port (`-p 127.0.0.1:8001:8000`) and use that port in the URLs. |
+| `failed to connect to the docker API` | Docker Desktop is not running. Start it and wait until it says it is running. Quitting it stops `abm`; run `docker start abm` (the data is kept). |
+| `port is already allocated`, or `ports are not available ... bind` | Something uses port 8000. Stop it, or map another host port (`-p 127.0.0.1:8001:8000`) and use that port in the URLs. The failed `docker run` leaves a stopped container named `abm`: run `docker rm abm` before trying again. |
 | `The container name "/abm" is already in use` | `docker rm abm`, then run again. |
 | Container exits at start | `docker logs abm` names the invalid `ABM_*` setting. |
 | `/health/ready` returns 503 | Read `reason_codes` in the reply and the logs. |
