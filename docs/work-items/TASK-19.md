@@ -61,3 +61,7 @@
 
 - Tester PASS at exact head `0feb40a`, merged as `5d2cc58` (PR #62; tested tree equals merged tree): `docs/evidence/TASK-19-tester-report.md`. No Blocker, no Major.
 - Scheduled items above stay open: M-1 (TASK-25), closed-account correction cases (TASK-21). M-2 and M-3 are resolved by TASK-23 PR #79.
+
+## Minor closure (Stream B)
+
+- M-1 (explicit null `corrected_entry_reference`): closed. An omitted field is still optional (no entry); an explicit null is `VALIDATION_ERROR`, not stored, with no write. Test: `test_an_explicit_null_corrected_entry_reference_is_a_validation_error_and_writes_nothing` in `tests/integration/test_corrections.py`.

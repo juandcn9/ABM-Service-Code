@@ -68,3 +68,8 @@
 - Remediation of the TASK-20 Tester FAIL on `efd6c55` (untested card clearing under the block). Fix branch head `5c9bfe4` was merged to `main` as `0e8c7a8` (PR #126); the test files on `main` are identical to the tested head.
 - Independent Tester PASS with findings on `5c9bfe4`: Blocker 0, Major 0; the Minor is scheduled above. Report: `docs/evidence/TASK-20-remediation-tester-report.md`.
 - Later commit `e045250` corrects the Specs pin text and the pending wording; no code change.
+
+## Minor closure (Stream B)
+
+- Minor 1 (clear on a closed account, DEC-0042): closed. Test `test_a_clear_is_accepted_on_a_closed_account` in `tests/integration/test_risk_restriction.py` asserts the state and the trace row.
+- Remediation Minor 3 (hold release on clearing and no hold on late clearing): closed in `test_block_permits_clearing_of_authorized_card_movements_and_late_clearing` (`tests/integration/test_risk_restriction.py`). The cleared authorization's hold is `posted` with no active hold; the late clearing creates no hold.

@@ -45,3 +45,8 @@
 - Result: PASS on re-verification of the fix head; the first review's findings (m1, m2, m3, M2, conflict with `main`) are resolved; zero Blocker, zero Major.
 - Scope of "Verified": the domain value objects, typed results, fingerprint encoding, and clock port. `TEST-15`, `TEST-24`, and `TEST-36` are covered only on the domain side; the per-operation fingerprint field sets, the absent-versus-null rule, and field-change tests belong to `TASK-10` onward.
 - Not verified: behavior on glibc locally (CI on Linux is the guard for the year-padding fix); Python 3.12.15 locally.
+
+## Minor closure (Stream B)
+
+- Observation O2 (`Error` test does not list `\x7f` and `\x1f`): closed. `tests/unit/test_results_and_fingerprint.py::test_error_enforces_the_openapi_message_and_retryable_contract` now lists both; the mutant that widens the message pattern to control characters fails it.
+- Observation O3 (absent versus null): closed by `tests/unit/test_results_and_fingerprint.py::test_an_absent_field_and_a_null_field_have_different_fingerprints`; see TASK-10.

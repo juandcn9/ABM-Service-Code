@@ -66,3 +66,9 @@
 - Each new test was checked for non-vacuity by a deliberate break, reverted from a SHA-256-verified copy.
 - Post-merge change from TASK-22 (`finalize(...)` call on the outgoing path): the Tester confirmed it changes no TASK-14 behavior and is covered by the outgoing ACH tests.
 - Residual, recorded as the Tester's Observations: the 409 is checked at code level (`INVALID_TRANSITION`), not as HTTP status (TASK-25); concurrency is covered by TASK-18.
+
+## Minor 5 closure (Stream B)
+
+- Tester Minor 5 (`finalize_hold` does not check the update row count): closed. `SqliteWriteTransaction.finalize_hold` in `src/abm/persistence/sqlite_store.py` checks `cursor.rowcount != 1` and raises `IntegrityError`, so a finalize of a hold that is not active writes nothing.
+- Test: `test_finalizing_a_hold_that_is_not_active_fails_and_writes_nothing` in `tests/integration/test_cards.py`. It finalizes a missing hold and asserts the `INTERNAL_ERROR` storage failure and unchanged counts and balances.
+- Status is unchanged by this note.

@@ -25,8 +25,12 @@ def parse_caller_context(headers: Mapping[str, str]) -> Result[CallerContext]:
     denied = failure("UNAUTHORIZED", "Trusted caller context is missing or malformed.")
     if not isinstance(headers, Mapping):
         return denied
+    try:
+        items = list(headers.items())
+    except Exception:  # noqa: BLE001 - a hostile Mapping may raise anything on iteration
+        return denied
     seen: dict[str, str] = {}
-    for name, value in headers.items():
+    for name, value in items:
         key = name.lower() if type(name) is str else ""
         wanted = key in _REQUIRED or key == _SCOPE
         if wanted and (key in seen or type(value) is not str):

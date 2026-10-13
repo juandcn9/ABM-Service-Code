@@ -306,3 +306,30 @@ def test_other_roles_and_extra_fields_are_refused(tmp_path):
     assert isinstance(extra, Failure)
     assert extra.error.code == "VALIDATION_ERROR"
     assert balance(conn, "acct-a") == 1000
+
+
+def test_an_explicit_null_corrected_entry_reference_is_a_validation_error_and_writes_nothing(
+    tmp_path,
+):
+    conn, uow = setup(tmp_path)
+    before = (ledger_rows(conn), balance(conn, "acct-a"))
+    traces = conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone()
+    result = create_correction(
+        uow,
+        clock(),
+        CORRECTOR,
+        "key-null",
+        "acct-a",
+        body(corrected_entry_reference=None),
+    )
+
+    assert isinstance(result, Failure)
+    assert result.error.code == "VALIDATION_ERROR"
+    assert (ledger_rows(conn), balance(conn, "acct-a")) == before
+    assert conn.execute("SELECT COUNT(*) FROM audit_trace").fetchone() == traces
+    assert conn.execute(
+        "SELECT COUNT(*) FROM movements WHERE movement_id = 'cor-1'"
+    ).fetchone() == (0,)
+    # not stored, so the same key can be used once the field is omitted
+    retry = create_correction(uow, clock(), CORRECTOR, "key-null", "acct-a", body())
+    assert isinstance(retry, Success)

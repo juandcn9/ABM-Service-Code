@@ -410,13 +410,16 @@ def test_a_card_refund_is_accepted_on_a_closed_account(
     uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
 ) -> None:
     # DEC-0030: a card refund is a return under INV-16 and is permitted after closure
-    funded(uow, clock)
-    authorize(uow, clock)
-    assert data_of(step(clear_card, uow, clock, cents=400))["state"] == "cleared"
+    funded_cents, card_cents = 1000, 400
+    funded(uow, clock, cents=funded_cents)
+    authorize(uow, clock, cents=card_cents)
+    cleared = step(clear_card, uow, clock, cents=card_cents)
+    assert data_of(cleared)["state"] == "cleared"
     conn.execute("UPDATE accounts SET status = 'closed', closed_at = ?", (NOW,))
-    refunded = data_of(step(refund_card, uow, clock, ref="ev-f", cents=400))
+    refunded = data_of(step(refund_card, uow, clock, ref="ev-f", cents=card_cents))
     assert refunded["state"] == "refunded"
-    assert balances(conn) == (1000, 0)
+    # the refund returns exactly the clearing debit, so the balance is back to the funded amount
+    assert balances(conn) == (funded_cents, 0)
 
 
 def test_clearing_and_late_clearing_are_not_blocked_by_outgoing_blocked(

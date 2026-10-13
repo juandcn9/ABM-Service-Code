@@ -50,6 +50,19 @@ def restriction_of(conn: sqlite3.Connection, account: str) -> tuple[str, str | N
     ).fetchone()
 
 
+def hold_state(conn: sqlite3.Connection, movement: str) -> str:
+    return conn.execute(
+        "SELECT state FROM holds WHERE movement_id = ?", (movement,)
+    ).fetchone()[0]
+
+
+def active_holds(conn: sqlite3.Connection, account: str) -> int:
+    return conn.execute(
+        "SELECT COALESCE(SUM(amount_cents), 0) FROM holds WHERE account_id = ? AND state = 'active'",
+        (account,),
+    ).fetchone()[0]
+
+
 def balance(conn: sqlite3.Connection, account: str) -> int:
     return conn.execute(
         "SELECT current_balance_cents FROM accounts WHERE account_id = ?", (account,)
@@ -349,6 +362,9 @@ def test_block_permits_clearing_of_authorized_card_movements_and_late_clearing(
         },
     )
     assert isinstance(cleared, Success) and cleared.value.data["state"] == "cleared"
+    # clearing posts the authorization hold in the same transaction: nothing stays active
+    assert hold_state(conn, "mv-auth") == "posted"
+    assert active_holds(conn, "acct-a") == 0
     late = clear_card(
         uow,
         now,
@@ -366,3 +382,36 @@ def test_block_permits_clearing_of_authorized_card_movements_and_late_clearing(
     assert isinstance(late, Success) and late.value.data["state"] == "late_cleared"
     assert balance(conn, "acct-a") == 1000 - 300 - 300
     assert restriction_of(conn, "acct-a") == ("outgoing_blocked", "dec-r1")
+    # late clearing creates no hold: the reversal's released hold is untouched, none is active
+    assert hold_state(conn, "mv-rev") == "released"
+    assert conn.execute("SELECT COUNT(*) FROM holds").fetchone() == (2,)
+    assert active_holds(conn, "acct-a") == 0
+
+
+def test_a_clear_is_accepted_on_a_closed_account(tmp_path):
+    # DEC-0042: set and clear are accepted on an open or closed account, without a status check
+    conn, uow = setup(tmp_path)
+    set_block(uow)
+    conn.execute(
+        "UPDATE accounts SET status = 'closed', closed_at = '2026-10-10T12:00:00Z'"
+        " WHERE account_id = 'acct-a'"
+    )
+    result = set_risk_restriction(
+        uow,
+        clock(),
+        RISK,
+        "key-r2",
+        "acct-a",
+        body(action="clear", decision_reference="dec-r2", instruction_id="ins-r2"),
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.data == {"account_id": "acct-a", "restriction": "none"}
+    assert restriction_of(conn, "acct-a") == ("none", None)
+    assert conn.execute(
+        "SELECT status FROM accounts WHERE account_id = 'acct-a'"
+    ).fetchone() == ("closed",)
+    assert conn.execute(
+        "SELECT instruction_id, external_reference FROM audit_trace"
+        " WHERE operation = 'risk_restriction' AND instruction_id = 'ins-r2'"
+    ).fetchall() == [("ins-r2", "dec-r2")]
