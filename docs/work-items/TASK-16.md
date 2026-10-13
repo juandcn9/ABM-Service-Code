@@ -1,6 +1,6 @@
 # Work item: TASK-16 — card authorization, clearing, reversal, expiry, late clearing, and refund
 
-**Status:** Implemented
+**Status:** Verified
 
 ## Authority
 
@@ -37,13 +37,13 @@
 - Commands/checks and results: as recorded at the verified head `0ce8071` (local pytest, `ruff check`, `ruff format --check`, `mypy src harness tests scripts`, and `validate_governance.py` pass; see Acceptance evidence). At head `b733389`: 1293 tests collected (`pytest --collect-only -q -p no:cacheprovider`, 2026-10-13).
 - Review findings/resolution: fresh-context review of the final head `8827002` found one Major, the missing cross-account test, was closed in `d2670de` and confirmed by a mutant. Targeted Tester re-check of `92dc02f`: PASS, no Blocker or Major (mypy, pytest and ruff all pass). Merged as PR #27 at `ee096fd` on head `8827002`. The committed report is [`docs/evidence/TASK-16-tester-report.md`](../evidence/TASK-16-tester-report.md).
 - Residual risks: no concurrency test (TASK-18); the card path is not exercised over HTTP (TASK-25).
-- Next safe action: an independent Tester pass on the current head naming zero findings; then a new JDC decision on the Verified status (see Status decision). The open decision is under Open decision.
+- Next safe action: JDC decision on the Specs record for TASK-16 (DEC-0038) and on the open decision under Open decision.
 
-## Status decision (2026-10-12, owner JDC)
+## Status decision (2026-10-12, owner JDC; Verified reinstated 2026-10-13)
 
-- Status is Implemented. The Verified statement recorded for `0ce8071` does not cover the current head `b733389`: PR #48 (merge `aeb3b2b`) changed `tests/integration/test_cards.py` after `0ce8071`, and no Tester pass covers that change.
-- The Specs repository still records TASK-16 as Verified (DEC-0038, and the TASK-16 status cell under DEC-0039). Changing that Specs status needs a new JDC decision; this file does not make it.
-- Reinstating Verified needs an independent Tester pass on the head named in the record, with zero Blocker or Major findings, and a new JDC decision.
+- Verified on merged head `e500e70` (PR #142, merge of branch head `2743665`; the merged tree equals the tree the Tester passed). Fresh-context Tester on `2743665`: PASS, Blocker 0, Major 0, Minor 0 (targeted pytest 62 passed, collect 1293, validate_governance, ruff, mypy passed; full suite not run on the review host).
+- The earlier Verified statement for `0ce8071` did not cover PR #48 (merge `aeb3b2b`), which changed `tests/integration/test_cards.py`; this record covers that change.
+- The Specs repository still records TASK-16 as Verified on `0ce8071` (DEC-0038, and the status cell under DEC-0039). Updating that Specs record needs a JDC-approved decision on the exact Specs SHA; this file does not make it.
 
 ## Open decision (owner JDC)
 
