@@ -48,3 +48,7 @@
 - Result: PASS on re-verification of the fix head; the first review's two Major test-evidence findings and three smaller findings are resolved; zero Blocker.
 - Scope of "Verified": parsing of the trusted caller context, the deny-by-default role and account-scope matrix, and the strict transport helpers. `TEST-21` to `TEST-24` stay partly open for HTTP wiring, the deployment-mode trust check, cross-account movement substitution, and the "contradictory context" interpretation (`TASK-23`, `TASK-25`). `RISK-0002` (trusted ingress) is unchanged.
 - Not verified: HTTP-level behavior (no routes exist); Python 3.12.15 locally.
+
+## Minor closure (Stream B)
+
+- Observation O1 (a `Mapping` that raises on iteration propagated): closed. `parse_caller_context` in `src/abm/api/caller_context.py` materializes the items inside a guard and returns `UNAUTHORIZED` on failure. Test: `test_a_mapping_that_raises_on_iteration_is_unauthorized_not_an_exception` in `tests/security/test_caller_and_authorization.py`.

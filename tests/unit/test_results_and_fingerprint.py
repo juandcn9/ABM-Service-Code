@@ -72,6 +72,15 @@ def test_fingerprint_does_not_confuse_types_or_null_with_absent() -> None:
     )
 
 
+def test_an_absent_field_and_a_null_field_have_different_fingerprints() -> None:
+    # the rule in fingerprint(): absent and null differ, so each operation must pass a fixed field set
+    base: dict[str, str | int | None] = {"account_id": "a1", "amount_cents": 500}
+    absent = fingerprint("op", base)
+    null = fingerprint("op", {**base, "corrected_entry_reference": None})
+    assert absent != null
+    assert null == fingerprint("op", {**base, "corrected_entry_reference": None})
+
+
 def test_fingerprint_rejects_values_without_one_canonical_form() -> None:
     for value in (1.5, True, [1], {"k": 1}, b"x", float("nan")):
         with pytest.raises(InvalidValue):
@@ -113,6 +122,8 @@ def test_error_enforces_the_openapi_message_and_retryable_contract() -> None:
         ("café", False),  # not printable ASCII
         ("line\nbreak", False),
         ("tab\t", False),
+        ("del\x7f", False),  # DEL is outside printable ASCII
+        ("unit\x1fsep", False),  # control character below the space
         (None, False),
         (b"bytes", False),
         ("ok", "yes"),  # retryable must be a real boolean

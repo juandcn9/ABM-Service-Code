@@ -348,3 +348,21 @@ def test_a_closed_source_account_takes_no_transfer_and_nothing_is_written(
     closed = transfer(uow, clock, movement="mv-cs", key="kcs", instruction="ins-cs")
     assert isinstance(closed, Failure) and closed.error.code == "ACCOUNT_CLOSED"
     assert (counts(conn), balances(conn)) == before
+
+
+def test_a_currency_mismatched_transfer_is_a_validation_error_and_writes_nothing(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    ready_setup(uow, clock)
+    before = (counts(conn), balances(conn))
+    body = {
+        "instruction_id": "ins-eur",
+        "movement_id": "mv-eur",
+        "source_account_id": "acct-a",
+        "destination_account_id": "acct-b",
+        "amount_cents": 300,
+        "currency": "EUR",
+    }
+    result = internal_transfer(uow, clock, PAYER, "keur", body)
+    assert isinstance(result, Failure) and result.error.code == "VALIDATION_ERROR"
+    assert (counts(conn), balances(conn)) == before

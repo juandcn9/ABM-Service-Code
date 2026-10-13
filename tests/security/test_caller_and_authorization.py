@@ -355,3 +355,20 @@ def test_non_mapping_header_input_is_unauthorized_not_an_exception() -> None:
     for headers in (None, [], [("X-Caller-Id", "a")], "headers", 5):
         result = parse_caller_context(headers)  # type: ignore[arg-type]
         assert isinstance(result, Failure) and result.error.code == "UNAUTHORIZED"
+
+
+def test_a_mapping_that_raises_on_iteration_is_unauthorized_not_an_exception() -> None:
+    from collections.abc import Iterator, Mapping
+
+    class Hostile(Mapping[str, str]):
+        def __getitem__(self, key: str) -> str:
+            raise KeyError(key)
+
+        def __iter__(self) -> Iterator[str]:
+            raise RuntimeError("boom")
+
+        def __len__(self) -> int:
+            return 0
+
+    result = parse_caller_context(Hostile())
+    assert isinstance(result, Failure) and result.error.code == "UNAUTHORIZED"

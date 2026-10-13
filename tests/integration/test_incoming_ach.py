@@ -16,6 +16,11 @@ from abm.application.incoming_ach import (
     return_incoming_ach,
     settle_incoming_ach,
 )
+from abm.application.outgoing_ach import (
+    create_outgoing_ach,
+    settle_outgoing_ach,
+    submit_outgoing_ach,
+)
 from abm.application.registration import register_account
 from abm.domain.results import Failure, Result, Success
 from abm.persistence.migrations import load_migrations
@@ -497,3 +502,68 @@ def test_another_accounts_movement_is_not_found_for_settlement_or_return(
     assert isinstance(wrong_return, Failure)
     assert wrong_return.error.code == "MOVEMENT_NOT_FOUND"
     assert effects() == before
+
+
+def test_a_return_evidence_reference_cannot_be_reused_for_another_movement(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    registered(uow, clock)
+    notice(uow, clock, movement="mv-1")
+    notice(uow, clock, movement="mv-2", key="key-n2", instruction="ins-n2")
+    settle(uow, clock, movement="mv-1", evidence="ev-s1")
+    settle(
+        uow,
+        clock,
+        movement="mv-2",
+        evidence="ev-s2",
+        key="key-s2",
+        instruction="ins-s2",
+    )
+    data_of(give_back(uow, clock, movement="mv-1", evidence="ret-shared"))
+    before = counts(conn)
+    reused = give_back(uow, clock, movement="mv-2", evidence="ret-shared", key="key-r2")
+    assert isinstance(reused, Failure) and reused.error.code == "INVALID_TRANSITION"
+    # only the stored deterministic rejection is added: no evidence, ledger, or balance effect
+    assert counts(conn)[:4] == before[:4] and counts(conn)[4] == before[4] + 1
+    assert balance(conn) == 500
+    assert conn.execute(
+        "SELECT state FROM movements WHERE movement_id = 'mv-2'"
+    ).fetchone() == ("settled",)
+
+
+def test_a_return_of_settled_incoming_ach_may_take_the_balance_negative(
+    uow: SqliteUnitOfWork, conn: sqlite3.Connection, clock: ControllableClock
+) -> None:
+    # INV-10: a return of settled incoming ACH may create a negative balance. The debit that
+    # drives the balance to zero is a settled outgoing ACH, built through the TASK-14 path.
+    registered(uow, clock)
+    notice(uow, clock, amount=1000)
+    settle(uow, clock, evidence="ev-s1")
+    outgoing = {
+        "instruction_id": "ins-out",
+        "movement_id": "mv-out",
+        "amount_cents": 1000,
+        "currency": "USD",
+        "external_reference": "ext-out",
+        "destination_reference": "dest-1",
+    }
+    assert isinstance(
+        create_outgoing_ach(uow, clock, PAYER, "key-out", "acct-1", outgoing), Success
+    )
+    for fn, ref, key in (
+        (submit_outgoing_ach, "ev-sub", "key-sub"),
+        (settle_outgoing_ach, "ev-os", "key-os"),
+    ):
+        step = {"instruction_id": f"ins-{ref}", "evidence_reference": ref}
+        assert isinstance(fn(uow, clock, PAYER, key, "acct-1", "mv-out", step), Success)
+    assert balance(conn) == 0
+
+    returned = data_of(
+        give_back(uow, clock, movement="mv-1", amount=1000, evidence="ev-r1")
+    )
+    assert returned["state"] == "returned"
+    assert balance(conn) == -1000
+    assert conn.execute(
+        "SELECT direction, amount_cents FROM ledger_entries"
+        " WHERE movement_id = 'mv-1' AND effect_kind = 'incoming_return'"
+    ).fetchall() == [("debit", 1000)]

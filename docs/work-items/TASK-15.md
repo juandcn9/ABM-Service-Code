@@ -65,3 +65,7 @@
 ## Status note (Stream A)
 
 - Set to Implemented: the Stream A Minor closure changed this task's code on `18fc4e3`. Verified returns only after an independent Tester pass names the new head and reports zero findings.
+
+## Minor closure (Stream B)
+
+- Minor 4 (currency mismatch not tested for transfers): closed. Test `test_a_currency_mismatched_transfer_is_a_validation_error_and_writes_nothing` in `tests/integration/test_transfers.py`; the mutant that removes `require_usd` fails it. Cards were not added: the Specs list currency mismatch for transfers only.
