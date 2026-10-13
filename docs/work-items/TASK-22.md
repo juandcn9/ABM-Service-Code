@@ -4,7 +4,7 @@
 
 ## Authority
 
-- Specs version and exact SHA: `v1.9.3` / `e72391c0f53d678c6e013cc0f1d9808f730994fa` (the version this item was built against; the current Specs pointer, v1.9.16, is in `README.md`)
+- Specs version and exact SHA: `v1.9.3` / `e72391c0f53d678c6e013cc0f1d9808f730994fa` (the version the core of this item was built against; decisions DEC-0047 (first at v1.9.4) and DEC-0050 (first at v1.9.5) are cited as recorded later; the current Specs pointer, v1.9.16, is in `README.md`)
 - TASK and affected IDs: `TASK-22`; `FR-16`; `INV-12`; `DATA-07`; `DEC-0008`, `DEC-0010`, `DEC-0012`; `BT-08`; `TEST-19` (retention row starts with null timestamps; closure and later final resolution set and advance both; seven-year predicate; legal hold always blocks eligibility), `TEST-37` (legal-hold and retention evaluation are not public HTTP and cannot delete anything), `TEST-45` (legal-hold set and clear accept only `retention_controller` through the non-public port, with record target checks, fingerprint conflict without mutation, exact replay, atomic commit). Governing trace: `specs/08-verification.md` section 9.1 (TASK-22 row) and `specs/09-delivery-plan.md` TASK-22.
 - Owner role: Builder (Claude Code); independent Tester verification of the final head is required.
 - Dependencies: `TASK-21` merged and recorded Implemented (true on `main` at `6653ce1`).
