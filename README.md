@@ -32,7 +32,7 @@ ABM validates the role and account scope supplied by a **trusted caller boundary
 
 For a local run, use the Windows runbook as the operational source of truth. It covers prerequisites, build, start, readiness, logs, restart, reset, configuration, API examples, and troubleshooting.
 
-## Authority and version
+## Authority
 
 - Approved Specs release: `v1.9.18`
 - Exact Specs commit: `507719611c79425fdcfd63d0f5897aed66655db7`
@@ -121,7 +121,7 @@ Implement one dependency-ready Specs TASK at a time. The governing Specs release
 
 Ponytail is development governance tooling for applicable Claude Code work. It is not a runtime dependency, a source of requirements, or a substitute for independent review and testing. See [repository policy](docs/governance/repository-policy.md) and [deviations](docs/governance/deviations.md).
 
-## Limits and non-claims
+## Non-claims
 
 This repository contains a runnable local HTTP service and container reference for synthetic demonstration data only. It makes no claim of:
 
